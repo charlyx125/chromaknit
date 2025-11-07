@@ -45,6 +45,25 @@ python yarn_color_extractor.py
 # 3. Check results/yarn_colors.png for output
 ```
 
+## 📸 Demo
+
+### Input
+![Yarn Photo](docs/images/sample-yarn.jpg)
+*Close-up photo of blue variegated yarn*
+
+### Output
+![Color Extraction Result](docs/images/yarn-colors-result.png)
+*5 dominant colors extracted and ranked by frequency*
+
+**Extracted Colors:**
+| Rank | Color | Hex Code | Percentage |
+|------|-------|----------|------------|
+| 1 | ![#6b9bd1](https://via.placeholder.com/15/6b9bd1/6b9bd1.png) | `#6b9bd1` | 45.18% |
+| 2 | ![#4a7ba9](https://via.placeholder.com/15/4a7ba9/4a7ba9.png) | `#4a7ba9` | 23.19% |
+| 3 | ![#8fb5d8](https://via.placeholder.com/15/8fb5d8/8fb5d8.png) | `#8fb5d8` | 15.46% |
+| 4 | ![#355a7f](https://via.placeholder.com/15/355a7f/355a7f.png) | `#355a7f` | 9.87% |
+| 5 | ![#9ac4e3](https://via.placeholder.com/15/9ac4e3/9ac4e3.png) | `#9ac4e3` | 6.30% |
+
 ---
 
 ## 🧠 How It Works
