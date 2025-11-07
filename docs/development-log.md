@@ -197,7 +197,6 @@ Extracting colors from blue variegated yarn:
 #0c153b (very dark blue) - 18.04%
 #3e64b2 (blue) - 17.32%
 #658ad6 (light blue) - 10.45%
-
 ```
 
 **The impact on garment recoloring:**
@@ -232,7 +231,8 @@ Blue variegated yarn extraction produced:
 3. #0c153b - Very dark blue (18.04%) ⚠️ Could be shadow or actual color
 4. #3e64b2 - Blue (17.32%) ✓ Legitimate yarn color
 5. #658ad6 - Light blue (10.45%) ✓ Legitimate yarn colorr
-(../images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
+
+![Alt text](../images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
 
 **The Core Question:**
 
