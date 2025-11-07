@@ -185,16 +185,21 @@ Extracting colors from blue variegated yarn:
 
 **Without sorting (random order):**
 ```
-#2e5c8a (dark blue) - 15%
-#a8d8ea (light blue) - 45%  ← Most common but listed second!
-#5b9bd5 (medium blue) - 23%
+#0c153b (very dark blue) - 18.04%
+#3e64b2 (blue) - 17.32%
+#658ad6 (light blue) - 10.45%
+#142a68 (dark blue) - 29.21% <- clearly most dominant
+#23438d (medium blue) - 24.98%
 ```
 
 **With sorting (by frequency):**
 ```
-#a8d8ea (light blue) - 45%   ← Clearly the dominant color
-#5b9bd5 (medium blue) - 23%
-#2e5c8a (dark blue) - 15%
+#142a68 (dark blue) - 29.21%   ← Most common color
+#23438d (medium blue) - 24.98%
+#0c153b (very dark blue) - 18.04%
+#3e64b2 (blue) - 17.32%
+#658ad6 (light blue) - 10.45%
+
 ```
 
 **The impact on garment recoloring:**
@@ -224,11 +229,12 @@ When extracting colors from close-up yarn photos, the algorithm picks up dark va
 **Example from testing:**
 
 Blue variegated yarn extraction produced:
-1. `#6b9bd1` - Light blue (45%) ✓ Legitimate yarn color
-2. `#4a7ba9` - Medium blue (23%) ✓ Legitimate yarn color
-3. `#355a7f` - Dark blue (15%) ⚠️ Could be shadow or actual color
-4. `#2e2e2e` - Near-black (10%) ✗ Likely artifact
-5. `#8fb5d8` - Pale blue (7%) ✓ Legitimate yarn color
+#142a68 - Dark blue (29.21%) ✓ Legitimate yarn color
+#23438d - Medium blue (24.98%) ✓ Legitimate yarn color
+#0c153b - Very dark blue (18.04%) ⚠️ Could be shadow or actual color
+#3e64b2 - Blue (17.32%) ✓ Legitimate yarn color
+#658ad6 - Light blue (10.45%) ✓ Legitimate yarn colorr
+(images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
 
 **The Core Question:**
 
