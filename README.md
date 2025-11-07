@@ -58,12 +58,11 @@ python yarn_color_extractor.py
 **Extracted Colors:**
 | Rank | Color | Hex Code | Percentage |
 |------|-------|----------|------------|
-| 1 | ![6b9bd1](https://via.placeholder.com/15/6b9bd1/000000?text=+) | `#6b9bd1` | 45.18% |
-| 2 | ![4a7ba9](https://via.placeholder.com/15/4a7ba9/000000?text=+) | `#4a7ba9` | 23.19% |
-| 3 | ![8fb5d8](https://via.placeholder.com/15/8fb5d8/000000?text=+) | `#8fb5d8` | 15.46% |
-| 4 | ![355a7f](https://via.placeholder.com/15/355a7f/000000?text=+) | `#355a7f` | 9.87% |
-| 5 | ![9ac4e3](https://via.placeholder.com/15/9ac4e3/000000?text=+) | `#9ac4e3` | 6.30% |
-
+| 1 | ![6b9bd1](https://via.placeholder.com/15/6b9bd1/000000.png?text=+) | `#6b9bd1` | 45.18% |
+| 2 | ![4a7ba9](https://via.placeholder.com/15/4a7ba9/000000.png?text=+) | `#4a7ba9` | 23.19% |
+| 3 | ![8fb5d8](https://via.placeholder.com/15/8fb5d8/000000.png?text=+) | `#8fb5d8` | 15.46% |
+| 4 | ![355a7f](https://via.placeholder.com/15/355a7f/000000.png?text=+) | `#355a7f` | 9.87% |
+| 5 | ![9ac4e3](https://via.placeholder.com/15/9ac4e3/000000.png?text=+) | `#9ac4e3` | 6.30% |
 
 ---
 
