@@ -65,12 +65,10 @@ So I was stuck relying on intuition and imagination to predict how three differe
 The proportion problem is real. Look at these examples:
 
 **Black and white in large blocks:** Bold, graphic, balanced  
-⬛⬜⬛⬜  (50% black, 50% white)
-⬜⬛⬜⬛  Big squares, equal amounts
+⬛⬜⬛⬜⬛⬜⬛  Big squares, equal amounts
 
 **Thin Blackstrips on and white:** Clean, classic, mostly white with black accents
-▓▓▓▓▓▓▓▓  (90% white, 10% black)
-▓▓▓▓▓▓▓▓  Thin black lines on white
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   (90% white, 10% black) Thin black lines on white
 
 Same colors, completely different visual impact.
 
@@ -229,12 +227,12 @@ When extracting colors from close-up yarn photos, the algorithm picks up dark va
 **Example from testing:**
 
 Blue variegated yarn extraction produced:
-#142a68 - Dark blue (29.21%) ✓ Legitimate yarn color
-#23438d - Medium blue (24.98%) ✓ Legitimate yarn color
-#0c153b - Very dark blue (18.04%) ⚠️ Could be shadow or actual color
-#3e64b2 - Blue (17.32%) ✓ Legitimate yarn color
-#658ad6 - Light blue (10.45%) ✓ Legitimate yarn colorr
-(images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
+1. #142a68 - Dark blue (29.21%) ✓ Legitimate yarn color
+2. #23438d - Medium blue (24.98%) ✓ Legitimate yarn color
+3. #0c153b - Very dark blue (18.04%) ⚠️ Could be shadow or actual color
+4. #3e64b2 - Blue (17.32%) ✓ Legitimate yarn color
+5. #658ad6 - Light blue (10.45%) ✓ Legitimate yarn colorr
+(../images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
 
 **The Core Question:**
 
