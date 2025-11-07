@@ -56,13 +56,13 @@ python yarn_color_extractor.py
 *5 dominant colors extracted and ranked by frequency*
 
 **Extracted Colors:**
-| Rank | Color | Hex Code | Percentage |
-|------|-------|----------|------------|
-| 1 | ![6b9bd1](https://via.placeholder.com/15/6b9bd1/000000.png?text=+) | `#6b9bd1` | 45.18% |
-| 2 | ![4a7ba9](https://via.placeholder.com/15/4a7ba9/000000.png?text=+) | `#4a7ba9` | 23.19% |
-| 3 | ![8fb5d8](https://via.placeholder.com/15/8fb5d8/000000.png?text=+) | `#8fb5d8` | 15.46% |
-| 4 | ![355a7f](https://via.placeholder.com/15/355a7f/000000.png?text=+) | `#355a7f` | 9.87% |
-| 5 | ![9ac4e3](https://via.placeholder.com/15/9ac4e3/000000.png?text=+) | `#9ac4e3` | 6.30% |
+| Rank | %       | Color | Hex Code |
+|------|---------|-------|----------|
+| 1    | 29.21%  | ![142a68](https://placehold.co/15x15/142a68/000000.png) | `#142a68` |
+| 2    | 24.98%  | ![23438d](https://placehold.co/15x15/23438d/000000.png) | `#23438d` |
+| 3    | 18.04%  | ![0c153b](https://placehold.co/15x15/0c153b/000000.png) | `#0c153b` |
+| 4    | 17.32%  | ![3e64b2](https://placehold.co/15x15/3e64b2/000000.png) | `#3e64b2` |
+| 5    | 10.45%  | ![658ad6](https://placehold.co/15x15/658ad6/000000.png) | `#658ad6` |
 
 ---
 
