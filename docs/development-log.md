@@ -250,7 +250,7 @@ Blue variegated yarn extraction produced:
 4. #3e64b2 - Blue (17.32%) ✓ Legitimate yarn color
 5. #658ad6 - Light blue (10.45%) ✓ Legitimate yarn colorr
 
-![Alt text](../images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
+![Alt text](images/demo-result.jpg)
 
 **The Core Question:**
 

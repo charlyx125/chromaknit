@@ -1,6 +1,6 @@
 # ChromaKnit 🧶
 
-> Visualize yarn colors on garments before buying - because £50 mistakes hurt.
+> Visualize yarn colors on garments before buying (because £80 mistakes hurt!)
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.8+-green.svg)](https://opencv.org/)
@@ -29,40 +29,119 @@ Extracts the 5 most dominant colors from yarn photos using K-means clustering, r
 ---
 
 ## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.10+ (3.11, 3.12, or 3.13 recommended)
+- pip (Python package manager)
+- Git
+
+### Installation
 ```bash
-# Clone and setup
+# Clone the repository
 git clone https://github.com/charlyx125/chromaknit.git
 cd chromaknit
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install opencv-python numpy scikit-learn matplotlib
 
-# Run
-# 1. Add yarn photo to photos/ folder
-# 2. Update IMAGE_PATH in yarn_color_extractor.py
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Upgrade pip (ensures compatibility with all package versions)
+python -m pip install --upgrade pip
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Verify Installation
+```bash
+# Check installed versions (optional)
+pip list | grep -E "opencv-python|numpy|scikit-learn|matplotlib"
+# Windows PowerShell: pip list | findstr "opencv-python numpy scikit-learn matplotlib"
+```
+
+### Try It Now (Using Example Data)
+```bash
+# Run with included example yarn photo
 python yarn_color_extractor.py
 
-# 3. Check results/yarn_colors.png for output
+# Check the result
+open results/yarn_colors.png  # macOS
+# or
+xdg-open results/yarn_colors.png  # Linux
+# or
+start results/yarn_colors.png  # Windows
 ```
+
+**That's it!** The script uses the example photo by default, so you can see results immediately.
+
+### Use Your Own Yarn Photos
+```bash
+# 1. Add your yarn photo to photos/ folder
+cp your-yarn.jpg photos/
+
+# 2. Edit yarn_color_extractor.py (line 198)
+# Change: IMAGE_PATH = "examples/sample-yarn.jpg"
+# To:     IMAGE_PATH = "photos/your-yarn.jpg"
+
+# 3. Run the script
+python yarn_color_extractor.py
+
+# 4. View results
+open results/yarn_colors.png
+```
+---
 
 ## 📸 Demo
 
 ### Input
-![Yarn Photo](images/yarn_input_photos/Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
-*Close-up photo of blue variegated yarn (taken from wool and the gang website)*
+
+![Input Yarn Photo](docs/images/demo-input.jpg)
+_Close-up photo of blue variegated yarn (taken from wool and the gang website)_
 
 ### Output
-![Color Extraction Result](images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
-*5 dominant colors extracted and ranked by frequency*
+
+![Color Extraction Result](docs/images/demo-result.png)
+_5 dominant colors extracted and ranked by frequency_
 
 **Extracted Colors:**
-| Rank | %       | Color | Hex Code |
+| Rank | % | Color | Hex Code |
 |------|---------|-------|----------|
-| 1    | 29.21%  | ![142a68](https://placehold.co/15x15/142a68/000000.png) | `#142a68` |
-| 2    | 24.98%  | ![23438d](https://placehold.co/15x15/23438d/000000.png) | `#23438d` |
-| 3    | 18.04%  | ![0c153b](https://placehold.co/15x15/0c153b/000000.png) | `#0c153b` |
-| 4    | 17.32%  | ![3e64b2](https://placehold.co/15x15/3e64b2/000000.png) | `#3e64b2` |
-| 5    | 10.45%  | ![658ad6](https://placehold.co/15x15/658ad6/000000.png) | `#658ad6` |
+| 1 | 29.21% | ![142a68](https://placehold.co/15x15/142a68/000000.png) | `#142a68` |
+| 2 | 24.98% | ![23438d](https://placehold.co/15x15/23438d/000000.png) | `#23438d` |
+| 3 | 18.04% | ![0c153b](https://placehold.co/15x15/0c153b/000000.png) | `#0c153b` |
+| 4 | 17.32% | ![3e64b2](https://placehold.co/15x15/3e64b2/000000.png) | `#3e64b2` |
+| 5 | 10.45% | ![658ad6](https://placehold.co/15x15/658ad6/000000.png) | `#658ad6` |
+
+---
+
+## 📂 Project Structure
+
+```
+chromaknit/
+├── docs/                          # Project documentation
+│   ├── images/                   # Screenshots for README
+│   ├── decisions/                # Technical decision records
+│   ├── development-log.md        # Development journey
+│   └── findings.md               # Experimental results
+├── examples/                      # Sample yarn photos (try these first!)
+│   └── sample-yarn.jpg
+├── photos/                        # Your yarn photos go here (gitignored)
+│   └── .gitkeep
+├── results/                       # Generated visualizations (gitignored)
+│   └── .gitkeep
+├── yarn_color_extractor.py       # Main script
+├── requirements.txt               # Python dependencies
+├── .gitignore
+└── README.md
+```
+
+**Key folders:**
+
+- **`examples/`** - Sample data you can test with immediately
+- **`photos/`** - Put your own yarn photos here
+- **`results/`** - Script outputs are saved here
+- **`docs/`** - All project documentation
 
 ---
 
@@ -76,7 +155,7 @@ K-means clustering analyzes all pixels in a yarn photo and groups them into 5 co
 
 ## 🤔 Current Challenge
 
-Yarn photos are taken close-up, but garments are viewed from distance - colors optically blend differently at different scales. Should we filter out very dark pixels (likely shadows/artifacts) or keep them for realistic recoloring? Postponing this decision until Phase 2 when we can A/B test both approaches with actual garment results.
+Yarn photos are taken close-up, but garments are viewed from distance (N.B colors optically blend differently at different scales). Should we filter out very dark pixels (likely shadows/artifacts) or keep them for realistic recoloring? Postponing this decision until Phase 2 when we can A/B test both approaches with actual garment results.
 
 **[Read the full analysis →](docs/development-log.md#challenge-1-the-close-up-vs-distance-problem)**
 
@@ -111,21 +190,6 @@ Perfect for understanding how real-world problems drive technical decisions and 
 
 ---
 
-## 📊 Project Structure
-```
-chromaknit/
-├── yarn_color_extractor.py    # Main script
-├── photos/                     # Input images (gitignored)
-├── results/                    # Output visualizations (gitignored)
-├── docs/                       # Project documentation
-│   ├── development-log.md      # Development journey
-│   ├── decisions/              # Technical decision records
-│   └── findings.md             # Experimental results
-└── README.md
-```
-
----
-
 ## 🎓 What I'm Learning
 
 This project helps me develop computer vision fundamentals, clean code architecture, and documentation-driven development practices. The most valuable lesson: not all decisions can be made upfront - sometimes you need to build more, gather data, and iterate. Being comfortable with uncertainty is part of engineering.
@@ -145,7 +209,7 @@ Personal frustration with expensive yarn purchasing mistakes led to this technic
 ## 🌟 Follow Along
 
 - ⭐ **Star** this repo for updates
-- 📖 **Read** the [development log](docs/development-log.md) to see the problem-solving process  
+- 📖 **Read** the [development log](docs/development-log.md) to see the problem-solving process
 - 💬 **Discuss** - Open an issue with questions or ideas
 
 ---
