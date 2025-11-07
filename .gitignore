@@ -1,17 +1,59 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 venv/
+ENV/
 env/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
-*.swp
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+
+# User's personal yarn photos (don't commit)
+photos/*
+
+# Generated results (don't commit)
+results/*
+
+# BUT keep the .gitkeep files
+!photos/.gitkeep
+!results/.gitkeep
+
+# DO commit example and documentation images
+!examples/*.jpg
+!examples/*.jpeg
+!examples/*.png
+!docs/images/*.jpg
+!docs/images/*.jpeg
+!docs/images/*.png
+
+# Node modules (future)
+node_modules/

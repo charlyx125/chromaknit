@@ -221,10 +221,11 @@ def visualize_colors(image_rgb, hex_codes, counts, total_pixels, output_path):
 
 if __name__ == "__main__":
     # Configuration
-    IMAGE = "Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg"
-    IMAGE_PATH = f"images/yarn_input_photos/{IMAGE}"
+    # Default: uses example photo (so anyone can test immediately)
+    # To use your own: copy photo to photos/ folder and update IMAGE_PATH below
+    IMAGE_PATH = "examples/sample-yarn.jpg"
     N_COLORS = 5
-    OUTPUT_PATH = f"images/color_extraction_results/RESULT-{IMAGE}"
+    OUTPUT_PATH = "results/yarn_colors.png"
     
     # Extract colors
     colors = extract_dominant_colors(
@@ -234,6 +235,10 @@ if __name__ == "__main__":
     )
     
     if colors:
-        print("✓ Success! Check the results/ folder for your visualization.")
+        print("\n✓ Success! Check the results/ folder for your visualization.")
+        print("\n💡 To use your own yarn photo:")
+        print("   1. Copy your photo to photos/ folder")
+        print("   2. Update IMAGE_PATH in this script (line 198)")
+        print("   3. Run again: python yarn_color_extractor.py")
     else:
-        print("❌ Extraction failed. Please check the image path.")
+        print("\n❌ Extraction failed. Please check the image path.")
