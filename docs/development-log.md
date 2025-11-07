@@ -1,6 +1,6 @@
 # ChromaKnit Development Log
 
-*Building a computer vision tool to visualize yarn colors before purchase*
+_Building a computer vision tool to visualize yarn colors before purchase_
 
 **Author:** Joyce Chong  
 **Started:** November 2025  
@@ -10,6 +10,7 @@
 ---
 
 ## Table of Contents
+
 1. [Phase 0: The Problem](#phase-0-the-problem)
 2. [Phase 1: Color Extraction](#phase-1-color-extraction)
 3. [Phase 2: Garment Recoloring](#phase-2-garment-recoloring)
@@ -28,11 +29,12 @@ Simple, right? Wrong.
 
 I opened three browser tabs on my phone, each showing a different yarn color zoomed in. My logic: if I could see them all at once, I could visualize how they'd look together.
 
-**Why it failed:** The tabs weren't touching. Black and white margins separated the images. Color theory tells us we never see colors in isolation - they interact with 
-each other through a phenomenon called "simultaneous contrast." 
+**Why it failed:** The tabs weren't touching. Black and white margins separated the images. Color theory tells us we never see colors in isolation - they interact with
+each other through a phenomenon called "simultaneous contrast."
 
-Example: The same grey looks lighter on a black background and darker on a 
+Example: The same grey looks lighter on a black background and darker on a
 white background. The grey hasn't changed - only what surrounds it.
+
 ### Attempt #2: Finding Other Products
 
 I searched for other projects on the website using the same yarns, hoping to see my color combination in context.
@@ -48,6 +50,7 @@ I got technical. I used color picker tools. I even created a mockup in Canva, la
 ### The Final Realization
 
 When I finally saw the colors together after buying the kit, I discovered:
+
 - The lilac looked grey next to the light pink
 - The light pink looked warm compared to the lilac and dark pink
 
@@ -65,16 +68,17 @@ So I was stuck relying on intuition and imagination to predict how three differe
 The proportion problem is real. Look at these examples:
 
 **Black and white in large blocks:** Bold, graphic, balanced  
-⬛⬜⬛⬜⬛⬜⬛  Big squares, equal amounts
+⬛⬜⬛⬜⬛⬜⬛ Big squares, equal amounts
 
 **Thin Blackstrips on and white:** Clean, classic, mostly white with black accents
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   (90% white, 10% black) Thin black lines on white
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ (90% white, 10% black) Thin black lines on white
 
 Same colors, completely different visual impact.
 
 We're familiar with black and white, so we can imagine the difference. But ask me to visualize:
+
 - 60% dusty lilac
-- 30% light pink  
+- 30% light pink
 - 10% purplish-pink
 
 ...in a cardigan with textured cable knit patterns? **Impossible.**
@@ -84,6 +88,7 @@ We're familiar with black and white, so we can imagine the difference. But ask m
 That's why I'm building ChromaKnit - a tool that lets you preview YOUR yarn colors in ANY garment pattern before purchasing.
 
 **How it works:**
+
 - **Input:** A garment photo (in the original colors) + your proposed yarn colors
 - **Process:** Computer vision extracts color proportions and recolors the garment realistically
 - **Output:** A preview showing exactly how your colors will look in that specific pattern
@@ -95,6 +100,7 @@ That's why I'm building ChromaKnit - a tool that lets you preview YOUR yarn colo
 ## Phase 1: Color Extraction
 
 ### Goal
+
 Extract the dominant colors from yarn photos to serve as input for garment recoloring.
 
 The core challenge: Yarn photos contain multiple colors (variegation, texture, shadows). I need to reduce this complexity to 3-5 representative colors that capture what the yarn actually looks like.
@@ -104,6 +110,7 @@ The core challenge: Yarn photos contain multiple colors (variegation, texture, s
 **What I Built:**
 
 A Python script (`yarn_color_extractor.py`) that:
+
 1. Loads yarn image from `photos/` folder
 2. Converts from BGR (OpenCV default) to RGB color space
 3. Reshapes image data for clustering algorithm
@@ -128,6 +135,7 @@ A Python script (`yarn_color_extractor.py`) that:
 **The Problem:** A yarn photo might contain 100,000+ unique pixel colors. I need to reduce this to ~5 representative colors.
 
 **Why K-means:**
+
 1. **Proven for color quantization** - Standard approach in computer vision for reducing color palettes
 2. **Unsupervised learning** - Don't need labeled training data, works on any yarn photo
 3. **Configurable cluster count** - Can easily adjust from 5 to 3 or 7 colors based on yarn type
@@ -135,6 +143,7 @@ A Python script (`yarn_color_extractor.py`) that:
 5. **Available in scikit-learn** - Mature, well-documented implementation
 
 **Alternatives I considered:**
+
 - **Mean-shift clustering** - Too slow, harder to control number of colors
 - **Manual color binning** - Would require threshold tuning for each yarn type
 - **Median cut algorithm** - Good for palette reduction but less flexible than K-means
@@ -148,15 +157,18 @@ A Python script (`yarn_color_extractor.py`) that:
 **The Reasoning:**
 
 Based on observation of yarn types:
+
 - **Solid yarns:** Usually 1-2 colors (base color + slight variation from lighting/texture)
 - **Variegated yarns:** Typically 3-5 distinct color sections
 - **Speckled/tweed yarns:** Could have 5+ colors but usually 2-3 dominant ones
 
 **Why not fewer?**
+
 - 3 colors might miss subtle color variations in complex variegated yarns
 - Missing colors could affect the final garment visualization
 
 **Why not more?**
+
 - 7-10 colors would include too many artifacts (shadows, background bleed)
 - More colors make it harder for users to understand which are "real" yarn colors
 - Increases computational time
@@ -166,6 +178,7 @@ Based on observation of yarn types:
 **Trade-off I'm accepting:** Some very simple solid-color yarns might have 2-3 "duplicate" shades extracted. This is okay - it shows color variation under different lighting, which could actually be useful.
 
 ---
+
 #### Why Sort by Frequency?
 
 **The Problem:** K-means returns cluster centers (colors) in arbitrary order. Without sorting, the extracted colors are random each time.
@@ -182,6 +195,7 @@ Based on observation of yarn types:
 Extracting colors from blue variegated yarn:
 
 **Without sorting (random order):**
+
 ```
 #0c153b (very dark blue) - 18.04%
 #3e64b2 (blue) - 17.32%
@@ -191,6 +205,7 @@ Extracting colors from blue variegated yarn:
 ```
 
 **With sorting (by frequency):**
+
 ```
 #142a68 (dark blue) - 29.21%   ← Most common color
 #23438d (medium blue) - 24.98%
@@ -202,6 +217,7 @@ Extracting colors from blue variegated yarn:
 **The impact on garment recoloring:**
 
 When I eventually recolor garments, I'll likely map:
+
 - Garment's primary color → Yarn color #1 (most dominant)
 - Garment's accent colors → Yarn colors #2, #3, etc.
 
@@ -218,6 +234,7 @@ Without frequency sorting, this mapping would be nonsensical.
 **The Issue:**
 
 When extracting colors from close-up yarn photos, the algorithm picks up dark values (#1a1a1a, #2e2e2e) that don't represent the actual yarn color. These come from:
+
 - Shadows between knots in the yarn texture
 - Gaps in the yarn structure
 - Lighting artifacts
@@ -226,6 +243,7 @@ When extracting colors from close-up yarn photos, the algorithm picks up dark va
 **Example from testing:**
 
 Blue variegated yarn extraction produced:
+
 1. #142a68 - Dark blue (29.21%) ✓ Legitimate yarn color
 2. #23438d - Medium blue (24.98%) ✓ Legitimate yarn color
 3. #0c153b - Very dark blue (18.04%) ⚠️ Could be shadow or actual color
@@ -239,11 +257,13 @@ Blue variegated yarn extraction produced:
 Should I filter out very dark colors, or could they be needed for realistic garment recoloring?
 
 **Arguments for filtering:**
+
 - Shadows in yarn photos don't represent how the yarn looks when knitted from a distance
 - Dark artifacts could make recolored garments look muddy
 - Human perception: colors blend together when viewed from 3 feet away vs. 3 inches (optical color mixing)
 
 **Arguments against filtering:**
+
 - Garment photos have their own shading/texture - we might need to preserve dark tones
 - Intentionally dark yarns (navy, charcoal) would be incorrectly filtered out
 - Ombre or gradient yarns legitimately transition to dark values
@@ -251,6 +271,7 @@ Should I filter out very dark colors, or could they be needed for realistic garm
 **Hypothesis I'm Exploring:**
 
 The shading in a garment photo comes from how light hits the fabric, NOT from the yarn's intrinsic color. Therefore:
+
 - Garment already has shadows and texture baked in
 - We only need the "true" yarn colors
 - Dark artifacts from close-up photos should be filtered
@@ -260,15 +281,18 @@ The shading in a garment photo comes from how light hits the fabric, NOT from th
 **Current Decision: Postpone filtering until Phase 2**
 
 **Reasoning:**
+
 1. I don't have enough data yet - need to see how colors actually look when applied to garments
 2. Better to keep all information now and filter later if needed (vs. removing data prematurely)
 3. Can A/B test: recolor same garment with filtered vs. unfiltered colors, visually compare results
 4. Might make filtering user-configurable rather than automatic
 
 **Related Documentation:**
+
 - **[Decision Record 001: Color Filtering Strategy](decisions/001-color-filtering-strategy.md)** - Full analysis of filtering options, testing plan, and consequences
 
 **Next Steps:**
+
 - Test color extraction on multiple yarn types (solid, variegated, ombre, speckled)
 - In Phase 2, implement both filtered and unfiltered approaches
 - A/B test with real garment recoloring
@@ -291,15 +315,18 @@ Not all technical decisions can be made upfront. Sometimes you need to build mor
 Current implementation extracts colors from the entire image, including background, hands, surfaces, etc. This pollutes the color palette with non-yarn colors.
 
 **Example impact:**
+
 - Yarn on wooden table → brown pixels extracted as "yarn color"
 - Hand holding yarn → skin tone pixels in palette
 - Shadow from lighting → grey pixels counted as dominant
 
 **Demonstration:**
 
+{TODO - find another pic with wooden table}
 Same yarn, different photo contexts:
 
 **Clean product photo:**
+
 ```
 1. #6b9bd1 (45%) ← Actual yarn
 2. #4a7ba9 (23%) ← Actual yarn
@@ -309,6 +336,7 @@ Same yarn, different photo contexts:
 ```
 
 **Photo with wooden table background:**
+
 ```
 1. #8B7355 (32%) ← Wooden table!
 2. #6b9bd1 (28%) ← Actual yarn
@@ -326,11 +354,13 @@ Phase 1 focus is on the color extraction algorithm itself. I can manually crop i
 Use Rembg library for automatic background removal. If quality is insufficient, add manual selection UI as fallback.
 
 **Related Documentation:**
+
 - **[Decision Record 002: Background Removal Strategy](decisions/002-background-removal.md)** - Full analysis of removal options, implementation plan, and testing strategy
 
 **Current Workaround:**
 
 For Phase 1 testing, I'm using photos with:
+
 - Plain backgrounds (white or neutral)
 - Yarn filling most of the frame
 - Manual pre-cropping when needed
@@ -338,6 +368,7 @@ For Phase 1 testing, I'm using photos with:
 **What This Teaches Me:**
 
 It's okay to have known limitations in an MVP. The key is to:
+
 1. Document them clearly
 2. Have a plan to address them
 3. Don't let them block core functionality
@@ -348,6 +379,7 @@ It's okay to have known limitations in an MVP. The key is to:
 ### Testing & Results
 
 **Test 1: Blue Variegated Yarn**
+
 - **File:** `Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg`
 - **Type:** Variegated (multiple blue tones)
 - **Colors extracted:** 5 colors ranging from light to dark blue
@@ -355,15 +387,17 @@ It's okay to have known limitations in an MVP. The key is to:
 - **Conclusion:** Algorithm works as intended, but Challenge #1 (artifact filtering) confirmed
 
 **Success Criteria:**
+
 - ✅ Correctly identified 4-5 legitimate yarn colors
 - ✅ Colors sorted by frequency (most dominant first)
 - ✅ Hex codes generated accurately
 - ✅ Visualization clearly shows extracted palette
 - ⚠️ One artifact color detected (expected, will address in Phase 2)
 
-**Test 2-N:** *(To be added as I test more yarn types)*
+**Test 2-N:** _(To be added as I test more yarn types)_
 
 Planned test yarns:
+
 - Solid color yarn (simple case)
 - Ombre/gradient yarn (intentionally dark transitions)
 - Speckled yarn (many small color variations)
@@ -373,19 +407,21 @@ Planned test yarns:
 
 ## Phase 2: Garment Recoloring
 
-*Coming soon (Target: December 2025)*
+_Coming soon (Target: December 2025)_
 
 ### Planned Approach
 
 **Goal:** Take a catalog garment photo and recolor it with the user's yarn colors while preserving texture, shading, and proportions.
 
 **Technical Challenges to Solve:**
+
 1. **Segmentation** - Isolate garment from background/model
 2. **Color mapping** - Map garment's original colors to new colors
 3. **Preserve texture** - Keep knit texture, don't create flat color blocks
 4. **Maintain realism** - Shadows and highlights should remain natural
 
 **Potential Approaches:**
+
 - **Option A:** HSV color transfer (simpler, faster)
 - **Option B:** Segment Anything Model (SAM) + advanced recoloring (higher quality)
 - **Option C:** Hybrid approach
@@ -393,6 +429,7 @@ Planned test yarns:
 **Decision pending:** Need to research and prototype both approaches.
 
 **This is where Challenge #1 gets resolved:**
+
 - Test garment recoloring with filtered colors
 - Test garment recoloring with unfiltered colors
 - Visual comparison to determine which looks more realistic
@@ -403,40 +440,47 @@ Planned test yarns:
 ## Lessons Learned
 
 ### Technical Insights
+
 - K-means is surprisingly effective for color quantization
 - Sorting by frequency is essential - raw cluster order is meaningless
 - Some decisions can't be made until you build more (the dark color filtering question)
 - Optical color mixing at distance is a real perceptual phenomenon that affects yarn visualization
 
-### Process Insights  
+### Process Insights
+
 - Documentation is easier when done concurrently with building (not after the fact)
 - Explaining "why" is as important as documenting "what"
 - Real-world problem experience drives better technical decisions
 - It's okay to postpone decisions when you don't have enough data
 
 ### What Surprised Me
+
 - How much yarn photography inconsistency affects color perception
 - The complexity hidden in "simple" color visualization problems
 - How proportion changes completely alter color interaction (the black/white stripe example)
 - That sometimes the best decision is to explicitly NOT decide yet
 
 ### What I'd Do Differently
-*(To be filled as project progresses)*
+
+_(To be filled as project progresses)_
 
 ---
 
 ## References
 
 ### Technical Resources
+
 - [K-means clustering documentation](https://scikit-learn.org/stable/modules/clustering.html#k-means)
 - Color theory: Simultaneous contrast and optical color mixing
 - Computer vision: Color space conversions (RGB, HSV, LAB)
 
 ### Inspiration
+
 - [Wool and the Gang - Eilda Cardigan](https://www.woolandthegang.com/) - The pattern that sparked this project
 - Personal frustration with online yarn shopping
 
 ### Related Work
+
 - Color palette generators (Coolors, Adobe Color)
 - Virtual try-on tools in fashion industry
 - Image recoloring research in computer vision
