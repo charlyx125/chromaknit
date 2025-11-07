@@ -168,7 +168,6 @@ Based on observation of yarn types:
 **Trade-off I'm accepting:** Some very simple solid-color yarns might have 2-3 "duplicate" shades extracted. This is okay - it shows color variation under different lighting, which could actually be useful.
 
 ---
-
 #### Why Sort by Frequency?
 
 **The Problem:** K-means returns cluster centers (colors) in arbitrary order. Without sorting, the extracted colors are random each time.
@@ -185,3 +184,259 @@ Based on observation of yarn types:
 Extracting colors from blue variegated yarn:
 
 **Without sorting (random order):**
+```
+#2e5c8a (dark blue) - 15%
+#a8d8ea (light blue) - 45%  ← Most common but listed second!
+#5b9bd5 (medium blue) - 23%
+```
+
+**With sorting (by frequency):**
+```
+#a8d8ea (light blue) - 45%   ← Clearly the dominant color
+#5b9bd5 (medium blue) - 23%
+#2e5c8a (dark blue) - 15%
+```
+
+**The impact on garment recoloring:**
+
+When I eventually recolor garments, I'll likely map:
+- Garment's primary color → Yarn color #1 (most dominant)
+- Garment's accent colors → Yarn colors #2, #3, etc.
+
+Without frequency sorting, this mapping would be nonsensical.
+
+---
+
+### Challenges Encountered
+
+#### Challenge #1: The Close-Up vs. Distance Problem
+
+**Date:** November 7, 2025
+
+**The Issue:**
+
+When extracting colors from close-up yarn photos, the algorithm picks up dark values (#1a1a1a, #2e2e2e) that don't represent the actual yarn color. These come from:
+- Shadows between knots in the yarn texture
+- Gaps in the yarn structure
+- Lighting artifacts
+- Background bleed if yarn isn't properly isolated
+
+**Example from testing:**
+
+Blue variegated yarn extraction produced:
+1. `#6b9bd1` - Light blue (45%) ✓ Legitimate yarn color
+2. `#4a7ba9` - Medium blue (23%) ✓ Legitimate yarn color
+3. `#355a7f` - Dark blue (15%) ⚠️ Could be shadow or actual color
+4. `#2e2e2e` - Near-black (10%) ✗ Likely artifact
+5. `#8fb5d8` - Pale blue (7%) ✓ Legitimate yarn color
+
+**The Core Question:**
+
+Should I filter out very dark colors, or could they be needed for realistic garment recoloring?
+
+**Arguments for filtering:**
+- Shadows in yarn photos don't represent how the yarn looks when knitted from a distance
+- Dark artifacts could make recolored garments look muddy
+- Human perception: colors blend together when viewed from 3 feet away vs. 3 inches (optical color mixing)
+
+**Arguments against filtering:**
+- Garment photos have their own shading/texture - we might need to preserve dark tones
+- Intentionally dark yarns (navy, charcoal) would be incorrectly filtered out
+- Ombre or gradient yarns legitimately transition to dark values
+
+**Hypothesis I'm Exploring:**
+
+The shading in a garment photo comes from how light hits the fabric, NOT from the yarn's intrinsic color. Therefore:
+- Garment already has shadows and texture baked in
+- We only need the "true" yarn colors
+- Dark artifacts from close-up photos should be filtered
+
+**BUT** - I don't know if this hypothesis is correct until I implement garment recoloring and test both approaches.
+
+**Current Decision: Postpone filtering until Phase 2**
+
+**Reasoning:**
+1. I don't have enough data yet - need to see how colors actually look when applied to garments
+2. Better to keep all information now and filter later if needed (vs. removing data prematurely)
+3. Can A/B test: recolor same garment with filtered vs. unfiltered colors, visually compare results
+4. Might make filtering user-configurable rather than automatic
+
+**Related Documentation:**
+- **[Decision Record 001: Color Filtering Strategy](decisions/001-color-filtering-strategy.md)** - Full analysis of filtering options, testing plan, and consequences
+
+**Next Steps:**
+- Test color extraction on multiple yarn types (solid, variegated, ombre, speckled)
+- In Phase 2, implement both filtered and unfiltered approaches
+- A/B test with real garment recoloring
+- Make data-driven decision based on visual results
+
+**What This Teaches Me:**
+
+Not all technical decisions can be made upfront. Sometimes you need to build more to gather data. This is okay - it's better to acknowledge uncertainty than to prematurely optimize based on assumptions.
+
+---
+
+#### Challenge #2: Background Removal
+
+**Date:** November 7, 2025
+
+**Status:** Identified but not yet addressed
+
+**The Issue:**
+
+Current implementation extracts colors from the entire image, including background, hands, surfaces, etc. This pollutes the color palette with non-yarn colors.
+
+**Example impact:**
+- Yarn on wooden table → brown pixels extracted as "yarn color"
+- Hand holding yarn → skin tone pixels in palette
+- Shadow from lighting → grey pixels counted as dominant
+
+**Demonstration:**
+
+Same yarn, different photo contexts:
+
+**Clean product photo:**
+```
+1. #6b9bd1 (45%) ← Actual yarn
+2. #4a7ba9 (23%) ← Actual yarn
+3. #8fb5d8 (15%) ← Actual yarn
+4. #355a7f (10%) ← Actual yarn
+5. #9ac4e3 (7%)  ← Actual yarn
+```
+
+**Photo with wooden table background:**
+```
+1. #8B7355 (32%) ← Wooden table!
+2. #6b9bd1 (28%) ← Actual yarn
+3. #4a7ba9 (18%) ← Actual yarn
+4. #2e2e2e (12%) ← Shadow
+5. #FFC9A8 (10%) ← Hand/skin tone
+```
+
+**Why I'm Not Solving This Yet:**
+
+Phase 1 focus is on the color extraction algorithm itself. I can manually crop images as a workaround for now. Proper background removal will be implemented in Phase 1.5 (after color extraction works, before garment recoloring).
+
+**Planned Solution:**
+
+Use Rembg library for automatic background removal. If quality is insufficient, add manual selection UI as fallback.
+
+**Related Documentation:**
+- **[Decision Record 002: Background Removal Strategy](decisions/002-background-removal.md)** - Full analysis of removal options, implementation plan, and testing strategy
+
+**Current Workaround:**
+
+For Phase 1 testing, I'm using photos with:
+- Plain backgrounds (white or neutral)
+- Yarn filling most of the frame
+- Manual pre-cropping when needed
+
+**What This Teaches Me:**
+
+It's okay to have known limitations in an MVP. The key is to:
+1. Document them clearly
+2. Have a plan to address them
+3. Don't let them block core functionality
+4. Prioritize based on impact
+
+---
+
+### Testing & Results
+
+**Test 1: Blue Variegated Yarn**
+- **File:** `Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg`
+- **Type:** Variegated (multiple blue tones)
+- **Colors extracted:** 5 colors ranging from light to dark blue
+- **Observation:** One very dark color appears to be a shadow artifact
+- **Conclusion:** Algorithm works as intended, but Challenge #1 (artifact filtering) confirmed
+
+**Success Criteria:**
+- ✅ Correctly identified 4-5 legitimate yarn colors
+- ✅ Colors sorted by frequency (most dominant first)
+- ✅ Hex codes generated accurately
+- ✅ Visualization clearly shows extracted palette
+- ⚠️ One artifact color detected (expected, will address in Phase 2)
+
+**Test 2-N:** *(To be added as I test more yarn types)*
+
+Planned test yarns:
+- Solid color yarn (simple case)
+- Ombre/gradient yarn (intentionally dark transitions)
+- Speckled yarn (many small color variations)
+- High-contrast yarn (e.g., black and white)
+
+---
+
+## Phase 2: Garment Recoloring
+
+*Coming soon (Target: December 2025)*
+
+### Planned Approach
+
+**Goal:** Take a catalog garment photo and recolor it with the user's yarn colors while preserving texture, shading, and proportions.
+
+**Technical Challenges to Solve:**
+1. **Segmentation** - Isolate garment from background/model
+2. **Color mapping** - Map garment's original colors to new colors
+3. **Preserve texture** - Keep knit texture, don't create flat color blocks
+4. **Maintain realism** - Shadows and highlights should remain natural
+
+**Potential Approaches:**
+- **Option A:** HSV color transfer (simpler, faster)
+- **Option B:** Segment Anything Model (SAM) + advanced recoloring (higher quality)
+- **Option C:** Hybrid approach
+
+**Decision pending:** Need to research and prototype both approaches.
+
+**This is where Challenge #1 gets resolved:**
+- Test garment recoloring with filtered colors
+- Test garment recoloring with unfiltered colors
+- Visual comparison to determine which looks more realistic
+- Make data-driven decision
+
+---
+
+## Lessons Learned
+
+### Technical Insights
+- K-means is surprisingly effective for color quantization
+- Sorting by frequency is essential - raw cluster order is meaningless
+- Some decisions can't be made until you build more (the dark color filtering question)
+- Optical color mixing at distance is a real perceptual phenomenon that affects yarn visualization
+
+### Process Insights  
+- Documentation is easier when done concurrently with building (not after the fact)
+- Explaining "why" is as important as documenting "what"
+- Real-world problem experience drives better technical decisions
+- It's okay to postpone decisions when you don't have enough data
+
+### What Surprised Me
+- How much yarn photography inconsistency affects color perception
+- The complexity hidden in "simple" color visualization problems
+- How proportion changes completely alter color interaction (the black/white stripe example)
+- That sometimes the best decision is to explicitly NOT decide yet
+
+### What I'd Do Differently
+*(To be filled as project progresses)*
+
+---
+
+## References
+
+### Technical Resources
+- [K-means clustering documentation](https://scikit-learn.org/stable/modules/clustering.html#k-means)
+- Color theory: Simultaneous contrast and optical color mixing
+- Computer vision: Color space conversions (RGB, HSV, LAB)
+
+### Inspiration
+- [Wool and the Gang - Eilda Cardigan](https://www.woolandthegang.com/) - The pattern that sparked this project
+- Personal frustration with online yarn shopping
+
+### Related Work
+- Color palette generators (Coolors, Adobe Color)
+- Virtual try-on tools in fashion industry
+- Image recoloring research in computer vision
+
+---
+
+**Last Updated:** November 7, 2025
