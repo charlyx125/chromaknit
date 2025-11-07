@@ -162,6 +162,9 @@ def visualize_colors(image_rgb, hex_codes, counts, total_pixels, output_path):
     """
     Create a side-by-side visualization of the image and extracted colors.
     
+    The visualization uses overlapping axes so the color palette appears
+    to "touch" the yarn image, creating a cohesive design.
+    
     Args:
         image_rgb (numpy.ndarray): Original image in RGB
         hex_codes (list): List of hex color codes
@@ -169,19 +172,26 @@ def visualize_colors(image_rgb, hex_codes, counts, total_pixels, output_path):
         total_pixels (int): Total number of pixels
         output_path (str): Where to save the figure
     """
+    # Create figure
     fig = plt.figure(figsize=(12, 6))
     
-    # Image on the left
-    ax1 = plt.subplot(1, 2, 1)
+    # Create overlapping axes
+    # ax1: Image takes 68% width, starting at 5% from left
+    ax1 = plt.axes([0.05, 0.1, 0.68, 0.8])
+    
+    # ax2: Colors start at 55% (overlaps with image by ~13%)
+    ax2 = plt.axes([0.50, 0.1, 0.50, 0.8])
+    
+    # Display yarn image on the left
     ax1.imshow(image_rgb)
-    ax1.set_title('Original Yarn Image', fontsize=14, fontweight='bold')
+    ax1.set_title('Original Yarn Image', fontsize=14, fontweight='bold', pad=10)
     ax1.axis('off')
     
-    # Color palette on the right
-    ax2 = plt.subplot(1, 2, 2)
-    
+    # Display color palette on the right
     for i, (hex_code, count) in enumerate(zip(hex_codes, counts)):
         percentage = (count / total_pixels) * 100
+        
+        # Draw colored rectangle
         ax2.add_patch(plt.Rectangle((0, i), 1, 1, color=hex_code))
         
         # Add text with color code and percentage
@@ -190,15 +200,19 @@ def visualize_colors(image_rgb, hex_codes, counts, total_pixels, output_path):
                 fontsize=11, color='white', weight='bold',
                 bbox=dict(boxstyle='round', facecolor='black', alpha=0.3))
     
+    # Configure color palette axis
     ax2.set_xlim(0, 1)
     ax2.set_ylim(0, len(hex_codes))
-    ax2.set_title('Extracted Colors\n(sorted by frequency)', fontsize=14, fontweight='bold')
+    ax2.set_title('Extracted Colors\n(sorted by frequency)', 
+                  fontsize=14, fontweight='bold', pad=10)
     ax2.axis('off')
     ax2.invert_yaxis()  # Most common color at top
     
-    plt.tight_layout()
+    # Save with high resolution
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
+    
+    print(f"✓ Saved visualization with overlapping layout")
 
 
 # ============================================================================
@@ -207,9 +221,10 @@ def visualize_colors(image_rgb, hex_codes, counts, total_pixels, output_path):
 
 if __name__ == "__main__":
     # Configuration
-    IMAGE_PATH = "photos/Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg"
+    IMAGE = "Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg"
+    IMAGE_PATH = f"images/yarn_input_photos/{IMAGE}"
     N_COLORS = 5
-    OUTPUT_PATH = "results/yarn_colors.png"
+    OUTPUT_PATH = f"images/color_extraction_results/RESULT-{IMAGE}"
     
     # Extract colors
     colors = extract_dominant_colors(

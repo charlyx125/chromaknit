@@ -7,14 +7,6 @@ __pycache__/
 venv/
 env/
 
-# Results (we'll commit code, not outputs)
-results/*.png
-results/*.jpg
-
-# Keep the folders but not the contents
-!results/.gitkeep
-!photos/.gitkeep
-
 # OS
 .DS_Store
 Thumbs.db
