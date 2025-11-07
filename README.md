@@ -1,141 +1,134 @@
 # ChromaKnit 🧶
 
-Extract dominant colors from yarn photos to visualize how they'd look on garments.
+> Visualize yarn colors on garments before buying - because £50 mistakes hurt.
 
-## 🎯 Current Status: Phase 1 - Color Extraction
-
-**What it does:**
-- Extracts the 5 most dominant colors from yarn photos using K-means clustering
-- Ranks colors by frequency (most common first)
-- Outputs hex codes and a visual color palette
-
-## 🚀 Quick Start
-
-### Setup
-```bash
-# Clone the repo
-git clone https://github.com/charlyx125/chromaknit.git
-cd chromaknit
-
-(optional) Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install opencv-python numpy scikit-learn matplotlib
-```
-
-### Usage
-```bash
-# 1. Add your yarn photo to the photos/ folder
-cp your_yarn.jpg photos/
-
-# 2. Run the extractor (edit image filename in the script)
-python yarn_extractor.py
-
-# 3. Check results/ for the output visualization
-```
-
-## 📸 Example
-
-**Input:** Close-up photo of multicolored yarn
-**Output:** 5 dominant colors ranked by frequency with hex codes
-```
-Cluster | Pixel Count | Percentage | Hex Code
-------------------------------------------------------------
-   2    |    456,789  |  45.20%   | #6b9bd1
-   0    |    234,567  |  23.18%   | #4a7ba9
-   4    |    156,432  |  15.47%   | #8fb5d8
-   ...
-```
-
-## 🧠 Key Technical Decisions
-
-### Color Extraction Algorithm
-- **K-means clustering** (n_clusters=5)
-- Operates in RGB color space
-- Sorts results by pixel frequency (most dominant first)
-
-### Why 5 colors?
-Based on typical yarn compositions:
-- Variegated yarns usually have 3-5 distinct colors
-- 5 clusters balance detail vs. noise
-- Can be adjusted later based on yarn type
-
-## 🤔 Known Challenges & Next Steps
-
-### Challenge 1: Close-up vs. Distance Color Perception
-**Problem:** Yarn photos are close-up, but knitted garments are viewed from a distance. Colors that appear distinct up close (e.g., dark shadows between knots) blend together visually when knitted.
-
-**Current Impact:**
-- Dark artifact colors (shadows, gaps) are extracted as "dominant"
-- These don't represent the actual yarn color in the final garment
-
-**Proposed Solutions:**
-1. **HSV Filtering** (Next step)
-   - Filter out very dark colors (V < 30% in HSV)
-   - Filter out very desaturated colors (S < 20%)
-   - These are likely lighting artifacts, not yarn colors
-
-2. **Brightness Threshold**
-   - Ignore pixels below a certain brightness
-   - Focuses on the actual yarn fibers, not gaps
-
-3. **User Selection** (Future)
-   - Show all 5 colors, let user deselect unwanted ones
-   - UI: Click to toggle colors on/off
-
-### Challenge 2: Background Removal
-**Problem:** Non-yarn pixels (background, hands, surfaces) affect color extraction.
-
-**Solution (Future):** 
-- Manual crop before extraction
-- Or: Background segmentation (Rembg)
-
-## 📚 Project Roadmap
-
-- [x] **Phase 1.1:** Basic color extraction (K-means)
-- [ ] **Phase 1.2:** HSV filtering for artifact removal
-- [ ] **Phase 1.3:** Make configurable (n_colors, filters)
-- [ ] **Phase 2:** Garment recoloring module
-- [ ] **Phase 3:** Web interface (FastAPI + React)
-- [ ] **Phase 4:** Deploy and share
-
-## 🛠️ Tech Stack
-
-**Current:**
-- Python 3.10+
-- OpenCV (image loading)
-- NumPy (array operations)
-- scikit-learn (K-means clustering)
-- Matplotlib (visualization)
-
-**Future:**
-- FastAPI (backend API)
-- React (frontend UI)
-- Rembg/SAM (garment segmentation)
-
-## 📝 Development Notes
-
-### What I'm Learning
-- Computer vision fundamentals (color spaces, clustering)
-- Image processing pipelines
-- Balancing algorithm complexity vs. usability
-
-### Interesting Findings
-- K-means in RGB space works surprisingly well for yarn
-- Sorting by frequency is crucial (otherwise colors are random)
-- The "close-up vs. distance" problem is the main challenge
-
-## 🤝 About This Project
-
-This is a personal learning project to deepen my understanding of:
-- Computer vision and image processing
-- Full-stack development (eventually)
-- Deploying ML models in production
-
-Built by [Joyce Chong] | [GitHub](https://github.com/charlyx125)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.8+-green.svg)](https://opencv.org/)
+[![Status](https://img.shields.io/badge/status-Phase%201-yellow.svg)](https://github.com/charlyx125/chromaknit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
-⭐ Star this repo if you're interested in following the development!
+## 🎯 The Problem
+
+I kept making expensive yarn purchasing mistakes when shopping online for multi-color knitting projects. Colors look completely different based on proportions and what surrounds them (color theory!), making it impossible to visualize how MY chosen colors would look in a specific pattern. ChromaKnit solves this: extract colors from any yarn photo and apply them to any garment image before purchasing.
+
+**[Read the full story →](docs/development-log.md#phase-0-the-problem)**
+
+---
+
+## ✨ Current Status
+
+**Phase 1: Color Extraction** ✅ Complete
+
+Extracts the 5 most dominant colors from yarn photos using K-means clustering, ranks them by frequency, and outputs hex codes with visual palettes. Handles variegated, speckled, and solid yarns. Works via command-line interface.
+
+**Phase 2: Garment Recoloring** 🚧 In Progress  
+**Phase 3: Web Interface** 📋 Planned
+
+---
+
+## 🚀 Quick Start
+```bash
+# Clone and setup
+git clone https://github.com/charlyx125/chromaknit.git
+cd chromaknit
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install opencv-python numpy scikit-learn matplotlib
+
+# Run
+# 1. Add yarn photo to photos/ folder
+# 2. Update IMAGE_PATH in yarn_color_extractor.py
+python yarn_color_extractor.py
+
+# 3. Check results/yarn_colors.png for output
+```
+
+---
+
+## 🧠 How It Works
+
+K-means clustering analyzes all pixels in a yarn photo and groups them into 5 color clusters based on RGB similarity. Colors are ranked by frequency (most common first) to show which are dominant vs. accents. The algorithm outputs hex codes and generates a visual palette showing the original image alongside extracted colors.
+
+**[Technical deep dive →](docs/development-log.md#phase-1-color-extraction)**
+
+---
+
+## 🤔 Current Challenge
+
+Yarn photos are taken close-up, but garments are viewed from distance - colors optically blend differently at different scales. Should we filter out very dark pixels (likely shadows/artifacts) or keep them for realistic recoloring? Postponing this decision until Phase 2 when we can A/B test both approaches with actual garment results.
+
+**[Read the full analysis →](docs/development-log.md#challenge-1-the-close-up-vs-distance-problem)**
+
+---
+
+## 🗺️ Roadmap
+
+- ✅ **Phase 1:** Color extraction (Complete)
+- 🚧 **Phase 2:** Garment recoloring (Next)
+- 📋 **Phase 3:** Multi-color support
+- 🎨 **Phase 4:** Web interface
+- 🚀 **Phase 5:** Advanced features (yarn database, color harmony suggestions)
+
+**[Detailed roadmap →](docs/development-log.md)**
+
+---
+
+## 📚 Documentation
+
+**[📖 Development Log](docs/development-log.md)** - The complete story of building ChromaKnit, including the problem that motivated it, technical decisions and reasoning, challenges faced and solutions, and lessons learned.
+
+Perfect for understanding how real-world problems drive technical decisions and the iterative nature of software development.
+
+---
+
+## 🛠️ Tech Stack
+
+**Current:** Python 3.10+, OpenCV, NumPy, scikit-learn, Matplotlib  
+**Planned:** FastAPI, React, Rembg/SAM, Docker, Vercel/Railway
+
+**[Technical decisions explained →](docs/development-log.md#key-technical-decisions)**
+
+---
+
+## 📊 Project Structure
+```
+chromaknit/
+├── yarn_color_extractor.py    # Main script
+├── photos/                     # Input images (gitignored)
+├── results/                    # Output visualizations (gitignored)
+├── docs/                       # Project documentation
+│   ├── development-log.md      # Development journey
+│   ├── decisions/              # Technical decision records
+│   └── findings.md             # Experimental results
+└── README.md
+```
+
+---
+
+## 🎓 What I'm Learning
+
+This project helps me develop computer vision fundamentals, clean code architecture, and documentation-driven development practices. The most valuable lesson: not all decisions can be made upfront - sometimes you need to build more, gather data, and iterate. Being comfortable with uncertainty is part of engineering.
+
+**[Lessons learned →](docs/development-log.md#lessons-learned)**
+
+---
+
+## 🤝 About
+
+**Built by:** [Joyce Chong](https://github.com/charlyx125)
+
+Personal frustration with expensive yarn purchasing mistakes led to this technical solution. Sometimes the best projects come from solving your own problems.
+
+---
+
+## 🌟 Follow Along
+
+- ⭐ **Star** this repo for updates
+- 📖 **Read** the [development log](docs/development-log.md) to see the problem-solving process  
+- 💬 **Discuss** - Open an issue with questions or ideas
+
+---
+
+**MIT License** | **Last Updated:** November 7, 2025
