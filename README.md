@@ -48,11 +48,11 @@ python yarn_color_extractor.py
 ## 📸 Demo
 
 ### Input
-![Yarn Photo](photos/TCM_Candy_Apple_Green-Swatch.jpg)
-*Close-up photo of blue variegated yarn*
+![Yarn Photo](images/yarn_input_photos/Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
+*Close-up photo of blue variegated yarn (taken from wool and the gang website)*
 
 ### Output
-![Color Extraction Result](results/yarn_colors.png)
+![Color Extraction Result](images/color_extraction_results/RESULT-Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg)
 *5 dominant colors extracted and ranked by frequency*
 
 **Extracted Colors:**
