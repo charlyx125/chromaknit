@@ -17,6 +17,10 @@ Extract dominant colors from yarn photos to visualize how they'd look on garment
 git clone https://github.com/charlyx125/chromaknit.git
 cd chromaknit
 
+(optional) Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
 # Install dependencies
 pip install opencv-python numpy scikit-learn matplotlib
 ```
