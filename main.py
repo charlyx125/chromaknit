@@ -6,7 +6,7 @@ Author: Joyce Chong
 Date: 2025-11-07
 """
 
-from yarn_color_extractor import ColorExtractor
+from core.yarn_color_extractor import ColorExtractor
 
 
 def main():
