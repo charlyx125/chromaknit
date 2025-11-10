@@ -57,3 +57,7 @@ results/*
 
 # Node modules (future)
 node_modules/
+
+# Benchmark files
+benchmarks/test_*.jpg
+benchmarks/results.txt

@@ -4,6 +4,12 @@ Performance Benchmarks for ColorExtractor
 Run with: python benchmarks/benchmark_color_extractor.py
 """
 
+
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 import time
 import cv2
 import numpy as np
@@ -96,10 +102,19 @@ def run_benchmarks():
     print("✓ Benchmarks complete!")
     print("="*60 + "\n")
 
+    # Save results to file
+    with open("benchmarks/results.txt", "w") as f:
+        f.write("CHROMAKNIT BENCHMARK RESULTS\n")
+        f.write("="*60 + "\n\n")
+        for result in results:
+            f.write(f"{result['name']}: {result['time']:.3f}s\n")
+
 
 if __name__ == "__main__":
     # Create benchmarks directory if it doesn't exist
-    import os
     os.makedirs("benchmarks", exist_ok=True)
     
     run_benchmarks()
+
+
+    
