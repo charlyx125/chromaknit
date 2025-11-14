@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
-
+from core.utils import load_image, convert_bgr_to_rgb, rgb_to_hex, print_header, print_step, print_success
 
 class ColorExtractor:
     """
@@ -42,44 +42,23 @@ class ColorExtractor:
     
     def load_image(self):
         """
-        Load an image from disk.
+        Load an image from disk using utility function.
         
         Returns:
             bool: True if successful, False otherwise
         """
-        self.image = cv2.imread(self.image_path)
-        
-        if self.image is None:
-            print(f"❌ Error: Could not read image from {self.image_path}")
-            return False
-        
-        return True
+        self.image = load_image(self.image_path)
+        return self.image is not None
     
     def convert_bgr_to_rgb(self):
         """
-        Convert the loaded image from BGR (OpenCV default) to RGB.
+        Convert the loaded image from BGR to RGB using utility function.
         
         Returns:
             bool: True if successful, False if no image loaded
         """
-        if self.image is None:
-            print("❌ Error: No image loaded. Call load_image() first.")
-            return False
-        
-        self.image_rgb = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
-        return True
-    
-    def rgb_to_hex(self, rgb_tuple):
-        """
-        Convert RGB color to hex code.
-        
-        Args:
-            rgb_tuple (tuple): RGB values (0-255 each)
-            
-        Returns:
-            str: Hex color code (e.g., '#FF5733')
-        """
-        return '#%02x%02x%02x' % tuple(rgb_tuple)
+        self.image_rgb = convert_bgr_to_rgb(self.image)
+        return self.image_rgb is not None
     
     
     def _preprocess_image(self):
@@ -89,7 +68,7 @@ class ColorExtractor:
         Returns:
             bool: True if successful, False otherwise
         """
-        print("\n--- Step 1: Loading and converting image ---")
+        print_step(1, "Loading and converting image")
         
         if not self.load_image():
             return False
@@ -97,8 +76,9 @@ class ColorExtractor:
         if not self.convert_bgr_to_rgb():
             return False
         
-        print("✓ Image loaded and converted to RGB")
+        print_success("Image loaded and converted to RGB")
         return True
+    
     
     def _reshape_for_clustering(self):
         """
@@ -107,7 +87,7 @@ class ColorExtractor:
         Returns:
             numpy.ndarray: Reshaped pixel array (total_pixels x 3)
         """
-        print(f"\n--- Step 2: Reshaping image ---")
+        print_step(2, "Reshaping image")
         
         pixels = self.image_rgb.reshape(-1, 3)
         total_pixels = pixels.shape[0]
@@ -128,13 +108,13 @@ class ColorExtractor:
         Returns:
             KMeans: Fitted K-means model
         """
-        print(f"\n--- Step 3: Running K-means clustering ---")
+        print_step(3, "Running K-means clustering")
         print(f"Finding {self.n_colors} dominant colors...")
         
         kmeans = KMeans(n_clusters=self.n_colors, random_state=42, n_init=10)
         kmeans.fit(pixels)
         
-        print("✓ K-means complete!")
+        print_success("K-means complete!")
         return kmeans
     
     def _sort_by_frequency(self, kmeans):
@@ -144,7 +124,7 @@ class ColorExtractor:
         Args:
             kmeans (KMeans): Fitted K-means model
         """
-        print(f"\n--- Step 4: Sorting colors by frequency ---")
+        print_step(4, "Sorting colors by frequency")
         
         unique_labels, counts = np.unique(kmeans.labels_, return_counts=True)
         
@@ -155,9 +135,10 @@ class ColorExtractor:
         sorted_colors = kmeans.cluster_centers_[sorted_labels].astype(int)
         
         # Convert to hex codes
-        self.hex_codes = [self.rgb_to_hex(color) for color in sorted_colors]
+        self.hex_codes = [rgb_to_hex(color) for color in sorted_colors]
         
-        print("✓ Colors sorted by frequency")
+        print_success("Colors sorted by frequency")
+        
     
     def _print_results(self):
         """
@@ -191,11 +172,9 @@ class ColorExtractor:
         
         Returns:
             list: List of hex color codes, sorted by frequency (most common first),
-                  or None if extraction failed
+                or None if extraction failed
         """
-        print("\n" + "="*60)
-        print("CHROMAKNIT - YARN COLOR EXTRACTION")
-        print("="*60)
+        print_header("CHROMAKNIT - YARN COLOR EXTRACTION")
         
         # Preprocess
         if not self._preprocess_image():
@@ -214,6 +193,7 @@ class ColorExtractor:
         self._print_results()
         
         return self.hex_codes
+
     
     def visualize_colors(self, output_path='results/yarn_colors.png'):
         """
@@ -232,7 +212,7 @@ class ColorExtractor:
             print("❌ Error: No colors extracted yet. Call extract_dominant_colors() first.")
             return False
         
-        print(f"\n--- Step 5: Creating visualization ---")
+        print_step(5, "Creating visualization")
         
         total_pixels = self.image_rgb.shape[0] * self.image_rgb.shape[1]
         
