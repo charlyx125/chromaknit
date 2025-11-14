@@ -139,26 +139,6 @@ def test_bgr_to_rgb_color_channels_swapped(extractor):
 
 
 # ============================================================================
-# RGB TO HEX TESTS
-# ============================================================================
-
-def test_rgb_to_hex_pure_colors(extractor):
-    """Test RGB to hex conversion with pure colors."""
-    assert extractor.rgb_to_hex((255, 0, 0)) == "#ff0000"  # Red
-    assert extractor.rgb_to_hex((0, 255, 0)) == "#00ff00"  # Green
-    assert extractor.rgb_to_hex((0, 0, 255)) == "#0000ff"  # Blue
-    assert extractor.rgb_to_hex((255, 255, 255)) == "#ffffff"  # White
-    assert extractor.rgb_to_hex((0, 0, 0)) == "#000000"  # Black
-
-
-def test_rgb_to_hex_mixed_colors(extractor):
-    """Test RGB to hex conversion with mixed colors."""
-    assert extractor.rgb_to_hex((255, 127, 0)) == "#ff7f00"  # Orange
-    assert extractor.rgb_to_hex((128, 0, 128)) == "#800080"  # Purple
-    assert extractor.rgb_to_hex((192, 192, 192)) == "#c0c0c0"  # Silver
-
-
-# ============================================================================
 # PREPROCESSING TESTS
 # ============================================================================
 

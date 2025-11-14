@@ -9,6 +9,7 @@ Date: 2025-11-07
 import cv2
 import numpy as np
 from rembg import remove
+from core.utils import load_image, hex_to_bgr,  print_header, print_step, print_success
 
 
 class GarmentRecolorer:
@@ -19,21 +20,16 @@ class GarmentRecolorer:
         self.recolored_image = None
         self.image_no_bg = None
     
+    
     def load_image(self):
         """
-        Load an image from disk.
+        Load an image from disk using utility function.
         
         Returns:
             bool: True if successful, False otherwise
         """
-        self.image = cv2.imread(self.garment_image_path)
-        
-        if self.image is None:
-            print(f"Error: Could not read image from {self.garment_image_path}")
-            return False
-        
-        return True
-
+        self.image = load_image(self.garment_image_path)
+        return self.image is not None
 
     def remove_background(self):
         """
@@ -60,14 +56,7 @@ class GarmentRecolorer:
             
         except Exception as e:
             print(f"Error removing background: {e}")
-            return False
-    
-    def hex_to_bgr(self, hex_color):
-        hex_color = hex_color.lstrip('#')
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-        return (b, g, r)   
+            return False  
 
 
     def apply_colors(self, target_colors):
@@ -87,7 +76,7 @@ class GarmentRecolorer:
         
         # Step 2: Convert first hex color to BGR
         target_color = target_colors[0]  # Use first color
-        bgr_color = self.hex_to_bgr(target_color)
+        bgr_color = hex_to_bgr(target_color)
         
         # Step 3: Create a copy of original image
         self.recolored_image = self.image.copy()
@@ -125,36 +114,32 @@ class GarmentRecolorer:
 
     def recolor_garment(self, target_colors):
         """
-            Main orchestrator method to recolor a garment.
-            Loads image, removes background, applies colors.
-            
-            Args:
-                target_colors (list): List of hex color codes to apply
-                
-            Returns:
-                numpy.ndarray: Recolored image, or None if failed
-        """
-        print("\n" + "="*60)
-        print("CHROMAKNIT - GARMENT RECOLORING")
-        print("="*60)
+        Main orchestrator method to recolor a garment.
+        Loads image, removes background, applies colors.
         
-        print("\n--- Step 1: Loading image ---")
+        Args:
+            target_colors (list): List of hex color codes to apply
+            
+        Returns:
+            numpy.ndarray: Recolored image, or None if failed
+        """        
+        print_header("CHROMAKNIT - GARMENT RECOLORING")
+        
+        print_step(1, "Loading image")
         if not self.load_image():
             return None
-        print("✓ Image loaded")
+        print_success("Image loaded")
         
-        print("\n--- Step 2: Removing background ---")
+        print_step(2, "Removing background")
         if not self.remove_background():
             return None
-        print("✓ Background removed")
+        print_success("Background removed")
         
-        print("\n--- Step 3: Applying colors ---")
+        print_step(3, "Applying colors")
         if not self.apply_colors(target_colors):
             return None
-        print(f"✓ Applied color: {target_colors[0]}")
+        print_success(f"Applied color: {target_colors[0]}")
         
-        print("\n" + "="*60)
-        print("✓ Recoloring complete!")
-        print("="*60 + "\n")
+        print_header("✓ Recoloring complete!")
         
         return self.recolored_image

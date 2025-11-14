@@ -111,28 +111,6 @@ def test_load_image_failure(invalid_image_path):
     assert result is False
     assert recolorer.image is None
 
-
-# ============================================================================
-# HEX TO BGR TESTS
-# ============================================================================
-
-def test_rgb_to_hex_pure_colors(recolorer):
-    """Test HEX to RGB conversion with pure colors."""
-    assert recolorer.hex_to_bgr("ff0000") == (0, 0, 255) # Red
-    assert recolorer.hex_to_bgr("00ff00") == (0, 255, 0) # Green
-    assert recolorer.hex_to_bgr("0000ff") == (255, 0, 0) # Blue
-    assert recolorer.hex_to_bgr("000000") == (0, 0, 0) # Black
-    assert recolorer.hex_to_bgr("ffffff") == (255, 255, 255) # White
-
-
-def test_hex_to_bgr_with_hash(recolorer):
-    """Test HEX to RGB conversion with pure colors."""
-    assert recolorer.hex_to_bgr("#ff0000") == (0, 0, 255) # Red
-    assert recolorer.hex_to_bgr("#00ff00") == (0, 255, 0) # Green
-    assert recolorer.hex_to_bgr("#0000ff") == (255, 0, 0) # Blue
-    assert recolorer.hex_to_bgr("#000000") == (0, 0, 0) # Black
-    assert recolorer.hex_to_bgr("#ffffff") == (255, 255, 255) # White
-
 # ============================================================================
 # BACKGROUND REMOVAL TESTS
 # ============================================================================
