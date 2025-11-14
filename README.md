@@ -1,217 +1,368 @@
-# ChromaKnit 🧶
+# 🧶 ChromaKnit
 
-> Visualize yarn colors on garments before buying (because £80 mistakes hurt!)
-
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![OpenCV](https://img.shields.io/badge/OpenCV-4.8+-green.svg)](https://opencv.org/)
-[![Status](https://img.shields.io/badge/status-Phase%201-yellow.svg)](https://github.com/charlyx125/chromaknit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+**Transform garment colors using yarn photos** - An intelligent color extraction and garment recoloring system for knitters and designers.
 
 ---
 
-## 🎯 The Problem
+## 📖 Overview
 
-I kept making expensive yarn purchasing mistakes when shopping online for multi-color knitting projects. Colors look completely different based on proportions and what surrounds them (color theory!), making it impossible to visualize how MY chosen colors would look in a specific pattern. ChromaKnit solves this: extract colors from any yarn photo and apply them to any garment image before purchasing.
+ChromaKnit helps knitters and designers visualize how their yarn colors would look on garments. Upload a photo of your yarn, and ChromaKnit will:
 
-**[Read the full story →](docs/development-log.md#phase-0-the-problem)**
+1. **Extract dominant colors** from the yarn using K-means clustering
+2. **Remove backgrounds** from garment images automatically
+3. **Recolor garments realistically** while preserving texture, shadows, and lighting
+4. **Apply multiple yarn colors** for natural-looking results
 
----
-
-## ✨ Current Status
-
-**Phase 1: Color Extraction** ✅ Complete
-
-Extracts the 5 most dominant colors from yarn photos using K-means clustering, ranks them by frequency, and outputs hex codes with visual palettes. Handles variegated, speckled, and solid yarns. Works via command-line interface.
-
-**Phase 2: Garment Recoloring** 🚧 In Progress  
-**Phase 3: Web Interface** 📋 Planned
+**Problem it solves:** Knitters often struggle to visualize how their yarn will look when knitted into a specific pattern or garment design. ChromaKnit bridges this gap by providing realistic color previews.
 
 ---
 
-## 🚀 Quick Start
+## ✨ Features
 
-### Prerequisites
+### ✅ Phase 1 Complete: Core Processing Engine
 
-- Python 3.10+ (3.11, 3.12, or 3.13 recommended)
-- pip (Python package manager)
-- Git
+- **Intelligent Color Extraction**
 
-### Installation
-```bash
-# Clone the repository
-git clone https://github.com/charlyx125/chromaknit.git
-cd chromaknit
+  - K-means clustering for dominant color detection
+  - Frequency-based color sorting
+  - Hex code output for easy reference
+  - Visual color palette generation
 
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+- **Advanced Garment Recoloring**
 
-# Upgrade pip (ensures compatibility with all package versions)
-python -m pip install --upgrade pip
+  - Automatic background removal using AI (rembg)
+  - HSV color space transformation for realistic results
+  - Texture and lighting preservation
+  - Multi-color distribution based on brightness
+  - Shadow and highlight retention
 
-# Install dependencies
-pip install -r requirements.txt
-```
+- **Production-Ready Quality**
+  - Comprehensive test suite (23+ tests for ColorExtractor, 15+ tests for GarmentRecolorer)
+  - 89-99% code coverage
+  - Performance benchmarking
+  - CI/CD with GitHub Actions
+  - Clean, modular architecture
 
-### Verify Installation
-```bash
-# Check installed versions (optional)
-pip list | grep -E "opencv-python|numpy|scikit-learn|matplotlib"
-# Windows PowerShell: pip list | findstr "opencv-python numpy scikit-learn matplotlib"
-```
+### 🚧 Coming Soon: Phase 2 - Backend API
 
-### Try It Now (Using Example Data)
-```bash
-# Run with included example yarn photo
-python yarn_color_extractor.py
+- RESTful API endpoints (FastAPI)
+- File upload handling
+- API documentation
+- Integration tests
 
-# Check the result
-open results/yarn_colors.png  # macOS
-# or
-xdg-open results/yarn_colors.png  # Linux
-# or
-start results/yarn_colors.png  # Windows
-```
-
-**That's it!** The script uses the example photo by default, so you can see results immediately.
-
-### Use Your Own Yarn Photos
-```bash
-# 1. Add your yarn photo to photos/ folder
-cp your-yarn.jpg photos/
-
-# 2. Edit yarn_color_extractor.py (line 198)
-# Change: IMAGE_PATH = "examples/sample-yarn.jpg"
-# To:     IMAGE_PATH = "photos/your-yarn.jpg"
-
-# 3. Run the script
-python yarn_color_extractor.py
-
-# 4. View results
-open results/yarn_colors.png
-```
 ---
 
-## 📸 Demo
+## 🎨 Results
 
-### Input
+## 🎨 Results
 
-![Input Yarn Photo](docs/images/demo-input.jpg)
-_Close-up photo of blue variegated yarn (taken from wool and the gang website)_
+### Example: Blue Yarn → Yellow Cardigan
 
-### Output
-
-![Color Extraction Result](docs/images/demo-result.png)
-_5 dominant colors extracted and ranked by frequency_
+**Input Yarn:**
+![Blue Yarn](docs/images/demo-input.jpg)
 
 **Extracted Colors:**
-| Rank | % | Color | Hex Code |
-|------|---------|-------|----------|
-| 1 | 29.21% | ![142a68](https://placehold.co/15x15/142a68/000000.png) | `#142a68` |
-| 2 | 24.98% | ![23438d](https://placehold.co/15x15/23438d/000000.png) | `#23438d` |
-| 3 | 18.04% | ![0c153b](https://placehold.co/15x15/0c153b/000000.png) | `#0c153b` |
-| 4 | 17.32% | ![3e64b2](https://placehold.co/15x15/3e64b2/000000.png) | `#3e64b2` |
-| 5 | 10.45% | ![658ad6](https://placehold.co/15x15/658ad6/000000.png) | `#658ad6` |
+![Color Palette](docs/images,demo-yarn-result.png)
+
+**Original Garment (taken from wool and the gang website):**
+![Yellow Cardigan Original](examples/sample-garment.jpg)
+
+**Recolored Result:**
+![Blue Cardigan Result](docs/images/demo-recolored_garment.png)
+
+The yellow cardigan was successfully transformed to blue while preserving all knit texture, shadows, and folds!
+
+```
 
 ---
 
-## 📂 Project Structure
+## 🏗️ Architecture
 
 ```
+
 chromaknit/
-├── docs/                          # Project documentation
-│   ├── images/                   # Screenshots for README
-│   ├── decisions/                # Technical decision records
-│   ├── development-log.md        # Development journey
-│   └── findings.md               # Experimental results
-├── examples/                      # Sample yarn photos (try these first!)
-│   └── sample-yarn.jpg
-├── photos/                        # Your yarn photos go here (gitignored)
-│   └── .gitkeep
-├── results/                       # Generated visualizations (gitignored)
-│   └── .gitkeep
-├── yarn_color_extractor.py       # Main script
-├── requirements.txt               # Python dependencies
-├── .gitignore
-└── README.md
-```
+├── core/
+│ ├── yarn_color_extractor.py # Color extraction from yarn images
+│ ├── garment_recolor.py # Garment recoloring with texture preservation
+│ └── utils.py # Shared utilities (color conversion, printing)
+├── tests/
+│ ├── test_color_extractor.py # 23 tests, 99% coverage
+│ ├── test_garment_recolor.py # 15 tests, 89% coverage
+│ └── test_utils.py # Utility function tests
+├── benchmarks/
+│ └── benchmark_color_extractor.py # Performance testing
+├── examples/ # Sample images
+├── results/ # Output directory
+└── main.py # Demo workflow
 
-**Key folders:**
-
-- **`examples/`** - Sample data you can test with immediately
-- **`photos/`** - Put your own yarn photos here
-- **`results/`** - Script outputs are saved here
-- **`docs/`** - All project documentation
-
----
-
-## 🧠 How It Works
-
-K-means clustering analyzes all pixels in a yarn photo and groups them into 5 color clusters based on RGB similarity. Colors are ranked by frequency (most common first) to show which are dominant vs. accents. The algorithm outputs hex codes and generates a visual palette showing the original image alongside extracted colors.
-
-**[Technical deep dive →](docs/development-log.md#phase-1-color-extraction)**
-
----
-
-## 🤔 Current Challenge
-
-Yarn photos are taken close-up, but garments are viewed from distance (N.B colors optically blend differently at different scales). Should we filter out very dark pixels (likely shadows/artifacts) or keep them for realistic recoloring? Postponing this decision until Phase 2 when we can A/B test both approaches with actual garment results.
-
-**[Read the full analysis →](docs/development-log.md#challenge-1-the-close-up-vs-distance-problem)**
-
----
-
-## 🗺️ Roadmap
-
-- ✅ **Phase 1:** Color extraction (Complete)
-- 🚧 **Phase 2:** Garment recoloring (Next)
-- 📋 **Phase 3:** Multi-color support
-- 🎨 **Phase 4:** Web interface
-- 🚀 **Phase 5:** Advanced features (yarn database, color harmony suggestions)
-
-**[Detailed roadmap →](docs/development-log.md)**
-
----
-
-## 📚 Documentation
-
-**[📖 Development Log](docs/development-log.md)** - The complete story of building ChromaKnit, including the problem that motivated it, technical decisions and reasoning, challenges faced and solutions, and lessons learned.
-
-Perfect for understanding how real-world problems drive technical decisions and the iterative nature of software development.
+````
 
 ---
 
 ## 🛠️ Tech Stack
 
-**Current:** Python 3.10+, OpenCV, NumPy, scikit-learn, Matplotlib  
-**Planned:** FastAPI, React, Rembg/SAM, Docker, Vercel/Railway
+**Core Technologies:**
+- **Python 3.11+** - Primary language
+- **OpenCV** - Image processing
+- **NumPy** - Numerical operations
+- **scikit-learn** - K-means clustering
+- **rembg** - AI-powered background removal
+- **onnxruntime** - ML model execution (required by rembg)
+- **matplotlib** - Visualization
 
-**[Technical decisions explained →](docs/development-log.md#key-technical-decisions)**
-
----
-
-## 🎓 What I'm Learning
-
-This project helps me develop computer vision fundamentals, clean code architecture, and documentation-driven development practices. The most valuable lesson: not all decisions can be made upfront - sometimes you need to build more, gather data, and iterate. Being comfortable with uncertainty is part of engineering.
-
-**[Lessons learned →](docs/development-log.md#lessons-learned)**
-
----
-
-## 🤝 About
-
-**Built by:** [Joyce Chong](https://github.com/charlyx125)
-
-Personal frustration with expensive yarn purchasing mistakes led to this technical solution. Sometimes the best projects come from solving your own problems.
+**Development Tools:**
+- **pytest** - Testing framework
+- **pytest-cov** - Code coverage
+- **GitHub Actions** - CI/CD pipeline
 
 ---
 
-## 🌟 Follow Along
+## 🚀 Getting Started
 
-- ⭐ **Star** this repo for updates
-- 📖 **Read** the [development log](docs/development-log.md) to see the problem-solving process
-- 💬 **Discuss** - Open an issue with questions or ideas
+### Prerequisites
+
+```bash
+Python 3.11 or higher
+pip (Python package manager)
+````
+
+### Installation
+
+1. **Clone the repository:**
+
+```bash
+git clone https://github.com/charlyx125/chromaknit.git
+cd chromaknit
+```
+
+2. **Create virtual environment:**
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+```
+
+3. **Install dependencies:**
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # For development/testing
+```
+
+### Quick Start
+
+**Run the demo:**
+
+```bash
+python main.py
+```
+
+This will:
+
+1. Extract colors from `examples/sample-yarn.jpg`
+2. Recolor `examples/sample-garment.jpg`
+3. Save results to `results/` folder
 
 ---
 
-**MIT License** | **Last Updated:** November 7, 2025
+## 💻 Usage
+
+### Extract Colors from Yarn
+
+```python
+from core.yarn_color_extractor import ColorExtractor
+
+# Extract 5 dominant colors
+extractor = ColorExtractor(image_path="yarn.jpg", n_colors=5)
+colors = extractor.extract_dominant_colors()
+
+# Visualize results
+extractor.visualize_colors(output_path="results/colors.png")
+
+print(colors)  # ['#142a68', '#23438d', '#0c153b', '#3e64b2', '#658ad6']
+```
+
+### Recolor a Garment
+
+```python
+from core.garment_recolor import GarmentRecolorer
+
+# Create recolorer
+recolorer = GarmentRecolorer(garment_image_path="sweater.jpg")
+
+# Recolor with extracted yarn colors
+recolored_image = recolorer.recolor_garment(target_colors=colors)
+
+# Save result
+recolorer.save_result(output_path="results/recolored_sweater.png")
+```
+
+### Full Workflow
+
+```python
+# 1. Extract colors from yarn
+extractor = ColorExtractor("yarn.jpg", n_colors=5)
+yarn_colors = extractor.extract_dominant_colors()
+
+# 2. Recolor garment
+recolorer = GarmentRecolorer("garment.jpg")
+recolored = recolorer.recolor_garment(yarn_colors)
+
+# 3. Save results
+recolorer.save_result("output.png")
+```
+
+---
+
+## 🧪 Testing
+
+### Run All Tests
+
+```bash
+pytest tests/ -v
+```
+
+### Test with Coverage
+
+```bash
+pytest tests/ --cov=core --cov-report=term-missing
+```
+
+### Run Specific Test Suite
+
+```bash
+pytest tests/test_color_extractor.py -v
+pytest tests/test_garment_recolor.py -v
+```
+
+### Performance Benchmarks
+
+```bash
+python benchmarks/benchmark_color_extractor.py
+```
+
+Expected output:
+
+```
+Size       Dimensions   Pixels        Time (s)
+--------------------------------------------------
+Small      300x300          90,000     0.234
+Medium     800x800         640,000     1.456
+Large      1920x1080     2,073,600     3.892
+```
+
+---
+
+## 📊 Technical Approach
+
+### Color Extraction
+
+- **Algorithm:** K-means clustering in RGB space
+- **Optimization:** Configurable cluster count, random seed for reproducibility
+- **Output:** Sorted by frequency, hex codes with percentages
+
+### Garment Recoloring
+
+- **Color Space:** HSV (Hue, Saturation, Value)
+  - **H:** Changed to yarn color hue
+  - **S:** Changed to yarn color saturation
+  - **V:** Preserved from original (maintains texture/lighting!)
+- **Multi-Color:** Brightness-based distribution (dark areas → dark yarn colors)
+- **Background Removal:** rembg with U²-Net model
+
+---
+
+## ⚠️ Known Limitations
+
+- **Foreground Detection:** Currently recolors all detected foreground objects (may include person, not just garment)
+- **Best Results:** Works optimally with solid-colored garments on simple backgrounds
+- **Processing Time:** Background removal can take 5-10 seconds for large images
+- **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Phase 1: Core Processing (Complete)
+
+- [x] Color extraction from yarn images
+- [x] Garment recoloring with texture preservation
+- [x] Comprehensive test suite
+- [x] Performance benchmarks
+- [x] CI/CD pipeline
+
+### 🚧 Phase 2: Backend API (In Progress)
+
+- [ ] FastAPI REST endpoints
+- [ ] File upload handling
+- [ ] Request/response validation
+- [ ] API documentation
+- [ ] Integration tests
+
+### 📅 Phase 3: Frontend Interface (Planned)
+
+- [ ] React web application
+- [ ] Drag-and-drop image upload
+- [ ] Real-time color preview
+- [ ] Responsive design
+
+### 📅 Phase 4: Production Deployment (Planned)
+
+- [ ] Backend deployment (Railway/Render)
+- [ ] Frontend deployment (Vercel/Netlify)
+- [ ] Performance optimizations
+- [ ] Production monitoring
+
+---
+
+## 🤝 Contributing
+
+This is a personal learning project, but feedback and suggestions are welcome!
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is open source and available under the MIT License.
+
+---
+
+## 👤 Author
+
+**Joyce Chong**
+
+- GitHub: [@charlyx125](https://github.com/charlyx125)
+- Project: [ChromaKnit](https://github.com/charlyx125/chromaknit)
+
+---
+
+## 🙏 Acknowledgments
+
+- **scikit-learn** - K-means clustering implementation
+- **rembg** - AI-powered background removal
+- **OpenCV** - Computer vision tools
+- Inspiration from the knitting and maker community
+
+---
+
+## 📚 Documentation
+
+For detailed technical decisions and architecture documentation, see:
+
+- [docs/decisions/001-color-extraction-algorithm.md](docs/decisions/001-color-extraction-algorithm.md)
+- [docs/decisions/002-background-removal-strategy.md](docs/decisions/002-background-removal-strategy.md)
+
+---
+
+**Built with ❤️ for knitters and designers**
