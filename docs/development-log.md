@@ -4,7 +4,7 @@ _Building a computer vision tool to visualize yarn colors before purchase_
 
 **Author:** Joyce Chong  
 **Started:** November 2025  
-**Status:** In Development - Phase 1  
+**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 Starting 🚀  
 **Repository:** [github.com/charlyx125/chromaknit](https://github.com/charlyx125/chromaknit)
 
 ---
@@ -12,8 +12,9 @@ _Building a computer vision tool to visualize yarn colors before purchase_
 ## Table of Contents
 
 1. [Phase 0: The Problem](#phase-0-the-problem)
-2. [Phase 1: Color Extraction](#phase-1-color-extraction)
-3. [Phase 2: Garment Recoloring](#phase-2-garment-recoloring)
+2. [Phase 1: Color Extraction](#phase-1-color-extraction) ✅
+3. [Phase 2: Garment Recoloring](#phase-2-garment-recoloring) ✅
+4. [Lessons Learned](#lessons-learned)
 
 ---
 
@@ -29,11 +30,9 @@ Simple, right? Wrong.
 
 I opened three browser tabs on my phone, each showing a different yarn color zoomed in. My logic: if I could see them all at once, I could visualize how they'd look together.
 
-**Why it failed:** The tabs weren't touching. Black and white margins separated the images. Color theory tells us we never see colors in isolation - they interact with
-each other through a phenomenon called "simultaneous contrast."
+**Why it failed:** The tabs weren't touching. Black and white margins separated the images. Color theory tells us we never see colors in isolation - they interact with each other through a phenomenon called "simultaneous contrast."
 
-Example: The same grey looks lighter on a black background and darker on a
-white background. The grey hasn't changed - only what surrounds it.
+Example: The same grey looks lighter on a black background and darker on a white background. The grey hasn't changed - only what surrounds it.
 
 ### Attempt #2: Finding Other Products
 
@@ -59,6 +58,7 @@ These interactions were **impossible to predict** from individual yarn photos.
 ### The Real Problem
 
 I was furious. Not at the website, but at the situation. I love knitting, but there are no yarn stores near me. The closest is 2 hours away, so online shopping is my only option. Yarn is expensive (£20-30 per skein), and most places don't accept returns once purchased.
+
 I wished yarn websites would show **every color combination on the actual product**, but that's unrealistic - the permutations would be endless.
 
 So I was stuck relying on intuition and imagination to predict how three different colors in different proportions would interact. And humans are terrible at this.
@@ -70,7 +70,7 @@ The proportion problem is real. Look at these examples:
 **Black and white in large blocks:** Bold, graphic, balanced  
 ⬛⬜⬛⬜⬛⬜⬛ Big squares, equal amounts
 
-**Thin Blackstrips on and white:** Clean, classic, mostly white with black accents
+**Thin black strips on white:** Clean, classic, mostly white with black accents  
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ (90% white, 10% black) Thin black lines on white
 
 Same colors, completely different visual impact.
@@ -97,7 +97,9 @@ That's why I'm building ChromaKnit - a tool that lets you preview YOUR yarn colo
 
 ---
 
-## Phase 1: Color Extraction
+## Phase 1: Color Extraction ✅
+
+**Status:** Complete (November 7-14, 2025)
 
 ### Goal
 
@@ -105,335 +107,484 @@ Extract the dominant colors from yarn photos to serve as input for garment recol
 
 The core challenge: Yarn photos contain multiple colors (variegation, texture, shadows). I need to reduce this complexity to 3-5 representative colors that capture what the yarn actually looks like.
 
-### Week 1: Initial Implementation (November 7, 2025)
+### Implementation Summary
 
 **What I Built:**
 
-A Python script (`yarn_color_extractor.py`) that:
+A robust `ColorExtractor` class that:
 
-1. Loads yarn image from `photos/` folder
+1. Loads yarn image from disk
 2. Converts from BGR (OpenCV default) to RGB color space
 3. Reshapes image data for clustering algorithm
-4. Applies K-means clustering to find 5 dominant colors
+4. Applies K-means clustering to find N dominant colors (configurable, default 5)
 5. Sorts colors by frequency (most common first)
 6. Converts RGB values to hex codes for easy reference
-7. Generates a visualization showing original image + extracted palette
+7. Generates a visualization showing original image + extracted palette with percentages
 8. Saves output to `results/` folder
 
 **Technical Stack:**
 
-- **Python 3.10+** - Primary language (familiar from my SE work)
-- **OpenCV** - Image loading and color space conversion. Industry standard for computer vision tasks.
-- **NumPy** - Array manipulation and numerical operations. Essential for efficient pixel-level operations.
-- **scikit-learn (K-means)** - Clustering algorithm. Well-tested implementation, easy to use.
-- **Matplotlib** - Visualization. Creates side-by-side comparison of yarn photo and extracted colors.
+- **Python 3.11+** - Primary language
+- **OpenCV (cv2)** - Image loading and color space conversion
+- **NumPy** - Array manipulation and numerical operations
+- **scikit-learn (K-means)** - Clustering algorithm
+- **matplotlib** - Visualization
+
+**Architecture:**
+
+- Modular class design with single responsibility principle
+- Private helper methods (`_preprocess_image`, `_cluster_colors`, etc.)
+- Comprehensive error handling
+- Configurable parameters (n_colors, output paths)
 
 ### Key Technical Decisions
 
-#### Why K-means Clustering?
-
-**The Problem:** A yarn photo might contain 100,000+ unique pixel colors. I need to reduce this to ~5 representative colors.
+#### Decision 001: K-means Clustering for Color Extraction
 
 **Why K-means:**
 
-1. **Proven for color quantization** - Standard approach in computer vision for reducing color palettes
-2. **Unsupervised learning** - Don't need labeled training data, works on any yarn photo
-3. **Configurable cluster count** - Can easily adjust from 5 to 3 or 7 colors based on yarn type
-4. **Fast** - Converges quickly even on high-resolution images
-5. **Available in scikit-learn** - Mature, well-documented implementation
+1. Industry standard for color quantization
+2. Fast execution (~1-2 seconds for typical images)
+3. Consistent results with `random_state=42`
+4. Works automatically on any image
+5. Provides frequency information (pixel counts per cluster)
 
-**Alternatives I considered:**
+**See:** [Decision Record 001: Color Extraction Algorithm Selection](decisions/001-color-extraction-algorithm.md)
 
-- **Mean-shift clustering** - Too slow, harder to control number of colors
-- **Manual color binning** - Would require threshold tuning for each yarn type
-- **Median cut algorithm** - Good for palette reduction but less flexible than K-means
+#### Why 5 Colors by Default?
 
-**Decision:** K-means offers the best balance of simplicity, speed, and quality for an MVP.
+Based on yarn type analysis:
+- Solid yarns: 1-2 colors
+- Variegated yarns: 3-5 colors
+- Speckled/tweed: 5+ but 2-3 dominant
 
----
-
-#### Why 5 Colors?
-
-**The Reasoning:**
-
-Based on observation of yarn types:
-
-- **Solid yarns:** Usually 1-2 colors (base color + slight variation from lighting/texture)
-- **Variegated yarns:** Typically 3-5 distinct color sections
-- **Speckled/tweed yarns:** Could have 5+ colors but usually 2-3 dominant ones
-
-**Why not fewer?**
-
-- 3 colors might miss subtle color variations in complex variegated yarns
-- Missing colors could affect the final garment visualization
-
-**Why not more?**
-
-- 7-10 colors would include too many artifacts (shadows, background bleed)
-- More colors make it harder for users to understand which are "real" yarn colors
-- Increases computational time
-
-**The Decision:** Start with 5 as a reasonable middle ground. Can make this configurable later based on user feedback.
-
-**Trade-off I'm accepting:** Some very simple solid-color yarns might have 2-3 "duplicate" shades extracted. This is okay - it shows color variation under different lighting, which could actually be useful.
-
----
+5 colors captures most yarn types without including excessive artifacts.
 
 #### Why Sort by Frequency?
 
-**The Problem:** K-means returns cluster centers (colors) in arbitrary order. Without sorting, the extracted colors are random each time.
-
-**Why frequency-based sorting matters:**
-
-1. **Most dominant color matters most** - In a 90% blue, 10% white variegated yarn, blue should be ranked #1
-2. **Proportions affect perception** - A user needs to know "this is the primary color, these are accents"
-3. **Consistency** - Same yarn should always produce same color order across multiple runs
-4. **User understanding** - "Color 1 = 45%, Color 2 = 23%" is more meaningful than arbitrary ordering
-
-**Example of why this matters:**
-
-Extracting colors from blue variegated yarn:
-
-**Without sorting (random order):**
-
-```
-#0c153b (very dark blue) - 18.04%
-#3e64b2 (blue) - 17.32%
-#658ad6 (light blue) - 10.45%
-#142a68 (dark blue) - 29.21% <- clearly most dominant
-#23438d (medium blue) - 24.98%
-```
-
-**With sorting (by frequency):**
-
-```
-#142a68 (dark blue) - 29.21%   ← Most common color
-#23438d (medium blue) - 24.98%
-#0c153b (very dark blue) - 18.04%
-#3e64b2 (blue) - 17.32%
-#658ad6 (light blue) - 10.45%
-```
-
-**The impact on garment recoloring:**
-
-When I eventually recolor garments, I'll likely map:
-
-- Garment's primary color → Yarn color #1 (most dominant)
-- Garment's accent colors → Yarn colors #2, #3, etc.
-
-Without frequency sorting, this mapping would be nonsensical.
-
----
-
-### Challenges Encountered
-
-#### Challenge #1: The Close-Up vs. Distance Problem
-
-**Date:** November 7, 2025
-
-**The Issue:**
-
-When extracting colors from close-up yarn photos, the algorithm picks up dark values (#1a1a1a, #2e2e2e) that don't represent the actual yarn color. These come from:
-
-- Shadows between knots in the yarn texture
-- Gaps in the yarn structure
-- Lighting artifacts
-- Background bleed if yarn isn't properly isolated
-
-**Example from testing:**
-
-Blue variegated yarn extraction produced:
-
-1. #142a68 - Dark blue (29.21%) ✓ Legitimate yarn color
-2. #23438d - Medium blue (24.98%) ✓ Legitimate yarn color
-3. #0c153b - Very dark blue (18.04%) ⚠️ Could be shadow or actual color
-4. #3e64b2 - Blue (17.32%) ✓ Legitimate yarn color
-5. #658ad6 - Light blue (10.45%) ✓ Legitimate yarn colorr
-
-![Alt text](images/demo-result.jpg)
-
-**The Core Question:**
-
-Should I filter out very dark colors, or could they be needed for realistic garment recoloring?
-
-**Arguments for filtering:**
-
-- Shadows in yarn photos don't represent how the yarn looks when knitted from a distance
-- Dark artifacts could make recolored garments look muddy
-- Human perception: colors blend together when viewed from 3 feet away vs. 3 inches (optical color mixing)
-
-**Arguments against filtering:**
-
-- Garment photos have their own shading/texture - we might need to preserve dark tones
-- Intentionally dark yarns (navy, charcoal) would be incorrectly filtered out
-- Ombre or gradient yarns legitimately transition to dark values
-
-**Hypothesis I'm Exploring:**
-
-The shading in a garment photo comes from how light hits the fabric, NOT from the yarn's intrinsic color. Therefore:
-
-- Garment already has shadows and texture baked in
-- We only need the "true" yarn colors
-- Dark artifacts from close-up photos should be filtered
-
-**BUT** - I don't know if this hypothesis is correct until I implement garment recoloring and test both approaches.
-
-**Current Decision: Postpone filtering until Phase 2**
-
-**Reasoning:**
-
-1. I don't have enough data yet - need to see how colors actually look when applied to garments
-2. Better to keep all information now and filter later if needed (vs. removing data prematurely)
-3. Can A/B test: recolor same garment with filtered vs. unfiltered colors, visually compare results
-4. Might make filtering user-configurable rather than automatic
-
-**Related Documentation:**
-
-- **[Decision Record 001: Color Filtering Strategy](decisions/001-color-filtering-strategy.md)** - Full analysis of filtering options, testing plan, and consequences
-
-**Next Steps:**
-
-- Test color extraction on multiple yarn types (solid, variegated, ombre, speckled)
-- In Phase 2, implement both filtered and unfiltered approaches
-- A/B test with real garment recoloring
-- Make data-driven decision based on visual results
-
-**What This Teaches Me:**
-
-Not all technical decisions can be made upfront. Sometimes you need to build more to gather data. This is okay - it's better to acknowledge uncertainty than to prematurely optimize based on assumptions.
-
----
-
-#### Challenge #2: Background Removal
-
-**Date:** November 7, 2025
-
-**Status:** Identified but not yet addressed
-
-**The Issue:**
-
-Current implementation extracts colors from the entire image, including background, hands, surfaces, etc. This pollutes the color palette with non-yarn colors.
-
-**Example impact:**
-
-- Yarn on wooden table → brown pixels extracted as "yarn color"
-- Hand holding yarn → skin tone pixels in palette
-- Shadow from lighting → grey pixels counted as dominant
-
-**Demonstration:**
-
-{TODO - find another pic with wooden table}
-Same yarn, different photo contexts:
-
-**Clean product photo:**
-
-```
-1. #6b9bd1 (45%) ← Actual yarn
-2. #4a7ba9 (23%) ← Actual yarn
-3. #8fb5d8 (15%) ← Actual yarn
-4. #355a7f (10%) ← Actual yarn
-5. #9ac4e3 (7%)  ← Actual yarn
-```
-
-**Photo with wooden table background:**
-
-```
-1. #8B7355 (32%) ← Wooden table!
-2. #6b9bd1 (28%) ← Actual yarn
-3. #4a7ba9 (18%) ← Actual yarn
-4. #2e2e2e (12%) ← Shadow
-5. #FFC9A8 (10%) ← Hand/skin tone
-```
-
-**Why I'm Not Solving This Yet:**
-
-Phase 1 focus is on the color extraction algorithm itself. I can manually crop images as a workaround for now. Proper background removal will be implemented in Phase 1.5 (after color extraction works, before garment recoloring).
-
-**Planned Solution:**
-
-Use Rembg library for automatic background removal. If quality is insufficient, add manual selection UI as fallback.
-
-**Related Documentation:**
-
-- **[Decision Record 002: Background Removal Strategy](decisions/002-background-removal.md)** - Full analysis of removal options, implementation plan, and testing strategy
-
-**Current Workaround:**
-
-For Phase 1 testing, I'm using photos with:
-
-- Plain backgrounds (white or neutral)
-- Yarn filling most of the frame
-- Manual pre-cropping when needed
-
-**What This Teaches Me:**
-
-It's okay to have known limitations in an MVP. The key is to:
-
-1. Document them clearly
-2. Have a plan to address them
-3. Don't let them block core functionality
-4. Prioritize based on impact
+Essential for meaningful recoloring:
+- Most common color = primary garment color
+- Secondary colors = accents/highlights
+- Provides proportion information (45% vs. 10%)
 
 ---
 
 ### Testing & Results
 
-**Test 1: Blue Variegated Yarn**
+#### Test 1: Blue Variegated Yarn ✅
 
-- **File:** `Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg`
-- **Type:** Variegated (multiple blue tones)
-- **Colors extracted:** 5 colors ranging from light to dark blue
-- **Observation:** One very dark color appears to be a shadow artifact
-- **Conclusion:** Algorithm works as intended, but Challenge #1 (artifact filtering) confirmed
+**Input:** `examples/sample-yarn.jpg` (Shiny-Happy-Cotton_SHC_Cornflower-Blue_SWATCH.jpg, 1200×940 pixels)
 
-**Success Criteria:**
+**Colors Extracted:**
+1. `#142a68` (29.21%) - Dark navy blue ✓
+2. `#23438d` (24.98%) - Medium blue ✓
+3. `#0c153b` (18.04%) - Very dark navy ⚠️ (likely shadow/gap between fibers)
+4. `#3e64b2` (17.32%) - Bright blue ✓
+5. `#658ad6` (10.45%) - Light blue ✓
 
-- ✅ Correctly identified 4-5 legitimate yarn colors
-- ✅ Colors sorted by frequency (most dominant first)
-- ✅ Hex codes generated accurately
-- ✅ Visualization clearly shows extracted palette
-- ⚠️ One artifact color detected (expected, will address in Phase 2)
+**Performance:**
+- Extraction time: 1.2 seconds
+- Memory usage: ~15MB
+- Reproducibility: 100% (same results every run)
 
-**Test 2-N:** _(To be added as I test more yarn types)_
+**Accuracy:** 4 out of 5 colors accurately represent the yarn. One color (#0c153b) appears to be a shadow artifact from the close-up photo.
 
-Planned test yarns:
+**Observation:** The very dark navy (#0c153b) is questionable - it could be:
+- Legitimate dark fiber color in the variegated yarn
+- Shadow cast between the knitted stitches
+- Gap/space in the yarn structure captured by the camera
 
-- Solid color yarn (simple case)
-- Ombre/gradient yarn (intentionally dark transitions)
-- Speckled yarn (many small color variations)
-- High-contrast yarn (e.g., black and white)
+This ambiguity validates Challenge #1 - determining which colors are "real" vs. artifacts requires context from garment recoloring testing.
+
+**Visualization:** Generated side-by-side comparison showing yarn photo and extracted color palette with percentages (saved to `results/yarn_colors.png`)
 
 ---
 
-## Phase 2: Garment Recoloring
+#### Unit Tests: 23 tests, 99% coverage ✅
 
-_Coming soon (Target: December 2025)_
+**Test Suite Coverage:**
+- Initialization tests (default and custom parameters)
+- Image loading (success and failure cases)
+- Color space conversion (BGR ↔ RGB)
+- RGB to hex conversion (pure and mixed colors)
+- Preprocessing pipeline
+- Image reshaping for clustering
+- K-means clustering (correct number of clusters)
+- Frequency-based sorting (descending order verification)
+- Full extraction pipeline (integration tests)
+- Visualization generation
+- Different n_colors values (1, 3, 5, 10)
 
-### Planned Approach
+**Coverage Report:**
+```
+Name                           Stmts   Miss  Cover
+--------------------------------------------------
+core/yarn_color_extractor.py     106      1    99%
+```
 
-**Goal:** Take a catalog garment photo and recolor it with the user's yarn colors while preserving texture, shading, and proportions.
+**Command:** `pytest tests/test_color_extractor.py --cov=core.yarn_color_extractor --cov-report=term-missing`
 
-**Technical Challenges to Solve:**
+---
 
-1. **Segmentation** - Isolate garment from background/model
-2. **Color mapping** - Map garment's original colors to new colors
-3. **Preserve texture** - Keep knit texture, don't create flat color blocks
-4. **Maintain realism** - Shadows and highlights should remain natural
+#### Performance Benchmarks ✅
 
-**Potential Approaches:**
+**Benchmark Results:**
 
-- **Option A:** HSV color transfer (simpler, faster)
-- **Option B:** Segment Anything Model (SAM) + advanced recoloring (higher quality)
-- **Option C:** Hybrid approach
+| Image Size | Dimensions | Total Pixels | Extraction Time |
+|------------|------------|--------------|-----------------|
+| Small      | 300×300    | 90,000       | 0.234s          |
+| Medium     | 800×800    | 640,000      | 1.456s          |
+| Large      | 1920×1080  | 2,073,600    | 3.892s          |
 
-**Decision pending:** Need to research and prototype both approaches.
+**Conclusion:** Fast enough for interactive use. Scales linearly with pixel count.
 
-**This is where Challenge #1 gets resolved:**
+**Command:** `python benchmarks/benchmark_color_extractor.py`
 
-- Test garment recoloring with filtered colors
-- Test garment recoloring with unfiltered colors
-- Visual comparison to determine which looks more realistic
-- Make data-driven decision
+---
+
+### Challenges Encountered
+
+#### Challenge #1: Shadow/Artifact Colors
+
+**Issue:** Close-up yarn photos capture shadows between fibers, lighting artifacts, and texture gaps as distinct "colors."
+
+**Example:** Blue yarn extraction included `#0c153b` (very dark navy) - unclear if legitimate color or shadow artifact.
+
+**Decision:** Keep all extracted colors (no filtering) for Phase 1. Will evaluate impact during garment recoloring in Phase 2.
+
+**Rationale:**
+- Shadows might contribute to realistic appearance
+- Premature filtering could remove legitimate dark colors
+- Better to gather data first, then decide
+
+**See:** [Decision Record 001](decisions/001-color-extraction-algorithm.md) for full analysis
+
+---
+
+#### Challenge #2: Background Pixels
+
+**Issue:** Photos with backgrounds (tables, hands, surfaces) pollute the color palette with non-yarn colors.
+
+**Initial Workaround:** Manual cropping to isolate yarn
+
+**Permanent Solution:** Implemented in Phase 2 (see below)
+
+---
+
+### Phase 1 Deliverables ✅
+
+- [x] ColorExtractor class with modular architecture
+- [x] K-means clustering implementation
+- [x] Frequency-based color sorting
+- [x] Hex code output
+- [x] Visualization generation
+- [x] 23 unit tests with 99% coverage
+- [x] Performance benchmarks
+- [x] Comprehensive documentation
+- [x] Decision records (001)
+
+**Status:** Phase 1 Complete! ✅
+
+---
+
+## Phase 2: Garment Recoloring ✅
+
+**Status:** Complete (November 14, 2025)
+
+### Goal
+
+Take a garment photo and recolor it with extracted yarn colors while preserving texture, shadows, and lighting for realistic results.
+
+### Implementation Summary
+
+**What I Built:**
+
+A `GarmentRecolorer` class that:
+
+1. Loads garment image from disk
+2. Removes background automatically using AI (rembg library)
+3. Extracts binary mask identifying garment pixels
+4. Applies yarn colors using HSV color space transformation
+5. Preserves original brightness (V channel) to maintain texture
+6. Distributes multiple yarn colors based on brightness levels
+7. Saves recolored result
+
+**Technical Stack:**
+
+- **rembg** - AI-powered background removal (U²-Net model)
+- **onnxruntime** - ML model execution
+- **OpenCV (cv2)** - Image processing
+- **NumPy** - Array operations and masking
+
+**Architecture:**
+
+- Modular class design matching ColorExtractor pattern
+- Separate methods for each processing step
+- HSV color space for perceptually accurate recoloring
+- Mask-based selective pixel modification
+
+---
+
+### Key Technical Decisions
+
+#### Decision 002: Background Removal Strategy
+
+**Selected:** rembg library with U²-Net model
+
+**Why rembg:**
+1. Fully automatic (no user input required)
+2. High quality segmentation
+3. Simple one-line API
+4. Fast execution (2-3 seconds)
+5. Well-maintained, battle-tested
+
+**See:** [Decision Record 002: Background Removal Strategy](decisions/002-background-removal-strategy.md)
+
+---
+
+#### Decision: HSV Color Space for Recoloring
+
+**The Problem:** Simple BGR color replacement creates flat, unrealistic results:
+```python
+# ❌ WRONG: Flat, uniform color (loses texture)
+image[mask > 0] = (0, 0, 255)  # All pixels become same blue
+```
+
+**The Solution:** HSV color space transformation preserves brightness:
+
+```python
+# ✅ CORRECT: Preserves texture and lighting
+image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+image_hsv[mask > 0, 0] = new_hue        # Change color
+image_hsv[mask > 0, 1] = new_saturation # Change intensity
+# V channel (brightness) unchanged → preserves shadows, highlights, texture!
+```
+
+**Why This Works:**
+
+HSV separates:
+- **H**ue = the actual color (red, blue, green)
+- **S**aturation = color intensity
+- **V**alue = brightness/luminance
+
+By changing only H and S while keeping V:
+- Dark folds stay dark (but change color)
+- Highlights stay bright (but change color)
+- Knit texture remains visible
+- Shadows and depth preserved
+
+**Real-World Result:**
+
+Yellow cardigan → Blue cardigan:
+- ✅ Knit texture visible
+- ✅ Pocket shadows preserved
+- ✅ Cable knit depth maintained
+- ✅ Realistic appearance
+
+---
+
+#### Decision: Multi-Color Distribution
+
+**Enhancement:** Instead of applying just one yarn color, distribute all 5 extracted colors across the garment based on brightness.
+
+**Algorithm:**
+1. Sort yarn colors by brightness (darkest to lightest)
+2. Analyze garment pixel brightness distribution
+3. Map darkest garment areas → darkest yarn color
+4. Map mid-tone garment areas → mid-tone yarn color
+5. Map lightest garment areas → lightest yarn color
+
+**Result:** More realistic appearance with subtle color variation matching the actual yarn.
+
+---
+
+### Testing & Results
+
+#### Test 1: Yellow Cardigan → Blue Yarn ✅
+
+**Input:**
+- **Garment:** Yellow knitted cardigan (1200×940px) - `examples/sample-garment.jpg`
+- **Yarn:** Blue variegated (`examples/sample-yarn.jpg`) with 5 color variations:
+  - `#142a68` (29.21%) - Dark navy blue
+  - `#23438d` (24.98%) - Medium blue
+  - `#0c153b` (18.04%) - Very dark navy
+  - `#3e64b2` (17.32%) - Bright blue
+  - `#658ad6` (10.45%) - Light blue
+
+**Output:** Successfully recolored blue cardigan with:
+- ✅ Knit texture fully preserved
+- ✅ Shadows under pockets maintained
+- ✅ Cable knit patterns visible
+- ✅ Natural-looking result
+- ✅ Multiple blue tones distributed realistically based on brightness
+
+**Processing Time:** ~8 seconds total
+- Background removal: ~5-6 seconds
+- Color application: ~2 seconds
+
+**Before/After Comparison:**
+- **Original:** Mustard yellow cardigan laid flat on white background
+- **Result:** Navy/royal blue cardigan with all texture intact
+
+**Observations & Known Issues:**
+
+1. **Shadow Inclusion:** ✓ Expected behavior
+   - The cardigan's natural shadow on the white background was also recolored blue
+   - This is correct - shadows are part of the object detected by rembg
+   - The shadow maintains its darker tone (darker blue) while the garment is brighter blue
+   - Demonstrates that brightness preservation works correctly
+
+2. **Garment-Only Detection:** Future improvement needed
+   - **What we have:** Background removal that detects all foreground objects
+   - **What we'd want eventually:** Garment-specific segmentation
+   - **Current impact:** If testing with a photo of a person wearing the garment, the entire person would be recolored (face, hair, pants, etc.)
+   - **Why this is acceptable for Phase 2:** 
+     - Core recoloring algorithm works correctly
+     - Demonstrates texture preservation
+     - Professional garment photos (like catalogs) are laid flat without models
+     - More sophisticated segmentation (SAM, garment-specific models) can be added in Phase 4
+
+3. **Realistic Color Distribution:**
+   - Darker areas of the cardigan (under pockets, folds) received darker yarn colors
+   - Lighter areas (highlights, flat surfaces) received lighter yarn colors
+   - This brightness-based mapping creates natural-looking results
+
+**Success Criteria Met:**
+- ✅ Colors applied from yarn extraction
+- ✅ Texture preserved (knit stitches visible)
+- ✅ Shadows maintained (darker blue in shadow areas)
+- ✅ Multi-color distribution works
+- ✅ Realistic final appearance
+
+---
+
+#### Unit Tests: 27 tests, 94% coverage ✅
+
+**Test Suite Coverage:**
+- Initialization tests (valid and invalid paths)
+- Image loading (success and failure cases)
+- Hex to BGR conversion (with and without # symbol)
+- Background removal (success, failure, and error cases)
+- Mask extraction and validation (shape, values, dimensions)
+- Color application (multiple scenarios)
+  - Without image/mask (error handling)
+  - Successful application with image generation
+  - Pixel value changes verification
+- Save functionality (with and without recolored image)
+- Full pipeline integration test
+
+**Coverage Report:**
+```
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+core\garment_recolor.py      86      5    94%   39-41, 126-127
+-------------------------------------------------------
+TOTAL                        86      5    94%
+```
+
+**Missing lines:** 
+- Lines 39-41: Exception handling in `remove_background()` (hard to trigger in tests)
+- Lines 126-127: `save_result()` error branches (acceptable - edge cases)
+
+**Command:** `pytest tests/test_garment_recolor.py --cov=core.garment_recolor --cov-report=term-missing`
+
+---
+
+### Challenges Encountered
+
+#### Challenge #3: Mask Indexing Bug
+
+**Date:** November 14, 2025
+
+**Issue:** Initial implementation had double mask indexing bug:
+
+```python
+# ❌ WRONG: Double indexing doesn't work as expected
+recolored_hsv[garment_mask][mask_for_color, 0] = color[0]
+```
+
+**Symptom:** Recolored image looked identical to original despite debug showing "1 million pixels changed"
+
+**Root Cause:** NumPy boolean indexing with nested masks creates a view that doesn't allow proper assignment.
+
+**Solution:** Use `np.where()` to get actual pixel coordinates:
+
+```python
+# ✅ CORRECT: Get coordinates, then index directly
+y_coords, x_coords = np.where(garment_mask)
+y_for_color = y_coords[pixels_for_this_color]
+x_for_color = x_coords[pixels_for_this_color]
+recolored_hsv[y_for_color, x_for_color, 0] = color[0]
+```
+
+**Lesson Learned:** Always test intermediate results visually, not just with assertions. Debug output said it worked, but the actual image revealed the truth.
+
+---
+
+#### Challenge #4: BGR vs RGB Color Space Confusion
+
+**Issue:** Hex colors needed to be converted to BGR (not RGB) for OpenCV.
+
+**Example:**
+- Hex: `#FF0000` (red)
+- RGB: `(255, 0, 0)` ✓
+- BGR: `(0, 0, 255)` ✓ (what OpenCV needs)
+
+**Solution:** Created `hex_to_bgr()` utility that reverses R and B channels.
+
+---
+
+### Current Status & Known Limitations
+
+**✅ Working:**
+- Color extraction from yarn photos
+- Background removal from garment images
+- Realistic texture-preserving recoloring
+- Multi-color distribution
+- Full end-to-end pipeline
+
+**⚠️ Known Limitations:**
+
+1. **Over-segmentation - Recolors Entire Foreground:**
+   - **Issue:** rembg removes entire foreground (all non-background objects)
+   - **Impact:** 
+     - ✓ Works perfectly for product photos (garment laid flat)
+     - ✗ Would recolor entire person in model photos (face, hair, pants, shoes, hands)
+   - **Why this happens:** U²-Net model detects "subject vs. background", not "garment vs. everything else"
+   - **Acceptable for Phase 2:** Demonstrates core concept with product photography
+   - **Future solution:** Add garment-specific segmentation (SAM with prompts, or fashion-specific models)
+
+2. **Shadow Inclusion (Expected Behavior):**
+   - **Observation:** Garment's cast shadow on background is also recolored
+   - **Why this is correct:** Shadow is part of the detected foreground object
+   - **Result:** Shadow maintains correct darkness (darker blue) while garment is brighter
+   - **Demonstrates:** Brightness preservation working as intended
+
+3. **Processing Time:** 8-10 seconds per image
+   - **Acceptable for Phase 2:** Interactive but not real-time
+   - **Future:** Optimize with caching, async processing, or lighter models
+
+4. **Lighting Sensitivity:** Works best with evenly-lit photos
+   - **Workaround:** Document best practices for photo selection
+   - **Impact:** High-contrast lighting can create unexpected color distribution
+
+---
+
+### Phase 2 Deliverables ✅
+
+- [x] GarmentRecolorer class implementation
+- [x] rembg background removal integration
+- [x] HSV color space transformation
+- [x] Multi-color brightness-based distribution
+- [x] 27 unit tests with 94% coverage
+- [x] Real-world testing with yellow→blue cardigan
+- [x] Decision records (002)
+- [x] Refactored common utilities (hex conversion, image loading, print helpers)
+- [x] Comprehensive documentation
+
+**Status:** Phase 2 Complete! ✅
+
+**Next Phase:** Backend API (Phase 3)
 
 ---
 
@@ -441,28 +592,87 @@ _Coming soon (Target: December 2025)_
 
 ### Technical Insights
 
+**Color Extraction:**
 - K-means is surprisingly effective for color quantization
 - Sorting by frequency is essential - raw cluster order is meaningless
 - Some decisions can't be made until you build more (the dark color filtering question)
-- Optical color mixing at distance is a real perceptual phenomenon that affects yarn visualization
+- Optical color mixing at distance is a real perceptual phenomenon
+
+**Garment Recoloring:**
+- HSV color space is critical for realistic results
+- Preserving brightness (V channel) maintains all texture and depth
+- Simple BGR replacement creates flat, artificial-looking results
+- Multi-color distribution adds realism vs. single uniform color
+- Background removal quality directly impacts final result quality
 
 ### Process Insights
 
-- Documentation is easier when done concurrently with building (not after the fact)
+- Documentation is easier when done concurrently with building
 - Explaining "why" is as important as documenting "what"
 - Real-world problem experience drives better technical decisions
 - It's okay to postpone decisions when you don't have enough data
+- Visual testing reveals bugs that assertions miss
+- Test-driven development catches errors early
 
 ### What Surprised Me
 
 - How much yarn photography inconsistency affects color perception
 - The complexity hidden in "simple" color visualization problems
-- How proportion changes completely alter color interaction (the black/white stripe example)
+- How proportion changes completely alter color interaction
 - That sometimes the best decision is to explicitly NOT decide yet
+- How critical the V channel is for texture preservation
+- That a "simple" mask indexing bug can silently fail
 
 ### What I'd Do Differently
 
-_(To be filled as project progresses)_
+**If Starting Over:**
+
+1. **Start with HSV from the beginning** - Would have saved time debugging flat colors
+2. **Write visual verification tests earlier** - Debug output isn't enough
+3. **Research color spaces before implementing** - Understanding HSV upfront would have helped
+4. **Test with more diverse images sooner** - Edge cases reveal design issues
+
+**What Worked Well:**
+
+1. **Modular class design** - Easy to test and refactor
+2. **Decision records** - Helped clarify thinking and document rationale
+3. **Incremental development** - Phase 1 → Phase 2 progression felt natural
+4. **Comprehensive testing** - Caught many bugs before integration
+
+---
+
+## Next Steps
+
+### Phase 3: Backend API (Planned)
+
+**Goal:** Create REST API for color extraction and garment recoloring
+
+**Deliverables:**
+- FastAPI application
+- POST `/api/extract-colors` - Upload yarn photo, get colors
+- POST `/api/recolor-garment` - Upload garment + colors, get result
+- Request/response validation (Pydantic)
+- Error handling and status codes
+- API documentation (auto-generated)
+- Integration tests
+
+**Target:** December 2025
+
+---
+
+### Phase 4: Web Interface (Planned)
+
+**Goal:** User-friendly web application
+
+**Deliverables:**
+- React frontend
+- Drag-and-drop image upload
+- Color palette preview
+- Before/after garment comparison
+- Responsive design
+- Deployment (Vercel/Netlify + Railway/Render)
+
+**Target:** January 2026
 
 ---
 
@@ -471,8 +681,10 @@ _(To be filled as project progresses)_
 ### Technical Resources
 
 - [K-means clustering documentation](https://scikit-learn.org/stable/modules/clustering.html#k-means)
+- [rembg GitHub](https://github.com/danielgatis/rembg)
+- [OpenCV color space conversions](https://docs.opencv.org/4.x/de/d25/imgproc_color_conversions.html)
+- [HSV color space explanation](https://en.wikipedia.org/wiki/HSL_and_HSV)
 - Color theory: Simultaneous contrast and optical color mixing
-- Computer vision: Color space conversions (RGB, HSV, LAB)
 
 ### Inspiration
 
@@ -487,4 +699,6 @@ _(To be filled as project progresses)_
 
 ---
 
-**Last Updated:** November 7, 2025
+**Last Updated:** November 14, 2025  
+**Current Phase:** 2 Complete ✅ | 3 (Backend API) Starting 🚀  
+**Next Milestone:** REST API Implementation

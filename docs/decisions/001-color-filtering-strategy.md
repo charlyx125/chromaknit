@@ -1,356 +1,480 @@
-# Decision Record 002: Background Removal Strategy for Garment Recoloring
+# Decision Record 001: Color Extraction Algorithm Selection
 
 ## Status
-✅ **Implemented** - Rembg integrated into GarmentRecolorer Phase 2
+
+✅ **Implemented** - K-means clustering integrated into ColorExtractor (Phase 1)
 
 ## Date
-2025-11-14
+
+2025-11-07
 
 ## Context
 
 ### The Problem
 
-When recoloring garments using multi-color palettes extracted from yarn photos, the background must be removed to:
+ChromaKnit needs to extract dominant colors from yarn photos to enable garment recoloring. The challenge is:
 
-1. **Isolate the garment** - Only recolor the garment, not the background
-2. **Create accurate masks** - Generate alpha channel masks for precise color application
-3. **Preserve texture details** - Maintain knit patterns and surface characteristics while changing hue/saturation
-
-Without background removal, the recoloring algorithm would:
-- Apply colors to background pixels
-- Create artifacts around garment edges
-- Waste processing on non-garment areas
-- Produce unrealistic results
+1. **Yarn photos contain millions of pixels** - Need to reduce to 5-10 representative colors
+2. **Colors vary across the yarn** - Need to capture the full color palette, not just one average
+3. **Must be automatic** - No manual color picking required
+4. **Must handle varied yarn types** - Solid colors, variegated, ombre, multicolor
+5. **Must be sorted by frequency** - Most common colors first
+6. **Must output hex codes** - For easy reference and recoloring
 
 ### Use Case
 
-**Input:** User has a garment image (sweater, jacket, etc.) on any background
+**Input:** Yarn photo (e.g., blue knitted yarn close-up)
 
-**Desired output:** Clean recolored garment with background removed, ready to visualize
+**Desired output:**
 
-**Current implementation:** Must solve this to make Phase 2 (garment recoloring) work
+- List of 5 hex color codes representing dominant colors
+- Sorted by frequency (most common first)
+- Visual palette showing color distribution
+- Percentages for each color
 
----
+**Requirements:**
 
-## Requirements
-
-The solution must:
-
-1. **Remove background automatically** - No manual cropping required
-2. **Generate precise masks** - Alpha channel shows garment clearly
-3. **Handle real photos** - Work with various backgrounds, lighting, clothing types
-4. **Preserve garment detail** - Not remove thin edges or important features
-5. **Be fast enough for MVP** - Complete in reasonable time (< 5 seconds)
-6. **Have minimal dependencies** - Keep project lightweight and deployable
-7. **Integrate with GarmentRecolorer** - Work seamlessly in the pipeline
+- Fast enough for interactive use (< 5 seconds)
+- Consistent results (same image → same colors)
+- Works with real-world photos (various lighting, backgrounds)
 
 ---
 
 ## Options Considered
 
-### Option 1: Rembg (U²-Net based)
+### Option 1: K-means Clustering ✅ **SELECTED**
 
-**What it is:** Pre-trained model (rembg library) that removes backgrounds from images using U²-Net architecture. Takes a garment image and returns RGBA output with transparent background, from which an alpha channel mask is extracted.
+**What it is:** Unsupervised machine learning algorithm that groups similar pixels into K clusters, where each cluster center represents a dominant color.
+
+**How it works:**
+
+1. Reshape image from (height, width, 3) to (total_pixels, 3)
+2. Run K-means with n_clusters=5 (configurable)
+3. Extract cluster centers as RGB values
+4. Count pixels in each cluster to get frequency
+5. Sort by frequency (most common first)
+6. Convert to hex codes
 
 **Pros:**
-- ✅ Single line of code to implement
-- ✅ Works on any general object (not just garments)
-- ✅ Fast: 2-3 seconds per image
-- ✅ Actively maintained library
-- ✅ Produces clean RGBA output with alpha channel
-- ✅ Works with CV2/NumPy (our tech stack)
+
+- ✅ Industry standard for color quantization
+- ✅ Works automatically on any image
+- ✅ Handles all yarn types (solid, variegated, multicolor)
+- ✅ Provides frequency information (pixel counts)
+- ✅ Fast execution (1-2 seconds for typical images)
+- ✅ Consistent results with random_state=42
+- ✅ Well-documented in scikit-learn
+- ✅ No manual tuning required
 
 **Cons:**
-- ⚠️ Adds 176MB model dependency (first download)
-- ⚠️ May over-remove on thin/delicate features
-- ⚠️ Not specifically trained on garments/textiles
+
+- ⚠️ May include shadow/lighting artifacts as separate colors
+- ⚠️ Sensitive to lighting conditions
+- ⚠️ Requires scikit-learn dependency
 
 **When it works best:**
-- Clear subject-background separation
-- Garments against contrasting backgrounds
-- Standard photography lighting
 
-**When it struggles:**
-- Garment color very similar to background
-- Complex/patterned backgrounds
-- Very thin clothing details
+- All yarn types and lighting conditions
+- Photos with clear color variations
+- When you need frequency-weighted results
 
----
+**Implementation:**
 
-### Option 2: Segment Anything (SAM)
+```python
+from sklearn.cluster import KMeans
 
-**What it is:** Meta's state-of-the-art segmentation model with interactive and automatic modes.
+# Reshape image to pixel array
+pixels = image_rgb.reshape(-1, 3)
 
-**Pros:**
-- ✅ Superior segmentation quality
-- ✅ Can handle complex backgrounds
-- ✅ Interactive mode (user clicks to refine)
-- ✅ Better texture preservation
+# Cluster colors
+kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+kmeans.fit(pixels)
 
-**Cons:**
-- ❌ 2.4GB model size (much larger than Rembg)
-- ❌ 5-10 second inference time (too slow for MVP)
-- ❌ Overkill complexity for this use case
-- ❌ Requires significant compute resources
+# Extract colors and frequencies
+cluster_centers = kmeans.cluster_centers_
+labels, counts = np.unique(kmeans.labels_, return_counts=True)
 
-**Verdict:** ❌ Not suitable for Phase 2 MVP. Deferred as Phase 3 enhancement.
+# Sort by frequency
+sorted_indices = np.argsort(-counts)
+dominant_colors = cluster_centers[sorted_indices]
+```
 
 ---
 
-### Option 3: Manual User Selection
+### Option 2: Median Cut Algorithm ❌
 
-**What it is:** Web UI where user draws bounding box or clicks to select garment area.
+**What it is:** Classic color quantization algorithm that recursively splits color space by median values.
 
 **Pros:**
-- ✅ Perfect accuracy
-- ✅ User has full control
+
 - ✅ No ML dependencies
-- ✅ Works for 100% of cases
+- ✅ Fast execution
+- ✅ Deterministic results
 
 **Cons:**
-- ❌ Requires UI development
-- ❌ Poor mobile UX
-- ❌ Adds friction to workflow
-- ❌ Not automated
 
-**Verdict:** ❌ Against project goals (automated recoloring). Keep as Phase 3 fallback.
+- ❌ More complex to implement from scratch
+- ❌ No built-in frequency information
+- ❌ Results can be less perceptually accurate than K-means
+- ❌ Harder to tune number of colors
+
+**Verdict:** ❌ K-means is simpler and more accurate
 
 ---
 
-### Option 4: Color-Based Detection
+### Option 3: Color Histogram with Binning ❌
 
-**What it is:** Algorithm that detects background color from image edges and removes it by finding the most common edge color and masking similar pixels.
+**What it is:** Divide RGB space into bins and count pixels in each bin.
 
 **Pros:**
+
+- ✅ Very fast
+- ✅ Simple implementation
 - ✅ No dependencies
-- ✅ Very fast
-- ✅ Simple to implement
 
 **Cons:**
-- ❌ Fails if background similar to garment color
-- ❌ Fails with complex/patterned backgrounds
-- ❌ Requires manual threshold tuning
-- ❌ Fragile and unpredictable
 
-**Verdict:** ❌ Not robust enough. Rembg is better.
+- ❌ Requires manual bin size tuning
+- ❌ May miss subtle color variations
+- ❌ Produces grid-aligned colors (not actual yarn colors)
+- ❌ Doesn't adapt to image content
+
+**Verdict:** ❌ Too rigid, doesn't capture actual yarn colors
 
 ---
 
-### Option 5: OpenCV Edge Detection
+### Option 4: Manual Color Picker ❌
 
-**What it is:** Use OpenCV contour detection to find garment boundary by analyzing edges and extracting the largest continuous contour.
+**What it is:** User clicks on yarn photo to select colors manually.
 
 **Pros:**
-- ✅ No external ML dependencies (OpenCV only)
-- ✅ Works with images already in our pipeline
-- ✅ Very fast
+
+- ✅ Perfect accuracy (user selects exact colors)
+- ✅ No algorithm complexity
+- ✅ User has full control
 
 **Cons:**
-- ❌ Fails with soft/blurred edges (clothing photos often have these)
-- ❌ Struggles with similar colors near edges
-- ❌ Requires tuning parameters per image
-- ❌ Poor results on textured fabrics
 
-**Verdict:** ❌ Too unreliable for diverse user photos.
+- ❌ Not automatic (against project goals)
+- ❌ Requires UI development
+- ❌ Time-consuming for users
+- ❌ Doesn't provide frequency information
+- ❌ Subjective (different users pick different colors)
+
+**Verdict:** ❌ Not automatic enough for MVP
+
+---
+
+### Option 5: Pre-trained Color Palette Models ❌
+
+**What it is:** Use ML models trained to extract "artistic" color palettes (e.g., Adobe Color extraction).
+
+**Pros:**
+
+- ✅ Aesthetically pleasing results
+- ✅ May handle artistic intent better
+
+**Cons:**
+
+- ❌ Requires external API calls (Adobe, Canva, etc.)
+- ❌ Not open source
+- ❌ May not preserve actual yarn colors
+- ❌ Optimized for graphic design, not textile accuracy
+- ❌ Cost/rate limits
+
+**Verdict:** ❌ Overkill and unnecessary dependency
 
 ---
 
 ## Decision
 
-### ✅ **Chosen: Option 1 - Rembg**
+### ✅ **Chosen: Option 1 - K-means Clustering**
 
 **Rationale:**
 
-1. **Meets all requirements**
-   - Automatic background removal ✅
-   - Generates precise RGBA masks ✅
-   - Works with real diverse photos ✅
-   - Preserves garment details ✅
-   - Fast enough (2-3 sec) ✅
-   - Minimal code to integrate ✅
+1. **Meets all requirements perfectly**
 
-2. **Perfect for the integration point**
-   - Fits naturally into `GarmentRecolorer.remove_background()` method
-   - Returns RGBA output that maps directly to mask usage
-   - Works with CV2/NumPy already in our stack
-   - No architectural changes needed
+   - Automatic extraction ✅
+   - Handles all yarn types ✅
+   - Fast execution ✅
+   - Frequency information ✅
+   - Hex code output ✅
+   - Reproducible results ✅
 
-3. **Unblocks Phase 2 completion**
-   - Can now test garment recoloring with real photos
-   - Not dependent on users manually cropping images
-   - Enables proper texture preservation testing
-   - Foundation for web interface (Phase 3)
+2. **Industry standard approach**
 
-4. **Right tradeoff for MVP**
-   - 176MB model size is acceptable for local tool
-   - Inference speed is acceptable for user workflow
-   - Quality 95%+ on typical photos is sufficient for MVP
-   - Can upgrade to SAM later if needed
+   - Used by Photoshop, GIMP, and other image editors
+   - Well-tested and proven
+   - Extensive documentation and examples
+
+3. **Right complexity for MVP**
+
+   - Simple scikit-learn integration (3 lines of code)
+   - No custom algorithms to maintain
+   - Easy to understand and debug
+
+4. **Enables full workflow**
+   - Extracted colors work perfectly with garment recoloring
+   - Frequency sorting ensures most important colors come first
+   - Multiple colors enable realistic multi-tone recoloring
 
 ---
 
-## Implementation
+## Implementation Details
 
-### Implementation
+### ColorExtractor Class Structure
 
-The `GarmentRecolorer` class integrates Rembg's `remove_background()` method to:
+```python
+class ColorExtractor:
+    def __init__(self, image_path, n_colors=5):
+        self.image_path = image_path
+        self.n_colors = n_colors
 
-1. **Accept loaded garment image** - Takes raw BGR image from CV2
-2. **Remove background** - Rembg returns RGBA image with transparent background
-3. **Extract alpha channel as mask** - Binary mask where 255 = garment, 0 = background
-4. **Store both** - Keeps `image_no_bg` (RGBA) and `mask` (2D binary) for later use
+    def extract_dominant_colors(self):
+        # 1. Load and convert image
+        image_rgb = self._preprocess_image()
 
-### How the Mask is Used
+        # 2. Reshape for clustering
+        pixels = self._reshape_for_clustering()
 
-During color application, the mask filters which pixels get recolored:
+        # 3. K-means clustering
+        kmeans = self._cluster_colors(pixels)
 
-- Only garment pixels (where mask > 0) receive new colors
-- Background pixels (where mask = 0) remain unchanged
-- Brightness values extracted only from garment pixels
-- Brightness preserved while hue/saturation change (maintains texture)
+        # 4. Sort by frequency
+        self._sort_by_frequency(kmeans)
+
+        # 5. Return hex codes
+        return self.hex_codes
+```
+
+### Key Parameters
+
+**n_clusters:** Number of colors to extract (default: 5)
+
+- Too few (< 3): Misses color variations
+- Too many (> 10): Includes minor artifacts
+- Sweet spot: 5-7 for most yarns
+
+**random_state:** Seed for reproducibility (42)
+
+- Ensures same image always produces same colors
+- Critical for testing and debugging
+
+**n_init:** Number of K-means initializations (10)
+
+- Higher = more accurate but slower
+- 10 is scikit-learn's recommended default
 
 ### Pipeline Flow
 
 ```
-1. Load garment image
-   ↓
-2. Remove background (Rembg)
-   ├─ Output: RGBA with transparency
-   └─ Extract: Binary mask of garment pixels
-   ↓
-3. Apply colors
-   ├─ Use mask to filter garment-only pixels
-   ├─ Map brightness to target colors
-   └─ Preserve brightness, change hue/saturation
-   ↓
-4. Output recolored garment
-   └─ Background unchanged, garment recolored with texture intact
+Yarn Photo (RGB)
+    ↓
+Convert BGR → RGB (OpenCV uses BGR)
+    ↓
+Reshape: (H, W, 3) → (H×W, 3)
+    ↓
+K-means Clustering (n_clusters=5)
+    ↓
+Extract Cluster Centers (RGB colors)
+    ↓
+Count pixels per cluster (frequency)
+    ↓
+Sort by frequency (descending)
+    ↓
+Convert RGB → Hex codes
+    ↓
+Output: ['#142a68', '#23438d', ...]
 ```
 
 ---
 
-## Dependencies
+## Results
 
-Added to `requirements.txt`:
-```
-rembg>=0.0.50
-pillow>=9.0.0
-```
+### Real-World Testing
 
-**First run behavior:**
-- Rembg downloads U²-Net model (~176MB) on first use
-- Model cached in `~/.u2net/` directory
-- Subsequent runs use cached model (instantaneous)
+**Test Image:** Blue knitted yarn (1200×940 pixels, 1.1M total pixels)
+
+**Extracted Colors:**
+
+1. `#142a68` (29.2%) - Dark blue
+2. `#23438d` (25.0%) - Medium blue
+3. `#0c153b` (18.0%) - Navy
+4. `#3e64b2` (17.3%) - Bright blue
+5. `#658ad6` (10.4%) - Light blue
+
+**Performance:**
+
+- Extraction time: ~1.2 seconds
+- Clustering iterations: 5-7
+- Memory usage: ~15MB
+- Reproducibility: 100% (same colors every run)
+
+**Quality:**
+
+- ✅ Captured full blue color range
+- ✅ Frequency matches visual distribution
+- ✅ No obvious artifacts
+- ✅ Colors are perceptually distinct
+
+---
+
+## Trade-offs Accepted
+
+### 1. May Include Shadows/Artifacts
+
+**Trade-off:** K-means treats shadows as distinct colors
+
+**Example:** Very dark color (#0c153b) might be shadow or actual navy
+
+**Why acceptable:**
+
+- These dark colors still contribute to realistic garment appearance
+- Shadows in yarn translate to depth in garment
+- Can filter later if needed (see Future Enhancements)
+
+**Mitigation:** Use well-lit yarn photos for best results
+
+---
+
+### 2. Sensitive to Lighting
+
+**Trade-off:** Same yarn under different lighting produces different colors
+
+**Why acceptable:**
+
+- This is actually desirable (captures how yarn looks in that lighting)
+- Users photograph yarn in lighting similar to final use
+- Consistent with real-world perception
+
+**Mitigation:** Document best photography practices
+
+---
+
+### 3. Scikit-learn Dependency
+
+**Trade-off:** Adds ~30MB to installation
+
+**Why acceptable:**
+
+- Industry-standard library
+- Well-maintained and stable
+- Provides many other useful algorithms
+- Already widely used in data science
+
+**Mitigation:** None needed (reasonable dependency)
 
 ---
 
 ## Testing
 
-### Unit Tests (Implemented)
+### Unit Tests (23 tests, 99% coverage)
 
-Background removal is tested through the following assertions:
-- Successful background removal returns true and populates both RGBA image and binary mask
-- Alpha channel is correctly extracted as a 2D mask from the RGBA output
-- Background pixels (mask = 0) remain unchanged after recoloring
-- Garment pixels maintain their brightness values while hue and saturation change
-- Mask accurately captures garment boundaries without removing fine details
+**Color extraction tests:**
 
-### Real Photo Testing
+- `test_extract_dominant_colors_success()` - Full pipeline works
+- `test_extract_dominant_colors_returns_hex_codes()` - Output format correct
+- `test_different_n_colors_values()` - Configurable cluster count
+- `test_cluster_colors_correct_number()` - K-means creates right number of clusters
+- `test_sort_by_frequency_descending()` - Colors sorted properly
 
-**Test images:**
-- ✅ Yellow sweater (solid color)
-- ✅ Blue knit sweater (patterned texture)
-- ✅ Sweater with complex background
-- ✅ Sweater held by hand
+**Integration tests:**
 
-**Results:**
-- ✅ Background removed cleanly
-- ✅ Mask captures garment accurately
-- ✅ Texture details preserved
-- ✅ Recoloring produces realistic output
+- `test_full_pipeline()` - Extract + visualize works end-to-end
+- Real yarn photo produces expected 5 colors
 
+### Performance Benchmarks
+
+```
+Image Size    Pixels      Extraction Time
+----------------------------------------
+Small         90K         0.234s
+Medium        640K        1.456s
+Large         2.1M        3.892s
+```
+
+**Conclusion:** Fast enough for interactive use
 
 ---
 
-## Known Limitations & Workarounds
+## Known Limitations
 
-| Issue | Cause | Workaround |
-|-------|-------|-----------|
-| Removes thin sleeves/edges | Model too aggressive on small features | Use garment against high-contrast background |
-| Keeps garment shadows | Model preserves attached shadow | Use even, diffuse lighting |
-| Struggles with similar colors | Can't distinguish garment from background | Place on contrasting background |
-| Complex backgrounds | Confusion between objects | Use simple, uniform backgrounds |
+| Issue             | Impact                                        | Workaround                                 |
+| ----------------- | --------------------------------------------- | ------------------------------------------ |
+| Includes shadows  | May extract dark artifact colors              | Use even lighting, or filter in Phase 2    |
+| Color count fixed | Can't dynamically determine optimal K         | User can configure n_colors parameter      |
+| RGB color space   | Less perceptually uniform than LAB            | Acceptable for Phase 1, revisit in Phase 4 |
+| Background pixels | May extract background colors if not isolated | Crop yarn to center of image               |
 
 ---
 
 ## Future Enhancements
 
-### Phase 3 Candidates
+### Phase 2 Candidates
 
-**Option A: Manual refinement UI**
-- Allow users to paint/erase mask regions
-- Improve results for edge cases
-- Simple web UI component
+**Post-processing filters:**
 
-**Option B: Segment Anything (SAM)**
-- Interactive mode (user clicks garment)
-- Better for complex backgrounds
-- Fallback for Rembg failures
+- HSV filtering to remove very dark/desaturated colors
+- Background color detection and removal
+- Brightness normalization
 
-**Option C: Custom model fine-tuning**
-- Train on garment/clothing images
-- Better accuracy for clothing detection
-- Requires labeled dataset
+**Advanced clustering:**
 
-### Implementation decision point
+- Use LAB color space (more perceptually uniform)
+- Hierarchical clustering for automatic K selection
+- Density-based clustering (DBSCAN) for outlier removal
 
-If Phase 2 testing shows < 90% success rate, move to SAM for Phase 3.  
-If > 90%, keep Rembg and add manual UI as optional fallback.
+**User controls:**
+
+- Adjustable n_colors in UI
+- Manual color deselection
+- Color replacement/adjustment
 
 ---
 
 ## Alignment with Project Goals
 
-✅ **Automated recoloring** - No manual cropping needed  
-✅ **Realistic output** - Texture preservation through brightness preservation  
-✅ **Simple codebase** - One function call integrates background removal  
-✅ **Fast iteration** - Enables Phase 2 testing and Phase 3 web interface  
-✅ **MVP ready** - Good enough quality for initial release  
+✅ **Automatic color extraction** - No manual work required  
+✅ **Fast execution** - Interactive performance  
+✅ **Accurate results** - Captures actual yarn colors  
+✅ **Frequency information** - Enables realistic recoloring  
+✅ **Simple codebase** - Easy to maintain and extend  
+✅ **Testable** - Comprehensive test coverage
 
 ---
 
 ## Related Decisions
 
-- **Decision 001:** Color Filtering Strategy (yarn color extraction)
+- **Decision 002:** Background Removal Strategy (garment recoloring)
 - **Phase 1:** Color Extraction ✅ Complete
-- **Phase 2:** Garment Recoloring 🚧 In Progress (depends on this decision)
+- **Phase 2:** Garment Recoloring ✅ Complete
 - **Phase 3:** Web Interface 📋 Planned
-- **Phase 4:** Mobile Integration 📋 Future
 
 ---
 
 ## References
 
-- [Rembg GitHub](https://github.com/danielgatis/rembg)
-- [U²-Net Paper](https://arxiv.org/abs/2005.09007)
-- [GarmentRecolorer Implementation](../core/garment_recolor.py)
-- [Test Suite](../tests/test_garment_recolor.py)
+- [scikit-learn K-means Documentation](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html)
+- [Color Quantization Algorithms Comparison](https://en.wikipedia.org/wiki/Color_quantization)
+- [K-means Clustering Tutorial](https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_digits.html)
+- [ColorExtractor Implementation](../../core/yarn_color_extractor.py)
+- [Test Suite](../../tests/test_color_extractor.py)
 
 ---
 
 ## History
 
-- **2025-11-07:** Initial problem identification
-- **2025-11-14:** ✅ Decision finalized - Rembg selected
-- **2025-11-14:** ✅ Implementation complete
-- **2025-11-14:** ✅ Unit tests passing
-- **2025-11-14:** ✅ Real photo testing validated
+- **2025-11-07:** ✅ Decision finalized - K-means selected
+- **2025-11-07:** ✅ Implementation complete
+- **2025-11-14:** ✅ Unit tests complete (23 tests, 99% coverage)
+- **2025-11-14:** ✅ Performance benchmarks validated
+- **2025-11-14:** ✅ Real-world testing with blue yarn successful
 
 ---
 
 ## Owner
 
 **Decision Owner:** Joyce Chong  
-**Status:** ✅ Implemented  
-**Phase:** 2 (Garment Recoloring)  
+**Status:** ✅ Implemented & Tested  
+**Phase:** 1 (Color Extraction)  
 **Ready for Production:** ✅ Yes
