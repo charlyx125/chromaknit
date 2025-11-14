@@ -81,6 +81,7 @@ class ColorExtractor:
         """
         return '#%02x%02x%02x' % tuple(rgb_tuple)
     
+    
     def _preprocess_image(self):
         """
         Load and convert image to RGB format.
