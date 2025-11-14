@@ -54,15 +54,13 @@ ChromaKnit helps knitters and designers visualize how their yarn colors would lo
 
 ## 🎨 Results
 
-## 🎨 Results
-
 ### Example: Blue Yarn → Yellow Cardigan
 
 **Input Yarn:**
-![Blue Yarn](docs/images/demo-input.jpg)
+![Blue Yarn](docs/images/demo-yarn-input.jpg)
 
 **Extracted Colors:**
-![Color Palette](docs/images,demo-yarn-result.png)
+![Color Palette](docs/images/demo-yarn-result.png)
 
 **Original Garment (taken from wool and the gang website):**
 ![Yellow Cardigan Original](examples/sample-garment.jpg)
