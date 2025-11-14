@@ -70,30 +70,26 @@ ChromaKnit helps knitters and designers visualize how their yarn colors would lo
 
 The yellow cardigan was successfully transformed to blue while preserving all knit texture, shadows, and folds!
 
-```
 
 ---
 
 ## 🏗️ Architecture
-
 ```
-
 chromaknit/
 ├── core/
-│ ├── yarn_color_extractor.py # Color extraction from yarn images
-│ ├── garment_recolor.py # Garment recoloring with texture preservation
-│ └── utils.py # Shared utilities (color conversion, printing)
+│   ├── yarn_color_extractor.py  # Color extraction from yarn images
+│   ├── garment_recolor.py       # Garment recoloring with texture preservation
+│   └── utils.py                 # Shared utilities (color conversion, printing)
 ├── tests/
-│ ├── test_color_extractor.py # 23 tests, 99% coverage
-│ ├── test_garment_recolor.py # 15 tests, 89% coverage
-│ └── test_utils.py # Utility function tests
+│   ├── test_color_extractor.py  # 23 tests, 99% coverage
+│   ├── test_garment_recolor.py  # 15 tests, 89% coverage
+│   └── test_utils.py            # Utility function tests
 ├── benchmarks/
-│ └── benchmark_color_extractor.py # Performance testing
-├── examples/ # Sample images
-├── results/ # Output directory
-└── main.py # Demo workflow
-
-````
+│   └── benchmark_color_extractor.py  # Performance testing
+├── examples/                    # Sample images
+├── results/                     # Output directory
+└── main.py                      # Demo workflow
+```
 
 ---
 
