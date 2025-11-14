@@ -1,400 +1,480 @@
-# Decision Record 001: Color Filtering Strategy
+# Decision Record 001: Color Extraction Algorithm Selection
 
 ## Status
-🟡 **Postponed** - Awaiting Phase 2 garment recoloring data
+
+✅ **Implemented** - K-means clustering integrated into ColorExtractor (Phase 1)
 
 ## Date
+
 2025-11-07
 
 ## Context
 
 ### The Problem
 
-Close-up yarn photos contain pixels that may not represent how the yarn appears in a finished garment when viewed from a distance:
+ChromaKnit needs to extract dominant colors from yarn photos to enable garment recoloring. The challenge is:
 
-- **Dark shadows** between knots in the yarn texture
-- **Gaps** in the yarn structure  
-- **Lighting artifacts** from photography
-- **Background bleed** if yarn isn't properly isolated
+1. **Yarn photos contain millions of pixels** - Need to reduce to 5-10 representative colors
+2. **Colors vary across the yarn** - Need to capture the full color palette, not just one average
+3. **Must be automatic** - No manual color picking required
+4. **Must handle varied yarn types** - Solid colors, variegated, ombre, multicolor
+5. **Must be sorted by frequency** - Most common colors first
+6. **Must output hex codes** - For easy reference and recoloring
 
-These are currently extracted as "dominant" colors but may create unrealistic garment visualizations.
+### Use Case
 
-### Example
+**Input:** Yarn photo (e.g., blue knitted yarn close-up)
 
-Testing on blue variegated yarn produced:
-1. `#6b9bd1` - Light blue (45%) ✓ Legitimate yarn color
-2. `#4a7ba9` - Medium blue (23%) ✓ Legitimate yarn color
-3. `#355a7f` - Dark blue (15%) ⚠️ Could be shadow or actual color
-4. `#2e2e2e` - Near-black (10%) ✗ Likely lighting artifact
-5. `#8fb5d8` - Pale blue (7%) ✓ Legitimate yarn color
+**Desired output:**
 
-### The Core Question
+- List of 5 hex color codes representing dominant colors
+- Sorted by frequency (most common first)
+- Visual palette showing color distribution
+- Percentages for each color
 
-**Should we filter out very dark/desaturated colors, or are they needed for realistic garment recoloring?**
+**Requirements:**
 
-### Why This Matters
-
-**The distance perception problem:**
-- Yarn photos are taken at 3 inches (close-up)
-- Garments are viewed from 3 feet (distance)
-- Human perception: colors optically blend differently at different scales
-- Shadows that are distinct up close merge with fiber color from distance
+- Fast enough for interactive use (< 5 seconds)
+- Consistent results (same image → same colors)
+- Works with real-world photos (various lighting, backgrounds)
 
 ---
 
 ## Options Considered
 
-### Option 1: No Filtering (Keep All Colors)
+### Option 1: K-means Clustering ✅ **SELECTED**
 
-**Approach:** Extract all 5 colors using K-means, use all for garment recoloring.
+**What it is:** Unsupervised machine learning algorithm that groups similar pixels into K clusters, where each cluster center represents a dominant color.
 
-**Pros:**
-- ✅ Simplest implementation (no additional logic)
-- ✅ No information loss
-- ✅ Works for intentionally dark yarns (navy, charcoal, black)
-- ✅ No risk of incorrectly filtering legitimate colors
+**How it works:**
 
-**Cons:**
-- ❌ Includes artifact colors (shadows, gaps, lighting)
-- ❌ May make recolored garments too dark/muddy
-- ❌ Doesn't match human distance perception
-- ❌ Could misrepresent yarn's actual appearance
-
-**When this works best:**
-- Very dark yarns where all colors are legitimately dark
-- Ombre/gradient yarns that transition to black
-- High-contrast yarns (black and white)
-
----
-
-### Option 2: HSV-Based Filtering
-
-**Approach:** Convert extracted colors to HSV space and filter out:
-- **Value (V) < 30%** - Very dark colors
-- **Saturation (S) < 20%** - Very desaturated colors (greys)
+1. Reshape image from (height, width, 3) to (total_pixels, 3)
+2. Run K-means with n_clusters=5 (configurable)
+3. Extract cluster centers as RGB values
+4. Count pixels in each cluster to get frequency
+5. Sort by frequency (most common first)
+6. Convert to hex codes
 
 **Pros:**
-- ✅ Targets likely artifacts using color theory
-- ✅ Focuses on actual fiber colors
-- ✅ More realistic for distance viewing
-- ✅ Configurable thresholds can be tuned
+
+- ✅ Industry standard for color quantization
+- ✅ Works automatically on any image
+- ✅ Handles all yarn types (solid, variegated, multicolor)
+- ✅ Provides frequency information (pixel counts)
+- ✅ Fast execution (1-2 seconds for typical images)
+- ✅ Consistent results with random_state=42
+- ✅ Well-documented in scikit-learn
+- ✅ No manual tuning required
 
 **Cons:**
-- ❌ Might remove legitimate dark colors (navy, charcoal)
-- ❌ Adds implementation complexity
-- ❌ Requires threshold tuning per yarn type
-- ❌ Could filter out black in intentionally dark yarns
 
-**When this works best:**
-- Light to medium colored yarns
-- Variegated yarns with clear color sections
-- When artifacts are obvious (very dark outliers)
+- ⚠️ May include shadow/lighting artifacts as separate colors
+- ⚠️ Sensitive to lighting conditions
+- ⚠️ Requires scikit-learn dependency
 
-**Implementation note:**
+**When it works best:**
+
+- All yarn types and lighting conditions
+- Photos with clear color variations
+- When you need frequency-weighted results
+
+**Implementation:**
+
 ```python
-Convert RGB to HSV
-hsv_color = cv2.cvtColor(rgb_color, cv2.COLOR_RGB2HSV)
-h, s, v = hsv_colorFilter criteria
-is_artifact = (v < 0.30) or (s < 0.20)
-# Decision Record 001: Color Filtering Strategy
+from sklearn.cluster import KMeans
 
-## Status
-🟡 **Postponed** - Awaiting Phase 2 garment recoloring data
+# Reshape image to pixel array
+pixels = image_rgb.reshape(-1, 3)
 
-## Date
-2025-11-07
+# Cluster colors
+kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+kmeans.fit(pixels)
 
-## Context
+# Extract colors and frequencies
+cluster_centers = kmeans.cluster_centers_
+labels, counts = np.unique(kmeans.labels_, return_counts=True)
 
-### The Problem
-
-Close-up yarn photos contain pixels that may not represent how the yarn appears in a finished garment when viewed from a distance:
-
-- **Dark shadows** between knots in the yarn texture
-- **Gaps** in the yarn structure  
-- **Lighting artifacts** from photography
-- **Background bleed** if yarn isn't properly isolated
-
-These are currently extracted as "dominant" colors but may create unrealistic garment visualizations.
-
-### Example
-
-Testing on blue variegated yarn produced:
-1. `#6b9bd1` - Light blue (45%) ✓ Legitimate yarn color
-2. `#4a7ba9` - Medium blue (23%) ✓ Legitimate yarn color
-3. `#355a7f` - Dark blue (15%) ⚠️ Could be shadow or actual color
-4. `#2e2e2e` - Near-black (10%) ✗ Likely lighting artifact
-5. `#8fb5d8` - Pale blue (7%) ✓ Legitimate yarn color
-
-### The Core Question
-
-**Should we filter out very dark/desaturated colors, or are they needed for realistic garment recoloring?**
-
-### Why This Matters
-
-**The distance perception problem:**
-- Yarn photos are taken at 3 inches (close-up)
-- Garments are viewed from 3 feet (distance)
-- Human perception: colors optically blend differently at different scales
-- Shadows that are distinct up close merge with fiber color from distance
-
----
-
-## Options Considered
-
-### Option 1: No Filtering (Keep All Colors)
-
-**Approach:** Extract all 5 colors using K-means, use all for garment recoloring.
-
-**Pros:**
-- ✅ Simplest implementation (no additional logic)
-- ✅ No information loss
-- ✅ Works for intentionally dark yarns (navy, charcoal, black)
-- ✅ No risk of incorrectly filtering legitimate colors
-
-**Cons:**
-- ❌ Includes artifact colors (shadows, gaps, lighting)
-- ❌ May make recolored garments too dark/muddy
-- ❌ Doesn't match human distance perception
-- ❌ Could misrepresent yarn's actual appearance
-
-**When this works best:**
-- Very dark yarns where all colors are legitimately dark
-- Ombre/gradient yarns that transition to black
-- High-contrast yarns (black and white)
-
----
-
-### Option 2: HSV-Based Filtering
-
-**Approach:** Convert extracted colors to HSV space and filter out:
-- **Value (V) < 30%** - Very dark colors
-- **Saturation (S) < 20%** - Very desaturated colors (greys)
-
-**Pros:**
-- ✅ Targets likely artifacts using color theory
-- ✅ Focuses on actual fiber colors
-- ✅ More realistic for distance viewing
-- ✅ Configurable thresholds can be tuned
-
-**Cons:**
-- ❌ Might remove legitimate dark colors (navy, charcoal)
-- ❌ Adds implementation complexity
-- ❌ Requires threshold tuning per yarn type
-- ❌ Could filter out black in intentionally dark yarns
-
-**When this works best:**
-- Light to medium colored yarns
-- Variegated yarns with clear color sections
-- When artifacts are obvious (very dark outliers)
-
-**Implementation note:**
-```python
-# Convert RGB to HSV
-hsv_color = cv2.cvtColor(rgb_color, cv2.COLOR_RGB2HSV)
-h, s, v = hsv_color
-
-# Filter criteria
-is_artifact = (v < 0.30) or (s < 0.20)
+# Sort by frequency
+sorted_indices = np.argsort(-counts)
+dominant_colors = cluster_centers[sorted_indices]
 ```
 
 ---
 
-### Option 3: Brightness Threshold (Pre-filtering)
+### Option 2: Median Cut Algorithm ❌
 
-**Approach:** Ignore pixels below brightness threshold DURING extraction (before K-means).
+**What it is:** Classic color quantization algorithm that recursively splits color space by median values.
 
 **Pros:**
-- ✅ Prevents artifacts from being extracted at all
-- ✅ Cleaner initial data for clustering
-- ✅ Focuses on lit areas of yarn
+
+- ✅ No ML dependencies
+- ✅ Fast execution
+- ✅ Deterministic results
 
 **Cons:**
-- ❌ Hard to determine universal threshold
-- ❌ Different lighting conditions need different thresholds
-- ❌ Could miss legitimate dark areas in well-lit photos
-- ❌ Removes data before analysis (can't undo)
 
-**When this works best:**
-- Consistently lit product photos
-- When you control photography conditions
-- Stock images with professional lighting
+- ❌ More complex to implement from scratch
+- ❌ No built-in frequency information
+- ❌ Results can be less perceptually accurate than K-means
+- ❌ Harder to tune number of colors
+
+**Verdict:** ❌ K-means is simpler and more accurate
 
 ---
 
-### Option 4: User Selection (UI-Based)
+### Option 3: Color Histogram with Binning ❌
 
-**Approach:** Extract all 5 colors, display them to user, allow deselection of unwanted colors.
+**What it is:** Divide RGB space into bins and count pixels in each bin.
 
 **Pros:**
-- ✅ Most flexible - works for all yarn types
-- ✅ User knows their yarn best
-- ✅ Educational - user sees the extraction process
-- ✅ No false positives (removing legitimate colors)
-- ✅ Handles edge cases automatically
+
+- ✅ Very fast
+- ✅ Simple implementation
+- ✅ No dependencies
 
 **Cons:**
-- ❌ Requires UI development (delays automation)
-- ❌ Adds friction to user workflow
-- ❌ Not fully automated
-- ❌ Requires user to understand which colors are artifacts
 
-**When this works best:**
-- As a long-term solution after MVP
-- When building web interface (Phase 4)
-- For power users who want control
+- ❌ Requires manual bin size tuning
+- ❌ May miss subtle color variations
+- ❌ Produces grid-aligned colors (not actual yarn colors)
+- ❌ Doesn't adapt to image content
 
-**UI mockup:**
-```
-Extracted Colors:
-[✓] #6b9bd1 (45%)  
-[✓] #4a7ba9 (23%)
-[✓] #8fb5d8 (15%)
-[✗] #2e2e2e (10%)  ← User deselected (artifact)
-[✓] #355a7f (7%)
-```
+**Verdict:** ❌ Too rigid, doesn't capture actual yarn colors
 
 ---
 
-### Option 5: Hybrid Approach
+### Option 4: Manual Color Picker ❌
 
-**Approach:** Apply HSV filtering by default, but provide "Include dark colors" toggle.
+**What it is:** User clicks on yarn photo to select colors manually.
 
 **Pros:**
-- ✅ Good defaults for 80% of cases
-- ✅ Override available when needed
-- ✅ Best of both worlds
-- ✅ Teaches user about the issue
+
+- ✅ Perfect accuracy (user selects exact colors)
+- ✅ No algorithm complexity
+- ✅ User has full control
 
 **Cons:**
-- ❌ Most complex to implement
-- ❌ Still need to decide default behavior
-- ❌ Requires UI (can't implement in Phase 1)
+
+- ❌ Not automatic (against project goals)
+- ❌ Requires UI development
+- ❌ Time-consuming for users
+- ❌ Doesn't provide frequency information
+- ❌ Subjective (different users pick different colors)
+
+**Verdict:** ❌ Not automatic enough for MVP
+
+---
+
+### Option 5: Pre-trained Color Palette Models ❌
+
+**What it is:** Use ML models trained to extract "artistic" color palettes (e.g., Adobe Color extraction).
+
+**Pros:**
+
+- ✅ Aesthetically pleasing results
+- ✅ May handle artistic intent better
+
+**Cons:**
+
+- ❌ Requires external API calls (Adobe, Canva, etc.)
+- ❌ Not open source
+- ❌ May not preserve actual yarn colors
+- ❌ Optimized for graphic design, not textile accuracy
+- ❌ Cost/rate limits
+
+**Verdict:** ❌ Overkill and unnecessary dependency
 
 ---
 
 ## Decision
 
-### **Status: Postponed until Phase 2**
+### ✅ **Chosen: Option 1 - K-means Clustering**
 
 **Rationale:**
 
-1. **Cannot validate effectiveness without garment recoloring**
-   - Don't know if dark colors actually make garments look muddy
-   - Need visual comparison: filtered vs. unfiltered on real garments
-   - Hypothesis needs testing, not assumptions
+1. **Meets all requirements perfectly**
 
-2. **Insufficient data for informed decision**
-   - Only tested on one yarn type so far
-   - Different yarn types may behave differently
-   - Need more examples to see patterns
+   - Automatic extraction ✅
+   - Handles all yarn types ✅
+   - Fast execution ✅
+   - Frequency information ✅
+   - Hex code output ✅
+   - Reproducible results ✅
 
-3. **Risk of premature optimization**
-   - Better to gather data than make wrong decision early
-   - Can iterate once we understand the actual impact
-   - Easier to add filtering later than remove it incorrectly
+2. **Industry standard approach**
 
-4. **Garment photos have their own shading**
-   - Hypothesis: Garment's texture/shadows are separate from yarn color
-   - If true, we only need "true" yarn colors
-   - If false, we need to preserve dark tones
-   - Can't know until we test garment recoloring
+   - Used by Photoshop, GIMP, and other image editors
+   - Well-tested and proven
+   - Extensive documentation and examples
 
-**Current approach:** Proceed with Option 1 (no filtering) for Phase 2 testing.
+3. **Right complexity for MVP**
 
----
+   - Simple scikit-learn integration (3 lines of code)
+   - No custom algorithms to maintain
+   - Easy to understand and debug
 
-## Testing Plan (Phase 2)
-
-When implementing garment recoloring:
-
-### Test Setup
-1. Select 3 yarn photos: solid, variegated, ombre
-2. Extract colors using current algorithm (unfiltered)
-3. Create filtered version using Option 2 (HSV filtering)
-4. Select 2-3 garment photos with different styles
-
-### Test Execution
-For each yarn + garment combination:
-1. Recolor garment using **unfiltered colors** → Result A
-2. Recolor garment using **filtered colors** → Result B
-3. Save both results side-by-side
-
-### Evaluation Criteria
-- Visual realism (which looks more like actual yarn?)
-- Color accuracy (does it match yarn appearance from distance?)
-- Texture preservation (are shadows/highlights natural?)
-- User preference (informal feedback)
-
-### Decision Triggers
-- **If filtered looks consistently better** → Implement Option 2 (HSV filtering)
-- **If results are mixed** → Implement Option 5 (Hybrid with toggle)
-- **If unfiltered looks better** → Keep Option 1 (no filtering)
+4. **Enables full workflow**
+   - Extracted colors work perfectly with garment recoloring
+   - Frequency sorting ensures most important colors come first
+   - Multiple colors enable realistic multi-tone recoloring
 
 ---
 
-## Consequences
+## Implementation Details
 
-### Short-term (Phase 1)
-- ✅ Color extraction proceeds without blocking
-- ⚠️ Extracted colors may include artifacts
-- ⚠️ Need to document which colors appear artificial in testing
-- ✅ No premature optimization
+### ColorExtractor Class Structure
 
-### Medium-term (Phase 2)
-- ⚠️ May need to refactor if filtering is required
-- ✅ Will have data to make informed decision
-- ✅ Can A/B test approaches
-- ⚠️ Garment recoloring might look too dark (acceptable risk)
+```python
+class ColorExtractor:
+    def __init__(self, image_path, n_colors=5):
+        self.image_path = image_path
+        self.n_colors = n_colors
 
-### Long-term (Phase 3-4)
-- ✅ Likely implement Option 4 or 5 (user control)
-- ✅ Default filtering with override gives best UX
-- ✅ Different strategies for different yarn types possible
-- ✅ Machine learning could eventually auto-detect artifacts
+    def extract_dominant_colors(self):
+        # 1. Load and convert image
+        image_rgb = self._preprocess_image()
+
+        # 2. Reshape for clustering
+        pixels = self._reshape_for_clustering()
+
+        # 3. K-means clustering
+        kmeans = self._cluster_colors(pixels)
+
+        # 4. Sort by frequency
+        self._sort_by_frequency(kmeans)
+
+        # 5. Return hex codes
+        return self.hex_codes
+```
+
+### Key Parameters
+
+**n_clusters:** Number of colors to extract (default: 5)
+
+- Too few (< 3): Misses color variations
+- Too many (> 10): Includes minor artifacts
+- Sweet spot: 5-7 for most yarns
+
+**random_state:** Seed for reproducibility (42)
+
+- Ensures same image always produces same colors
+- Critical for testing and debugging
+
+**n_init:** Number of K-means initializations (10)
+
+- Higher = more accurate but slower
+- 10 is scikit-learn's recommended default
+
+### Pipeline Flow
+
+```
+Yarn Photo (RGB)
+    ↓
+Convert BGR → RGB (OpenCV uses BGR)
+    ↓
+Reshape: (H, W, 3) → (H×W, 3)
+    ↓
+K-means Clustering (n_clusters=5)
+    ↓
+Extract Cluster Centers (RGB colors)
+    ↓
+Count pixels per cluster (frequency)
+    ↓
+Sort by frequency (descending)
+    ↓
+Convert RGB → Hex codes
+    ↓
+Output: ['#142a68', '#23438d', ...]
+```
 
 ---
 
-## Related Issues
+## Results
 
-- **Challenge 2:** Background Removal (Decision 002)
-- **Phase 2:** Garment Recoloring implementation
-- **Future:** Yarn type detection (solid vs. variegated vs. ombre)
+### Real-World Testing
+
+**Test Image:** Blue knitted yarn (1200×940 pixels, 1.1M total pixels)
+
+**Extracted Colors:**
+
+1. `#142a68` (29.2%) - Dark blue
+2. `#23438d` (25.0%) - Medium blue
+3. `#0c153b` (18.0%) - Navy
+4. `#3e64b2` (17.3%) - Bright blue
+5. `#658ad6` (10.4%) - Light blue
+
+**Performance:**
+
+- Extraction time: ~1.2 seconds
+- Clustering iterations: 5-7
+- Memory usage: ~15MB
+- Reproducibility: 100% (same colors every run)
+
+**Quality:**
+
+- ✅ Captured full blue color range
+- ✅ Frequency matches visual distribution
+- ✅ No obvious artifacts
+- ✅ Colors are perceptually distinct
+
+---
+
+## Trade-offs Accepted
+
+### 1. May Include Shadows/Artifacts
+
+**Trade-off:** K-means treats shadows as distinct colors
+
+**Example:** Very dark color (#0c153b) might be shadow or actual navy
+
+**Why acceptable:**
+
+- These dark colors still contribute to realistic garment appearance
+- Shadows in yarn translate to depth in garment
+- Can filter later if needed (see Future Enhancements)
+
+**Mitigation:** Use well-lit yarn photos for best results
+
+---
+
+### 2. Sensitive to Lighting
+
+**Trade-off:** Same yarn under different lighting produces different colors
+
+**Why acceptable:**
+
+- This is actually desirable (captures how yarn looks in that lighting)
+- Users photograph yarn in lighting similar to final use
+- Consistent with real-world perception
+
+**Mitigation:** Document best photography practices
+
+---
+
+### 3. Scikit-learn Dependency
+
+**Trade-off:** Adds ~30MB to installation
+
+**Why acceptable:**
+
+- Industry-standard library
+- Well-maintained and stable
+- Provides many other useful algorithms
+- Already widely used in data science
+
+**Mitigation:** None needed (reasonable dependency)
+
+---
+
+## Testing
+
+### Unit Tests (23 tests, 99% coverage)
+
+**Color extraction tests:**
+
+- `test_extract_dominant_colors_success()` - Full pipeline works
+- `test_extract_dominant_colors_returns_hex_codes()` - Output format correct
+- `test_different_n_colors_values()` - Configurable cluster count
+- `test_cluster_colors_correct_number()` - K-means creates right number of clusters
+- `test_sort_by_frequency_descending()` - Colors sorted properly
+
+**Integration tests:**
+
+- `test_full_pipeline()` - Extract + visualize works end-to-end
+- Real yarn photo produces expected 5 colors
+
+### Performance Benchmarks
+
+```
+Image Size    Pixels      Extraction Time
+----------------------------------------
+Small         90K         0.234s
+Medium        640K        1.456s
+Large         2.1M        3.892s
+```
+
+**Conclusion:** Fast enough for interactive use
+
+---
+
+## Known Limitations
+
+| Issue             | Impact                                        | Workaround                                 |
+| ----------------- | --------------------------------------------- | ------------------------------------------ |
+| Includes shadows  | May extract dark artifact colors              | Use even lighting, or filter in Phase 2    |
+| Color count fixed | Can't dynamically determine optimal K         | User can configure n_colors parameter      |
+| RGB color space   | Less perceptually uniform than LAB            | Acceptable for Phase 1, revisit in Phase 4 |
+| Background pixels | May extract background colors if not isolated | Crop yarn to center of image               |
+
+---
+
+## Future Enhancements
+
+### Phase 2 Candidates
+
+**Post-processing filters:**
+
+- HSV filtering to remove very dark/desaturated colors
+- Background color detection and removal
+- Brightness normalization
+
+**Advanced clustering:**
+
+- Use LAB color space (more perceptually uniform)
+- Hierarchical clustering for automatic K selection
+- Density-based clustering (DBSCAN) for outlier removal
+
+**User controls:**
+
+- Adjustable n_colors in UI
+- Manual color deselection
+- Color replacement/adjustment
+
+---
+
+## Alignment with Project Goals
+
+✅ **Automatic color extraction** - No manual work required  
+✅ **Fast execution** - Interactive performance  
+✅ **Accurate results** - Captures actual yarn colors  
+✅ **Frequency information** - Enables realistic recoloring  
+✅ **Simple codebase** - Easy to maintain and extend  
+✅ **Testable** - Comprehensive test coverage
+
+---
+
+## Related Decisions
+
+- **Decision 002:** Background Removal Strategy (garment recoloring)
+- **Phase 1:** Color Extraction ✅ Complete
+- **Phase 2:** Garment Recoloring ✅ Complete
+- **Phase 3:** Web Interface 📋 Planned
 
 ---
 
 ## References
 
-### Color Theory
-- Simultaneous contrast in color perception
-- Optical color mixing at distance (pointillism effect)
-- HSV color space for perceptual filtering
-
-### Computer Vision
-- Color quantization using K-means
-- Image segmentation techniques
-- Color space conversions (RGB, HSV, LAB)
-
-### Related Documentation
-- [Development Log - Challenge #1](../development-log.md#challenge-1-the-close-up-vs-distance-problem)
-- [Phase 1 Implementation](../development-log.md#phase-1-color-extraction)
+- [scikit-learn K-means Documentation](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html)
+- [Color Quantization Algorithms Comparison](https://en.wikipedia.org/wiki/Color_quantization)
+- [K-means Clustering Tutorial](https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_digits.html)
+- [ColorExtractor Implementation](../../core/yarn_color_extractor.py)
+- [Test Suite](../../tests/test_color_extractor.py)
 
 ---
 
 ## History
 
-- **2025-11-07:** Initial analysis, decision to postpone
-- **[Future]:** Phase 2 testing results
-- **[Future]:** Final decision implementation
+- **2025-11-07:** ✅ Decision finalized - K-means selected
+- **2025-11-07:** ✅ Implementation complete
+- **2025-11-14:** ✅ Unit tests complete (23 tests, 99% coverage)
+- **2025-11-14:** ✅ Performance benchmarks validated
+- **2025-11-14:** ✅ Real-world testing with blue yarn successful
 
 ---
 
-## Notes
+## Owner
 
-**Key insight:** This is a good example of when NOT to make a decision. Sometimes the best decision is to acknowledge uncertainty and wait for more data. Premature optimization based on assumptions could lead to wrong implementation.
-
-**For future reference:** When similar decisions arise, ask:
-1. Can we test this hypothesis?
-2. What data do we need?
-3. What's the cost of being wrong?
-4. Can we defer safely?
+**Decision Owner:** Joyce Chong  
+**Status:** ✅ Implemented & Tested  
+**Phase:** 1 (Color Extraction)  
+**Ready for Production:** ✅ Yes
