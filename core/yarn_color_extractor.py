@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from core.utils import load_image, convert_bgr_to_rgb, rgb_to_hex, print_header, print_step, print_success
 
 class ColorExtractor:
@@ -88,7 +89,10 @@ class ColorExtractor:
             numpy.ndarray: Reshaped pixel array (total_pixels x 3)
         """
         print_step(2, "Reshaping image")
-        
+
+        if self.image_rgb is None:
+            raise ValueError("Image not loaded. Call _preprocess_image() first.")
+    
         pixels = self.image_rgb.reshape(-1, 3)
         total_pixels = pixels.shape[0]
         
@@ -144,6 +148,12 @@ class ColorExtractor:
         """
         Print extraction results in a formatted table.
         """
+        if self.image_rgb is None:
+            raise ValueError("Image not loaded. Call _preprocess_image() first.")
+    
+        if self.hex_codes is None or self.counts is None:
+            raise ValueError("No colors extracted yet. Run clustering first.")
+
         total_pixels = self.image_rgb.shape[0] * self.image_rgb.shape[1]
         
         print(f"\n{'Rank':<6} {'Pixels':<12} {'%':<8} {'Hex Code'}")
@@ -208,7 +218,7 @@ class ColorExtractor:
         Returns:
             bool: True if successful, False otherwise
         """
-        if self.image_rgb is None or self.hex_codes is None:
+        if self.image_rgb is None or self.hex_codes is None or self.counts is None:
             print("❌ Error: No colors extracted yet. Call extract_dominant_colors() first.")
             return False
         
@@ -221,10 +231,10 @@ class ColorExtractor:
         
         # Create overlapping axes
         # ax1: Image takes 68% width, starting at 5% from left
-        ax1 = plt.axes([0.05, 0.1, 0.68, 0.8])
+        ax1 = plt.axes((0.05, 0.1, 0.68, 0.8))
         
         # ax2: Colors start at 55% (overlaps with image by ~13%)
-        ax2 = plt.axes([0.50, 0.1, 0.50, 0.8])
+        ax2 = plt.axes((0.50, 0.1, 0.50, 0.8))
         
         # Display yarn image on the left
         ax1.imshow(self.image_rgb)
@@ -236,7 +246,7 @@ class ColorExtractor:
             percentage = (count / total_pixels) * 100
             
             # Draw colored rectangle
-            ax2.add_patch(plt.Rectangle((0, i), 1, 1, color=hex_code))
+            ax2.add_patch(Rectangle((0, i), 1, 1, color=hex_code))
             
             # Add text with color code and percentage
             ax2.text(0.5, i + 0.5, f'{hex_code}\n({percentage:.1f}%)', 
