@@ -40,3 +40,23 @@
 .read-the-docs {
   color: #888;
 }
+
+.color-palette {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.color-box {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px solid #444;
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.color-box:hover {
+  transform: scale(1.1);
+}
