@@ -13,6 +13,7 @@ import tempfile
 import os
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
+from fastapi.middleware.cors import CORSMiddleware 
 
 
 # Initialize FastAPI application
@@ -20,6 +21,14 @@ app = FastAPI(
     title="ChromaKnit API",
     description="Extract colors from yarn and recolor garments",
     version="2.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Configuration
