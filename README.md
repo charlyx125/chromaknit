@@ -58,13 +58,31 @@ ChromaKnit helps knitters and designers visualize how their yarn colors would lo
 - Proper HTTP status codes (200, 400, 413, 500)
 - Temporary file cleanup
 - Memory-efficient image processing
+- CORS configuration for frontend integration
 
-### 🚧 Phase 3: Frontend Interface (Planned)
+### 🚧 Phase 3: React Frontend (In Progress)
 
-- React web application
-- Drag-and-drop image upload
-- Real-time color preview
-- Responsive design
+**✅ Completed Today:**
+- React 18 + TypeScript + Vite setup
+- Reusable ImageUpload component
+  - Click-to-browse file selection
+  - Image preview with FileReader API
+  - File validation (size, type)
+  - TypeScript props interface
+- Real-time API integration
+  - Automatic color extraction on upload
+  - Loading state indicators
+  - Error handling with user feedback
+- Visual color palette display
+  - Interactive color boxes
+  - Hover effects
+  - Hex code tooltips
+
+**🔜 Coming Tomorrow:**
+- Garment upload workflow
+- Garment recoloring integration
+- Before/after preview
+- Full end-to-end user flow
 
 ### 📅 Phase 4: Production Deployment (Planned)
 
@@ -89,20 +107,16 @@ _Original garment image from Wool and the Gang_
 
 The yellow cardigan was successfully transformed to blue while **preserving all knit texture, shadows, and folds**!
 
-### Try It Yourself
+### Frontend Demo
 
-```bash
-# Start the API
-uvicorn api.main:app --reload
+**Real-time Color Extraction:**
+Upload yarn → See colors extracted automatically → Visual palette display
 
-# Visit http://127.0.0.1:8000/docs
-# 1. Upload yarn image to /api/colors/extract
-# 2. Upload garment image to /api/garments/recolor with extracted colors
-# 3. Download your recolored garment!
-```
+![ChromaKnit Frontend](examples/chromaknit-frontend-v1.png)
+
+_Screenshot: Live color extraction from blue yarn photo_
 
 ## 🏗️ Architecture
-
 ```
 chromaknit/
 ├── core/
@@ -110,7 +124,18 @@ chromaknit/
 │   ├── garment_recolor.py       # Garment recoloring with texture preservation
 │   └── utils.py                 # Shared utilities (color conversion, printing)
 ├── api/
-│   └── main.py                  # FastAPI REST endpoints
+│   └── main.py                  # FastAPI REST endpoints with CORS
+├── chromaknit-frontend/         # React frontend
+│   ├── src/
+│   │   ├── App.tsx              # Main application component
+│   │   ├── ImageUpload.tsx      # Reusable file upload component
+│   │   ├── App.css              # Application styles
+│   │   ├── main.tsx             # React entry point
+│   │   └── index.css            # Global styles
+│   ├── package.json             # Node dependencies
+│   ├── tsconfig.json            # TypeScript configuration
+│   ├── vite.config.ts           # Vite build configuration
+│   └── index.html               # HTML shell
 ├── tests/
 │   ├── test_color_extractor.py  # 23 tests, 99% coverage
 │   ├── test_garment_recolor.py  # 15 tests, 89% coverage
@@ -124,46 +149,47 @@ chromaknit/
 
 ## 🛠️ Tech Stack
 
-**Core Technologies:**
+**Backend:**
 
 - Python 3.11+ - Primary language
+- FastAPI - Modern web framework with auto-docs
 - OpenCV - Image processing
 - NumPy - Numerical operations
 - scikit-learn - K-means clustering
 - rembg - AI-powered background removal
-- onnxruntime - ML model execution (required by rembg)
-- matplotlib - Visualization
-
-**API:**
-
-- FastAPI - Modern Python web framework
 - Uvicorn - ASGI server
-- Pydantic - Data validation
+
+**Frontend:**
+
+- React 18 - UI library
+- TypeScript - Type safety and better DX
+- Vite - Lightning-fast build tool and dev server
+- CSS3 - Custom styling with modern features
 
 **Development Tools:**
 
 - pytest - Testing framework
 - pytest-cov - Code coverage
 - GitHub Actions - CI/CD pipeline
+- Git - Version control
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 - Python 3.11 or higher
+- Node.js 18+ and npm
 - pip (Python package manager)
 
-### Installation
+### Backend Setup
 
 1. **Clone the repository:**
-
 ```bash
 git clone https://github.com/charlyx125/chromaknit.git
 cd chromaknit
 ```
 
 2. **Create virtual environment:**
-
 ```bash
 python -m venv venv
 
@@ -175,31 +201,81 @@ source venv/bin/activate
 ```
 
 3. **Install dependencies:**
-
-**For core functionality only:**
-
-```bash
-pip install -r requirements.txt
-```
-
-**For API server (recommended):**
-
 ```bash
 pip install -r requirements-api.txt
 ```
 
-**For development (includes testing tools):**
-
+4. **Start API server:**
 ```bash
-pip install -r requirements-api.txt -r requirements-dev.txt
+uvicorn api.main:app --reload
 ```
+
+**API available at:** http://localhost:8000  
+**Interactive docs:** http://localhost:8000/docs
+
+### Frontend Setup
+
+1. **Navigate to frontend directory:**
+```bash
+cd chromaknit-frontend
+```
+
+2. **Install dependencies:**
+```bash
+npm install
+```
+
+3. **Start development server:**
+```bash
+npm run dev
+```
+
+**Frontend available at:** http://localhost:5173
+
+### Full Stack Development
+
+**For the complete development experience, run both servers:**
+
+**Terminal 1 - Backend:**
+```bash
+cd chromaknit
+source venv/bin/activate  # Windows: venv\Scripts\activate
+uvicorn api.main:app --reload
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd chromaknit-frontend
+npm run dev
+```
+
+**Benefits:**
+- ⚡ Hot reload on both frontend and backend
+- 🔄 Real-time API integration
+- 🎨 Instant visual feedback
+- 🐛 Easy debugging across the stack
+
+**Open browser:** http://localhost:5173
 
 ## 💻 Usage
 
-### Option 1: Use the REST API (Recommended)
+### Option 1: Web Interface (Recommended)
 
-**Start the API server:**
+1. **Start both servers** (see Full Stack Development above)
+2. **Open http://localhost:5173 in browser**
+3. **Upload yarn image:**
+   - Click upload area or drag-and-drop
+   - See image preview
+   - Colors extracted automatically
+4. **View color palette:**
+   - Visual color boxes
+   - Hover to see hex codes
+5. **Upload garment:** (Coming tomorrow!)
+6. **Download recolored result:** (Coming tomorrow!)
 
+### Option 2: Use the REST API Directly
+
+**Start API server:**
 ```bash
 uvicorn api.main:app --reload
 ```
@@ -215,7 +291,7 @@ uvicorn api.main:app --reload
 
    - POST to `/api/colors/extract`
    - Upload yarn image
-   - Receive color palette: `["#142a68", "#23438d", "#0c153b"]`
+   - Receive: `{"success": true, "colors": ["#142a68", "#23438d"], "count": 2}`
 
 2. **Recolor garment:**
    - POST to `/api/garments/recolor`
@@ -224,7 +300,6 @@ uvicorn api.main:app --reload
    - Download recolored garment
 
 **Example with curl:**
-
 ```bash
 # Extract colors
 curl -X POST "http://127.0.0.1:8000/api/colors/extract" \
@@ -238,10 +313,9 @@ curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
   --output recolored.png
 ```
 
-### Option 2: Use Python Directly
+### Option 3: Use Python Directly
 
 **Extract Colors from Yarn:**
-
 ```python
 from core.yarn_color_extractor import ColorExtractor
 
@@ -256,7 +330,6 @@ print(colors)  # ['#142a68', '#23438d', '#0c153b', '#3e64b2', '#658ad6']
 ```
 
 **Recolor a Garment:**
-
 ```python
 from core.garment_recolor import GarmentRecolorer
 
@@ -270,68 +343,32 @@ recolored_image = recolorer.recolor_garment(target_colors=colors)
 recolorer.save_result(output_path="results/recolored_sweater.png")
 ```
 
-**Full Workflow:**
-
-```python
-# 1. Extract colors from yarn
-extractor = ColorExtractor("yarn.jpg", n_colors=5)
-yarn_colors = extractor.extract_dominant_colors()
-
-# 2. Recolor garment
-recolorer = GarmentRecolorer("garment.jpg")
-recolored = recolorer.recolor_garment(yarn_colors)
-
-# 3. Save results
-recolorer.save_result("output.png")
-```
-
-### Option 3: Run the Demo
-
-```bash
-python main.py
-```
-
-This will:
-
-- Extract colors from `examples/sample-yarn.jpg`
-- Recolor `examples/sample-garment.jpg`
-- Save results to `results/` folder
-
 ## 🧪 Testing
 
-**Run all tests:**
-
+**Backend tests:**
 ```bash
+# Run all tests
 pytest tests/ -v
-```
 
-**Test with coverage:**
+# Test with coverage
+pytest tests/ --cov=core --cov=api --cov-report=term-missing
 
-```bash
-pytest tests/ --cov=core --cov-report=term-missing
-```
-
-**Run specific test suite:**
-
-```bash
+# Run specific test suite
 pytest tests/test_color_extractor.py -v
-pytest tests/test_garment_recolor.py -v
 ```
 
-**Performance benchmarks:**
-
+**Frontend development:**
 ```bash
-python benchmarks/benchmark_color_extractor.py
-```
+cd chromaknit-frontend
 
-Expected output:
+# Start dev server with hot reload
+npm run dev
 
-```
-Size       Dimensions   Pixels        Time (s)
---------------------------------------------------
-Small      300x300          90,000     0.234
-Medium     800x800         640,000     1.456
-Large      1920x1080     2,073,600     3.892
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
 ## 📊 Technical Approach
@@ -351,20 +388,32 @@ Large      1920x1080     2,073,600     3.892
 - **Multi-Color:** Brightness-based distribution (dark areas → dark yarn colors)
 - **Background Removal:** rembg with U²-Net model
 
+### Frontend Architecture
+
+- **Component-Based:** Reusable ImageUpload component with TypeScript props
+- **State Management:** React hooks (useState, useEffect) for reactive UI
+- **API Integration:** Fetch API with async/await and error handling
+- **Real-Time Updates:** Automatic color extraction on upload
+- **Type Safety:** Full TypeScript coverage for compile-time error detection
+
 ### API Design
 
 - **Layered validation:** File type → File size → Processing quality
 - **Flexible input:** Accepts JSON arrays or comma-separated color values
 - **Proper HTTP semantics:** Uses appropriate status codes (200, 400, 413, 500)
 - **Memory efficient:** Streams large files, temporary file cleanup
+- **CORS configured:** Allows frontend-backend communication during development
 
 ## ⚠️ Known Limitations
 
 - **Foreground Detection:** Currently recolors all detected foreground objects (may include person, not just garment)
 - **Best Results:** Works optimally with solid-colored garments on simple backgrounds
-- **Processing Time:** Background removal can take 5-10 seconds for large images
+- **Processing Time:** 
+  - Color extraction: ~1 second
+  - Background removal: 5-10 seconds for large images
 - **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
 - **File Size Limit:** 5MB maximum for API uploads
+- **Mobile UI:** Not yet optimized for mobile devices (coming in Phase 4)
 
 ## 🗺️ Roadmap
 
@@ -384,23 +433,31 @@ Large      1920x1080     2,073,600     3.892
 - ✅ API documentation (Swagger/ReDoc)
 - ✅ Error handling with helpful messages
 - ✅ Flexible input format support
+- ✅ CORS configuration
 
-### 📅 Phase 3: Frontend Interface (Planned)
+### 🚧 Phase 3: Frontend Interface (In Progress - 50% Complete)
 
-- React web application
-- Drag-and-drop image upload
-- Real-time color preview
-- Responsive design
-- Gallery of recolored garments
+- ✅ React + TypeScript + Vite setup
+- ✅ Image upload component with validation
+- ✅ Real-time color extraction
+- ✅ Visual color palette display
+- 🔜 Garment upload workflow
+- 🔜 Garment recoloring integration
+- 🔜 Before/after comparison view
+- 🔜 Responsive design
+- 🔜 Loading states and animations
 
-### 📅 Phase 4: Production Deployment (Planned)
+### 📅 Phase 4: Polish & Deployment (Planned)
 
+- UI/UX improvements
+- Drag-and-drop upload
+- Mobile responsive design
+- Error message styling
 - Backend deployment (Railway/Render)
 - Frontend deployment (Vercel/Netlify)
-- Performance optimizations
 - Production monitoring
 - Rate limiting
-- User authentication (optional)
+- Performance optimizations
 
 ## 🤝 Contributing
 
@@ -429,6 +486,8 @@ This project is open source and available under the MIT License.
 - [rembg](https://github.com/danielgatis/rembg) - AI-powered background removal
 - [OpenCV](https://opencv.org/) - Computer vision tools
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [React](https://react.dev/) - UI library
+- [Vite](https://vitejs.dev/) - Next generation frontend tooling
 - Inspiration from the knitting and maker community
 
 ## 📚 Documentation
@@ -437,7 +496,9 @@ For detailed technical decisions and architecture documentation, see:
 
 - `docs/decisions/001-color-extraction-algorithm.md`
 - `docs/decisions/002-background-removal-strategy.md`
+- `docs/decisions/003-api-design-decisions.md`
 
 ---
 
-Built with ❤️ for knitters and designers
+Built with ❤️ for knitters and designers  
+_Last updated: January 8, 2026 - Phase 3A Complete_
