@@ -1,0 +1,6 @@
+CHROMAKNIT BENCHMARK RESULTS
+============================================================
+
+Small_to_recolor: 1.746s
+Medium_to_recolor: 1.863s
+Large_to_recolor: 1.766s
