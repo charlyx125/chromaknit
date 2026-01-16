@@ -1,15 +1,15 @@
 # ADR 004: React Frontend Architecture Decisions
 
-**Date:** January 2026  
-**Status:** Accepted  
-**Author:** Joyce Chong  
-**Phase:** Phase 4 - React Frontend Development
+**Date:** January 2026
+**Status:** Accepted and Implemented
+**Author:** Joyce Chong
+**Phase:** Phase 3 - React Frontend (Complete)
 
 ---
 
 ## Context
 
-After completing the FastAPI backend (Phase 3), ChromaKnit needed a user-friendly web interface. The goal was to create an interactive application where knitters could:
+After completing the FastAPI backend (Phase 2), ChromaKnit needed a user-friendly web interface. The goal was to create an interactive application where knitters could:
 
 1. Upload yarn photos and see extracted colors
 2. Upload garment photos and preview recolored results
@@ -82,10 +82,22 @@ chromaknit-frontend/
 **Selected Approach:**
 
 ```typescript
-// Simple, built-in state management
+// Simple, built-in state management (11 state variables total)
+// Step 1: Yarn upload and color extraction
 const [yarnImage, setYarnImage] = useState<File | null>(null);
+const [yarnPreviewUrl, setYarnPreviewUrl] = useState<string | null>(null);
 const [extractedColors, setExtractedColors] = useState<string[]>([]);
 const [isExtractingColors, setIsExtractingColors] = useState<boolean>(false);
+
+// Step 2: Garment upload and recoloring
+const [garmentImage, setGarmentImage] = useState<File | null>(null);
+const [garmentPreviewUrl, setGarmentPreviewUrl] = useState<string | null>(null);
+const [isRecoloring, setIsRecoloring] = useState<boolean>(false);
+const [recoloredImageUrl, setRecoloredImageUrl] = useState<string | null>(null);
+
+// Shared state
+const [error, setError] = useState<string | null>(null);
+const [resetKey, setResetKey] = useState(0); // For forcing component remount
 ```
 
 **Not Selected:**
@@ -166,7 +178,8 @@ const [error, setError] = useState<string | null>(null);
 // Props interfaces for components
 interface ImageUploadProps {
   label: string;
-  onImageSelect: (file: File) => void;
+  onImageSelect: (file: File, previewUrl: string) => void;
+  showPreview?: boolean;
 }
 ```
 
@@ -191,28 +204,32 @@ interface ImageUploadProps {
 **Selected Approach:**
 
 ```typescript
-// Use native browser file input
-<input type="file" accept="image/*" onChange={handleFileChange} />;
+// Use native browser file input with disabled state
+<input type="file" accept="image/*" onChange={handleFileChange} disabled={isDisabled} />;
 
-// Preview with FileReader API
+// Preview with FileReader API + callback to parent
 const reader = new FileReader();
 reader.onload = (e) => {
-  setPreviewUrl(e.target?.result as string);
+  const url = e.target?.result as string;
+  setPreviewUrl(url);
+  onImageSelect(file, url);  // Pass both file and preview URL to parent
+  setIsDisabled(true);       // Disable input after successful upload
 };
 reader.readAsDataURL(file);
 ```
 
 **Not Selected:**
 
-- React Dropzone (nice-to-have, can add later)
-- Custom drag-and-drop (premature optimization)
+- React Dropzone (nice-to-have for Phase 4)
+- Custom drag-and-drop (planned for Phase 4)
 
 **Rationale:**
 
 - Native browser APIs are reliable
-- Zero dependencies for Phase 4A
+- Zero dependencies for Phase 3
 - Easy to enhance with drag-and-drop later
 - FileReader provides image preview functionality
+- Disabled state prevents accidental re-uploads
 
 ---
 
@@ -222,19 +239,38 @@ reader.readAsDataURL(file);
 
 ```css
 /* Component-specific classes */
-.color-palette {
+.color-palette-vertical {
   display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
 .color-box {
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   border-radius: 8px;
+  border: 2px solid #ccc;
 }
 
-.color-box:hover {
-  transform: scale(1.1);
+/* Layout containers for side-by-side comparison */
+.yarn-colors-container,
+.garment-result-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+/* Reset button styling */
+.reset-button {
+  margin-top: 2rem;
+  background-color: #666;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
 }
 ```
 
@@ -305,21 +341,40 @@ if (!response.ok) {
 // Parent (App.tsx)
 function App() {
   const [yarnImage, setYarnImage] = useState<File | null>(null);
+  const [yarnPreviewUrl, setYarnPreviewUrl] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+
+  const handleYarnUpload = (file: File, previewUrl: string) => {
+    setYarnImage(file);
+    setYarnPreviewUrl(previewUrl);
+  };
+
+  const handleReset = () => {
+    setYarnImage(null);
+    setYarnPreviewUrl(null);
+    setResetKey((prev) => prev + 1); // Force remount
+  };
 
   return (
     <ImageUpload
-      label="Upload yarn" // ← Data flows DOWN via props
-      onImageSelect={setYarnImage} // ← Events flow UP via callbacks
+      key={`yarn-${resetKey}`}    // ← Key prop forces remount on reset
+      label="Drop yarn image here" // ← Data flows DOWN via props
+      onImageSelect={handleYarnUpload} // ← Events flow UP via callbacks
+      showPreview={false}          // ← Control preview visibility
     />
   );
 }
 
 // Child (ImageUpload.tsx)
-function ImageUpload({ label, onImageSelect }: ImageUploadProps) {
+function ImageUpload({ label, onImageSelect, showPreview = true }: ImageUploadProps) {
+  const [isDisabled, setIsDisabled] = useState(false);
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      onImageSelect(file); // ← Call parent's function
+      // FileReader logic...
+      onImageSelect(file, previewUrl); // ← Call parent's function with both values
+      setIsDisabled(true);
     }
   };
 }
@@ -330,12 +385,14 @@ function ImageUpload({ label, onImageSelect }: ImageUploadProps) {
 - Parent owns the state
 - Child receives data via props
 - Child communicates back via callback props
+- Key prop used to force component remount (for reset functionality)
 
 **Benefits:**
 
 - Clear data flow (easy to debug)
 - Single source of truth (no state duplication)
 - Standard React pattern (well-documented)
+- Reset functionality via key prop remount
 
 ---
 
@@ -398,24 +455,24 @@ npm run dev
 
 ### Negative
 
-**Technical Debt:**
+**Technical Debt (Planned for Phase 4):**
 
-- ⚠️ No drag-and-drop (nice-to-have for Phase 4B)
+- ⚠️ No drag-and-drop (planned for Phase 4)
 - ⚠️ No optimistic UI updates
-- ⚠️ Browser storage NOT used (localStorage disabled in artifacts, in-memory only)
+- ⚠️ In-memory state only (data lost on refresh)
 - ⚠️ Plain CSS may become unwieldy as app grows
 
-**Performance:**
+**Performance (Acceptable for MVP):**
 
 - ⚠️ No code splitting yet (acceptable for current size)
 - ⚠️ No image optimization (will need for production)
 - ⚠️ Synchronous API calls (could benefit from React Query caching)
 
-**User Experience:**
+**User Experience (Planned for Phase 4):**
 
 - ⚠️ No mobile optimization yet
 - ⚠️ Basic loading indicators (could be more polished)
-- ⚠️ Limited error recovery options
+- ⚠️ Limited error recovery options (user can use "Start Over")
 
 ---
 
@@ -461,7 +518,7 @@ npm run dev
 
 **Why Not:**
 
-- Massive overkill for 7 state variables
+- Massive overkill for 11 state variables
 - Steep learning curve
 - Additional boilerplate
 - React hooks (useState/useEffect) sufficient for current needs
@@ -533,6 +590,44 @@ try {
 }
 ```
 
+**Pattern 4: Reset via Key Prop Remount**
+
+```typescript
+// State to track reset count
+const [resetKey, setResetKey] = useState(0);
+
+// Reset handler clears all state and increments key
+const handleReset = () => {
+  setYarnImage(null);
+  setExtractedColors([]);
+  // ... clear other state
+  setResetKey((prev) => prev + 1); // Increment forces remount
+};
+
+// Components use key prop to remount when reset
+<ImageUpload key={`yarn-${resetKey}`} ... />
+<ImageUpload key={`garment-${resetKey}`} ... />
+```
+
+**Pattern 5: Side-by-Side Layout with Flexbox**
+
+```typescript
+// Container for side-by-side display
+{yarnPreviewUrl && extractedColors.length > 0 && (
+  <div className="yarn-colors-container">
+    <img src={yarnPreviewUrl} alt="Yarn" className="yarn-preview" />
+    <div className="extracted-colors">
+      <h3>Extracted Colors:</h3>
+      <div className="color-palette-vertical">
+        {extractedColors.map((color, index) => (
+          <div key={index} className="color-box" style={{ backgroundColor: color }} />
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+```
+
 ---
 
 ## Lessons Learned
@@ -580,22 +675,27 @@ try {
 
 ## Future Considerations
 
-### Phase 4B (Next Session)
+### ✅ Phase 3 Complete (This ADR)
 
-- Add garment recoloring workflow
-- Reuse ImageUpload component for garment upload
-- Display recolored image results
-- Before/after comparison view
+All frontend features implemented:
+- ✅ Yarn upload with automatic color extraction
+- ✅ Garment upload workflow
+- ✅ Garment recoloring with API integration
+- ✅ Side-by-side comparison (yarn + colors, original + recolored)
+- ✅ "Start Over" reset functionality
+- ✅ Disabled file input after upload
+- ✅ Consistent CSS styling across both steps
 
-### Phase 5 (Production)
+### Phase 4 (Production Polish)
 
 - Add drag-and-drop file upload
 - Implement loading animations
 - Mobile responsive design
+- UI/UX improvements with Figma designs
 - Deploy to Vercel (frontend) + Railway/Render (backend)
 - Production CORS configuration (whitelist production domains)
 
-### Phase 6 (Enhancements)
+### Phase 5 (Enhancements)
 
 - Consider React Query for better API state management
 - Migrate to Tailwind CSS for faster styling
@@ -636,6 +736,6 @@ try {
 
 ---
 
-**Status:** Accepted and Implemented  
-**Review Date:** After Phase 4B completion  
-**Last Updated:** January 2026
+**Status:** Accepted and Implemented
+**Review Date:** After Phase 4 completion
+**Last Updated:** January 16, 2026 - Phase 3 Complete
