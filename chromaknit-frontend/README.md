@@ -1,73 +1,92 @@
-# React + TypeScript + Vite
+# ChromaKnit Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React application that lets you preview yarn colors on garments before buying. Upload a yarn photo to extract its colors, then apply those colors to a garment image.
 
-Currently, two official plugins are available:
+## Demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+![ChromaKnit E2E demo](../examples/E2E-demo.mp4)
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Yarn Color Extraction**: Upload a yarn image and automatically extract the dominant colors
+- **Garment Recoloring**: Apply extracted yarn colors to a garment photo
+- **Side-by-Side Comparison**: View original and recolored garments together
+- **Start Over**: Reset the app to try different yarn/garment combinations
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React 18 + TypeScript
+- Vite (build tool)
+- CSS (no framework)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Project Structure
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── App.tsx           # Main application component
+├── App.css           # Application styles
+├── ImageUpload.tsx   # Reusable image upload component
+├── main.tsx          # Entry point
+└── index.css         # Global styles
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Components
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### App.tsx
+Main component that handles:
+- State management for yarn/garment images and extracted colors
+- API calls to backend for color extraction and recoloring
+- Two-step workflow UI (upload yarn → upload garment)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### ImageUpload.tsx
+Reusable component with:
+- File input with validation (5MB max, images only)
+- Optional image preview
+- Disabled state after upload
+- Callback with file and preview URL
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- Backend server running on `http://localhost:8000`
+
+### Installation
+
+```bash
+cd chromaknit-frontend
+npm install
 ```
+
+### Development
+
+```bash
+npm run dev
+```
+
+Opens at `http://localhost:5173`
+
+### Build
+
+```bash
+npm run build
+```
+
+## API Endpoints Used
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/colors/extract` | POST | Extract colors from yarn image |
+| `/api/garments/recolor` | POST | Recolor garment with extracted colors |
+
+## User Flow
+
+1. **Step 1**: Upload yarn photo
+   - Colors are automatically extracted
+   - Yarn image and color palette displayed side-by-side
+
+2. **Step 2**: Upload garment photo
+   - Click "Recolor Garment" to apply yarn colors
+   - Original and recolored images shown side-by-side
+
+3. **Start Over**: Reset to upload new images
