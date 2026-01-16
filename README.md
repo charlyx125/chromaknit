@@ -405,13 +405,52 @@ npm run preview
 - **Memory efficient:** Streams large files, temporary file cleanup
 - **CORS configured:** Allows frontend-backend communication during development
 
+## ⚡ Performance Benchmarks
+
+**Test Environment:**
+- Machine: LG GRAM 
+- Test Date: January 2026
+- Methodology: Synthetic test images, timed operations
+
+### Individual Operations
+
+| Operation | Small (300x300) | Medium (800x800) | Large (1920x1080) |
+|-----------|-----------------|------------------|-------------------|
+| Color Extraction | 3.382s | 3.797s | 7.014s |
+| Garment Recoloring | 1.746s | 1.863s | 1.766s |
+| **Partial Total** | **5.128s** | **5.660s** | **8.780s** |
+
+**Note:** Recoloring time includes background removal (rembg model loading ~1.5s)
+plus HSV transformation (~0.2s). Background removal dominates, making recoloring
+time nearly constant regardless of image size.
+
+### Full Workflow Estimate
+
+Complete end-to-end workflow (yarn → garment recoloring):
+
+| Image Size | Estimated Time | Notes |
+|------------|----------------|-------|
+| Small (300x300) | ~8-9s | Acceptable for interactive use |
+| Medium (800x800) | ~10-12s | Good user experience |
+| Large (1920x1080) | ~15-16s | Within acceptable threshold |
+
+**Bottleneck:** Color extraction scales with image size (K-means clustering
+on millions of pixels). Recoloring is constant-time due to rembg model loading.
+
+**Optimization Opportunities:**
+1. **Cache extracted colors** (30-40% hit rate for repeat yarns)
+2. **Downscale images before processing** (trade quality for 2-3x speedup)
+3. **Optimize K-means** (reduce iterations or clusters)
+4. **GPU acceleration** for background removal (3-5x faster)
+
 ## ⚠️ Known Limitations
 
 - **Foreground Detection:** Currently recolors all detected foreground objects (may include person, not just garment)
 - **Best Results:** Works optimally with solid-colored garments on simple backgrounds
-- **Processing Time:** 
-  - Color extraction: ~1 second
-  - Background removal: 5-10 seconds for large images
+- **Processing Time:** (see [Performance Benchmarks](#-performance-benchmarks) for details)
+  - Color extraction: 3-7 seconds (K-means clustering, scales with image size)
+  - Background removal + recoloring: ~1.8 seconds (rembg model dominates)
+  - Total workflow: 5-9 seconds for tested sizes
 - **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
 - **File Size Limit:** 5MB maximum for API uploads
 - **Mobile UI:** Not yet optimized for mobile devices (coming in Phase 4)
