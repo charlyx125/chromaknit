@@ -110,7 +110,7 @@ The yellow cardigan was successfully transformed to blue while **preserving all 
 **Real-time Color Extraction:**
 Upload yarn → See colors extracted automatically → Visual palette display
 
-![ChromaKnit E2E demo](examples/E2E-demo.mp4)
+![ChromaKnit E2E demo](examples/E2E-demo.gif)
 
 
 ## 🏗️ Architecture

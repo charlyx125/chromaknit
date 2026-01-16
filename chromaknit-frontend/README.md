@@ -4,7 +4,7 @@ A React application that lets you preview yarn colors on garments before buying.
 
 ## Demo
 
-![ChromaKnit E2E demo](../examples/E2E-demo.mp4)
+![ChromaKnit E2E demo](../examples/E2E-demo.gif)
 
 ## Features
 
