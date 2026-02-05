@@ -213,6 +213,19 @@ recolored_hsv[self.mask > 0, 1] = new_saturation
 - **Justification:** Library is mature, well-maintained, widely used
 - **Mitigation:** Pin version in requirements.txt, monitor for updates
 
+### 5. Memory Footprint
+
+- **Trade-off:** ~300-400MB memory usage when loaded vs. lightweight
+- **Justification:** Required for high-quality segmentation
+- **Mitigation:** Use **lazy loading** - import rembg only when recolor endpoint is called, not at server startup
+
+```python
+# Lazy import pattern (reduces startup memory from ~500MB to ~200MB)
+def remove_background(self):
+    from rembg import remove  # Only loads when needed
+    self.image_no_bg = remove(self.image)
+```
+
 ---
 
 ## Success Metrics
