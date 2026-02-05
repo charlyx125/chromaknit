@@ -23,12 +23,29 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# CORS configuration - production vs development
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+if ENVIRONMENT == "production":
+    origins = [
+        "https://chromaknit.vercel.app",
+        "https://chromaknit-git-main-charlyx125.vercel.app",
+        "https://chromaknit-charlyx125.vercel.app",
+    ]
+else:
+    origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Configuration
