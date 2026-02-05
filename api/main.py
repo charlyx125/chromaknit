@@ -7,7 +7,7 @@ REST API Patterns:
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 import json
 import tempfile
 import os
@@ -297,7 +297,10 @@ async def recolor_garment(
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     """Custom 404 handler"""
-    return {
-        "error": "Endpoint not found",
-        "message": "The requested endpoint does not exist. Check /docs for available endpoints."
-    }
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "Endpoint not found",
+            "message": "The requested endpoint does not exist. Check /docs for available endpoints."
+        }
+    )
