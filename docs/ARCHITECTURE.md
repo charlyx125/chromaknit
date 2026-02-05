@@ -274,6 +274,31 @@ chromaknit/
 
 ---
 
+## Deployment Optimizations
+
+### Lazy Loading for Memory Efficiency
+
+The `rembg` library (with onnxruntime) requires ~300-400MB of memory. To reduce startup memory on memory-constrained hosts (e.g., Render free tier with 512MB):
+
+```python
+# Instead of top-level import:
+# from rembg import remove  # Loads onnxruntime at module import
+
+# Use lazy import inside the method:
+def remove_background(self):
+    from rembg import remove  # Only loads when actually called
+    self.image_no_bg = remove(self.image)
+```
+
+**Benefits:**
+- Server starts faster with lower memory footprint
+- Health checks and color extraction work without loading rembg
+- Memory-heavy model only loads when recoloring is requested
+
+**Trade-off:** First recolor request has ~2-3s additional latency for model loading.
+
+---
+
 ## Security Considerations
 
 - **File uploads:** Validated by type (image/*) and size (5MB max)

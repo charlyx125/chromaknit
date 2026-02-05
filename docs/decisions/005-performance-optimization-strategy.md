@@ -128,6 +128,36 @@ Large Image Time Breakdown:
 
 > **Note:** Speedup estimates below are projections based on algorithmic analysis and general benchmarks, not measured on this specific codebase. Actual results may vary.
 
+### Strategy 0: Lazy Loading for Memory Efficiency ✅ IMPLEMENTED
+
+**Approach:** Import heavy libraries (rembg/onnxruntime) only when needed, not at server startup.
+
+**Problem:** rembg with onnxruntime requires ~300-400MB memory just to import. On memory-constrained hosts (Render free tier: 512MB), this causes OOM crashes at startup.
+
+**Implementation:**
+```python
+# Before: Loads ~400MB at module import
+from rembg import remove  # At top of file
+
+# After: Loads only when recolor endpoint called
+def remove_background(self):
+    from rembg import remove  # Lazy import inside method
+    self.image_no_bg = remove(self.image)
+```
+
+**Trade-offs:**
+
+| Aspect | Impact |
+|--------|--------|
+| Startup Memory | ✅ ~200MB reduction |
+| First Request | ⚠️ +2-3s latency (model loading) |
+| Subsequent Requests | → Same as before |
+| Implementation | ✅ Simple (move import) |
+
+**Status:** ✅ Implemented for Render free tier deployment (Feb 2026)
+
+---
+
 ### Strategy 1: Image Downscaling Before K-means
 
 **Approach:** Resize image to max 400×400 before color extraction.
