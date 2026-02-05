@@ -134,11 +134,14 @@ chromaknit/
 │   ├── vite.config.ts           # Vite build configuration
 │   └── index.html               # HTML shell
 ├── tests/
-│   ├── test_color_extractor.py  # 23 tests, 99% coverage
-│   ├── test_garment_recolor.py  # 15 tests, 89% coverage
+│   ├── test_color_extractor.py  # Color extraction tests
+│   ├── test_garment_recolor.py  # Garment recoloring tests
 │   └── test_utils.py            # Utility function tests
 ├── benchmarks/
-│   └── benchmark_color_extractor.py  # Performance testing
+│   ├── benchmark_color_extractor.py  # Color extraction benchmarks
+│   ├── benchmark_recolor_garment.py  # Recoloring benchmarks
+│   ├── benchmark_full_workflow.py    # End-to-end workflow benchmarks
+│   └── workflow_results.md           # Latest benchmark results
 ├── examples/                    # Sample images
 ├── results/                     # Output directory
 └── main.py                      # Demo workflow
@@ -424,24 +427,36 @@ npm run preview
 plus HSV transformation (~0.2s). Background removal dominates, making recoloring
 time nearly constant regardless of image size.
 
-### Full Workflow Estimate
+### Full Workflow (Measured)
 
-Complete end-to-end workflow (yarn → garment recoloring):
+Complete end-to-end workflow (yarn color extraction → background removal → garment recoloring):
 
-| Image Size | Estimated Time | Notes |
-|------------|----------------|-------|
-| Small (300x300) | ~8-9s | Acceptable for interactive use |
-| Medium (800x800) | ~10-12s | Good user experience |
-| Large (1920x1080) | ~15-16s | Within acceptable threshold |
+| Image Size | Extraction | Bg Removal | Recolor | **Total** | Memory |
+|------------|------------|------------|---------|-----------|--------|
+| Small (300x300) | 2.87s | 1.63s | 0.01s | **4.51s** | 262 MB |
+| Medium (800x800) | 2.63s | 1.56s | 0.01s | **4.20s** | 271 MB |
+| Large (1920x1080) | 7.34s | 1.70s | 0.04s | **9.09s** | 293 MB |
 
-**Bottleneck:** Color extraction scales with image size (K-means clustering
-on millions of pixels). Recoloring is constant-time due to rembg model loading.
+**Bottleneck Analysis:**
+
+| Size | Bottleneck | % of Total |
+|------|------------|------------|
+| Small | Color Extraction | 63.7% |
+| Medium | Color Extraction | 62.5% |
+| Large | Color Extraction | 80.8% |
+
+**Key Findings:**
+- **Color Extraction** is the clear bottleneck (K-means clustering scales with pixel count)
+- **Background Removal** stays constant (~1.6s) due to fixed model inference time
+- **Garment Recoloring** is negligible (<0.05s)
 
 **Optimization Opportunities:**
-1. **Cache extracted colors** (30-40% hit rate for repeat yarns)
-2. **Downscale images before processing** (trade quality for 2-3x speedup)
-3. **Optimize K-means** (reduce iterations or clusters)
-4. **GPU acceleration** for background removal (3-5x faster)
+1. **Cache extracted colors** - instant results for repeat yarn uploads
+2. **Downscale images before K-means** - trade quality for speed
+3. **Optimize K-means** - reduce iterations or use MiniBatchKMeans
+4. **GPU acceleration** - faster background removal with CUDA
+
+**See full benchmarks:** [benchmarks/](./benchmarks/)
 
 ## ⚠️ Known Limitations
 
@@ -532,11 +547,13 @@ This project is open source and available under the MIT License.
 
 For detailed technical decisions and architecture documentation, see:
 
-- `docs/decisions/001-color-extraction-algorithm.md`
-- `docs/decisions/002-background-removal-strategy.md`
-- `docs/decisions/003-api-design-decisions.md`
+- `docs/decisions/001-color-filtering-strategy.md`
+- `docs/decisions/002-background-removal.md`
+- `docs/decisions/003-api-design.md`
+- `docs/decisions/004-react-frontend-architecture.md`
+- `docs/decisions/005-performance-optimization-strategy.md`
 
 ---
 
 Built with ❤️ for knitters and designers
-_Last updated: January 16, 2026 - Phase 3 Complete_
+_Last updated: February 5, 2026 - Full workflow benchmarks added_

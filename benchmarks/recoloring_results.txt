@@ -1,6 +1,6 @@
-CHROMAKNIT BENCHMARK RESULTS
+CHROMAKNIT RECOLOR GARMENTS BENCHMARK RESULTS
 ============================================================
 
-Small_to_recolor: 1.746s
-Medium_to_recolor: 1.863s
-Large_to_recolor: 1.766s
+Small: 1.711s
+Medium: 1.758s
+Large: 1.770s

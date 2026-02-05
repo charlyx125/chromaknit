@@ -127,7 +127,7 @@ mask = result[:, :, 3]  # Extract alpha channel
 - ✅ **Fully automatic** - No user input required
 - ✅ **High quality** - Uses state-of-the-art U²-Net model
 - ✅ **Simple API** - One function call
-- ✅ **Well-maintained** - Active development, 14k+ stars on GitHub
+- ✅ **Well-maintained** - Active development on GitHub
 - ✅ **Works immediately** - Pre-trained model included
 - ✅ **Handles complex scenes** - People, garments, varied backgrounds
 - ✅ **Good edge quality** - Smooth, natural boundaries
@@ -136,7 +136,7 @@ mask = result[:, :, 3]  # Extract alpha channel
 **Cons:**
 
 - Additional dependency (`rembg` + `onnxruntime`)
-- ~5-10 second processing time for large images
+- ~1.5-2 second processing time (model inference)
 - Model size ~180MB
 - May remove more than just background (e.g., includes person wearing garment)
 
@@ -191,9 +191,9 @@ recolored_hsv[self.mask > 0, 1] = new_saturation
 
 ### 1. Processing Time
 
-- **Trade-off:** 5-10 seconds per image vs. instant thresholding
+- **Trade-off:** ~1.7-1.9 seconds per image vs. instant thresholding
 - **Justification:** Quality and accuracy are more important than speed for Phase 1
-- **Mitigation:** Can optimize in Phase 4 with caching, async processing
+- **Mitigation:** Can optimize in Phase 4 with GPU acceleration, caching
 
 ### 2. Model Size
 
@@ -219,11 +219,21 @@ recolored_hsv[self.mask > 0, 1] = new_saturation
 
 After implementation, we measured:
 
-✅ **Quality:** Clean edge detection, handles complex backgrounds  
-✅ **Speed:** 5-8 seconds average on 1920×1080 images (acceptable)  
-✅ **Accuracy:** Successfully segments garments in 90%+ of test cases  
-✅ **Ease of Use:** Single function call, no configuration needed  
+✅ **Quality:** Clean edge detection, handles complex backgrounds
+✅ **Speed:** ~1.7-1.9s for full recoloring (background removal + HSV transform)
+✅ **Accuracy:** Successfully segments garments in test cases
+✅ **Ease of Use:** Single function call, no configuration needed
 ✅ **Maintenance:** Zero issues, works out of the box
+
+**Current Benchmarks (Garment Recoloring):**
+```
+Image Size      Time
+-------------------------
+Small (300x300)   1.746s
+Medium (800x800)  1.863s
+Large (1920x1080) 1.766s
+```
+*Note: Time is nearly constant due to fixed model inference time.*
 
 ---
 
@@ -283,6 +293,7 @@ After implementation, we measured:
 ## Revision History
 
 - **2025-11-14:** Initial decision - Selected rembg
+- **2026-02-05:** Updated with current benchmark results
 - **Future:** May revisit with SAM or custom garment segmentation model
 
 ---

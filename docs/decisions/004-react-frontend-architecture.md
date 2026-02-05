@@ -529,8 +529,6 @@ npm run dev
 
 ### Critical Browser Storage Restriction
 
-**IMPORTANT:** `localStorage` and `sessionStorage` are NOT supported in Claude.ai artifact environment.
-
 **Impact on ChromaKnit:**
 
 - ✅ All state stored in memory (React state) during session

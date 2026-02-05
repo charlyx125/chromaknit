@@ -263,7 +263,7 @@ class ColorExtractor:
 **n_init:** Number of K-means initializations (10)
 
 - Higher = more accurate but slower
-- 10 is scikit-learn's recommended default
+- Explicitly set to 10 for consistency
 
 ### Pipeline Flow
 
@@ -368,7 +368,7 @@ Output: ['#142a68', '#23438d', ...]
 
 ## Testing
 
-### Unit Tests (23 tests, 99% coverage)
+### Unit Tests
 
 **Color extraction tests:**
 
@@ -388,12 +388,12 @@ Output: ['#142a68', '#23438d', ...]
 ```
 Image Size    Pixels      Extraction Time
 ----------------------------------------
-Small         90K         0.234s
-Medium        640K        1.456s
-Large         2.1M        3.892s
+Small         90K         3.382s
+Medium        640K        3.797s
+Large         2.1M        7.014s
 ```
 
-**Conclusion:** Fast enough for interactive use
+**Conclusion:** Acceptable for interactive use. Color extraction is the primary bottleneck in the full workflow.
 
 ---
 
@@ -466,9 +466,10 @@ Large         2.1M        3.892s
 
 - **2025-11-07:** ✅ Decision finalized - K-means selected
 - **2025-11-07:** ✅ Implementation complete
-- **2025-11-14:** ✅ Unit tests complete (23 tests, 99% coverage)
+- **2025-11-14:** ✅ Unit tests complete
 - **2025-11-14:** ✅ Performance benchmarks validated
 - **2025-11-14:** ✅ Real-world testing with blue yarn successful
+- **2026-02-05:** ✅ Benchmarks updated with current results
 
 ---
 
