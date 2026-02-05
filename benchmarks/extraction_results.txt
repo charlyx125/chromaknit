@@ -1,6 +1,6 @@
 CHROMAKNIT EXTRACTING COLORS BENCHMARK RESULTS
 ============================================================
 
-Small: 3.382s
-Medium: 3.797s
-Large: 7.014s
+Small: 2.224s
+Medium: 2.620s
+Large: 7.939s
