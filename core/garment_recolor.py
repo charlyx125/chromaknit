@@ -9,7 +9,6 @@ Date: 2025-11-07
 import cv2
 import numpy as np
 from pathlib import Path
-from rembg import remove
 from core.utils import load_image, hex_to_bgr, print_header, print_step, print_success
 
 
@@ -33,6 +32,8 @@ class GarmentRecolorer:
             return False
 
         try:
+            # Lazy import to reduce memory at startup
+            from rembg import remove
             self.image_no_bg = remove(self.image)
             self.mask = self.image_no_bg[:, :, 3]
             return True
