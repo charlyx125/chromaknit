@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import ImageUpload from "./ImageUpload";
+import { API_BASE_URL } from "./config";
 import "./App.css";
 
 function App() {
@@ -61,7 +62,7 @@ function App() {
       formData.append("colors", JSON.stringify(extractedColors));
 
       const response = await fetch(
-        "http://localhost:8000/api/garments/recolor",
+        `${API_BASE_URL}/api/garments/recolor`,
         {
           method: "POST",
           body: formData,
@@ -95,7 +96,7 @@ function App() {
         formData.append("file", yarnImage);
 
         const response = await fetch(
-          "http://localhost:8000/api/colors/extract",
+          `${API_BASE_URL}/api/colors/extract`,
           {
             method: "POST",
             body: formData,
