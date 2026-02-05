@@ -1,93 +1,28 @@
 # 🧶 ChromaKnit
 
-Transform garment colors using yarn photos - An intelligent color extraction and garment recoloring system for knitters and designers.
+**Visualize how your yarn will look on any garment — before you knit a single stitch.**
 
-## 📖 Overview
+![ChromaKnit Demo](examples/E2E-demo.gif)
 
-ChromaKnit helps knitters and designers visualize how their yarn colors would look on garments. Upload a photo of your yarn, and ChromaKnit will:
+Upload yarn photo → Extract colors automatically → Recolor any garment
 
-- Extract dominant colors from the yarn using K-means clustering
-- Remove backgrounds from garment images automatically
-- Recolor garments realistically while preserving texture, shadows, and lighting
-- Apply multiple yarn colors for natural-looking results
+---
 
-**Problem it solves:** Knitters often struggle to visualize how their yarn will look when knitted into a specific pattern or garment design. ChromaKnit bridges this gap by providing realistic color previews.
+## The Problem
+
+Knitters spend hours (and money) on yarn, only to discover the finished garment doesn't look how they imagined. ChromaKnit lets you preview yarn colors on garments *before* committing to a project.
 
 ## ✨ Features
 
-### ✅ Phase 1 Complete: Core Processing Engine
+| Feature | Description | Details |
+|---------|-------------|---------|
+| **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-color-filtering-strategy.md) |
+| **Background Removal** | AI-powered segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-background-removal.md) |
+| **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-background-removal.md) |
+| **REST API** | FastAPI endpoints with Swagger docs at `/docs` | [ADR 003](docs/decisions/003-api-design.md) |
+| **React Frontend** | TypeScript + Vite with real-time color extraction | [ADR 004](docs/decisions/004-react-frontend-architecture.md) |
 
-**Intelligent Color Extraction**
-
-- K-means clustering for dominant color detection
-- Frequency-based color sorting
-- Hex code output for easy reference
-- Visual color palette generation
-
-**Advanced Garment Recoloring**
-
-- Automatic background removal using AI (rembg)
-- HSV color space transformation for realistic results
-- Texture and lighting preservation
-- Multi-color distribution based on brightness
-- Shadow and highlight retention
-
-**Production-Ready Quality**
-
-- Comprehensive test suite (23+ tests for ColorExtractor, 15+ tests for GarmentRecolorer)
-- 89-99% code coverage
-- Performance benchmarking
-- CI/CD with GitHub Actions
-- Clean, modular architecture
-
-### ✅ Phase 2 Complete: Backend API
-
-**RESTful API with FastAPI**
-
-- `/api/colors/extract` - Extract dominant colors from yarn images
-- `/api/garments/recolor` - Recolor garments with color palettes
-- Automatic interactive documentation (Swagger UI)
-- Comprehensive error handling with helpful messages
-- File upload validation (type, size)
-- Flexible input formats (JSON arrays or comma-separated values)
-
-**API Features**
-
-- File size limits (5MB max)
-- Multiple input format support
-- Proper HTTP status codes (200, 400, 413, 500)
-- Temporary file cleanup
-- Memory-efficient image processing
-- CORS configuration for frontend integration
-
-### ✅ Phase 3 Complete: React Frontend
-
-**Full-Featured Web Interface**
-
-- React 18 + TypeScript + Vite setup
-- Reusable ImageUpload component
-  - Click-to-browse file selection
-  - Image preview with FileReader API
-  - File validation (size, type)
-  - Disabled state after upload
-- Two-step workflow
-  - Step 1: Upload yarn → automatic color extraction
-  - Step 2: Upload garment → recolor with yarn colors
-- Side-by-side comparisons
-  - Yarn image with extracted color palette (vertical)
-  - Original vs recolored garment
-- User experience features
-  - Loading state indicators
-  - Error handling with user feedback
-  - "Start Over" reset button
-- Clean, consistent CSS styling
-
-### 📅 Phase 4: Production Deployment (Planned)
-
-- Backend deployment (Railway/Render)
-- Frontend deployment (Vercel/Netlify)
-- Performance optimizations
-- Production monitoring
+**Status:** ✅ Phases 1-3 Complete | 📅 Phase 4 (Production Deployment) Planned
 
 ## 🎨 Results
 
@@ -104,14 +39,6 @@ ChromaKnit helps knitters and designers visualize how their yarn colors would lo
 _Original garment image from Wool and the Gang_
 
 The yellow cardigan was successfully transformed to blue while **preserving all knit texture, shadows, and folds**!
-
-### Frontend Demo
-
-**Real-time Color Extraction:**
-Upload yarn → See colors extracted automatically → Visual palette display
-
-![ChromaKnit E2E demo](examples/E2E-demo.gif)
-
 
 ## 🏗️ Architecture
 ```
@@ -377,13 +304,13 @@ npm run preview
 
 ## 📊 Technical Approach
 
-### Color Extraction
+### Color Extraction ([ADR 001](docs/decisions/001-color-filtering-strategy.md))
 
 - **Algorithm:** K-means clustering in RGB space
 - **Optimization:** Configurable cluster count, random seed for reproducibility
 - **Output:** Sorted by frequency, hex codes with percentages
 
-### Garment Recoloring
+### Garment Recoloring ([ADR 002](docs/decisions/002-background-removal.md))
 
 - **Color Space:** HSV (Hue, Saturation, Value)
   - H: Changed to yarn color hue
@@ -392,7 +319,7 @@ npm run preview
 - **Multi-Color:** Brightness-based distribution (dark areas → dark yarn colors)
 - **Background Removal:** rembg with U²-Net model
 
-### Frontend Architecture
+### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md))
 
 - **Component-Based:** Reusable ImageUpload component with TypeScript props
 - **State Management:** React hooks (useState, useEffect) for reactive UI
@@ -400,7 +327,7 @@ npm run preview
 - **Real-Time Updates:** Automatic color extraction on upload
 - **Type Safety:** Full TypeScript coverage for compile-time error detection
 
-### API Design
+### API Design ([ADR 003](docs/decisions/003-api-design.md))
 
 - **Layered validation:** File type → File size → Processing quality
 - **Flexible input:** Accepts JSON arrays or comma-separated color values
@@ -408,12 +335,12 @@ npm run preview
 - **Memory efficient:** Streams large files, temporary file cleanup
 - **CORS configured:** Allows frontend-backend communication during development
 
-## ⚡ Performance Benchmarks
+## ⚡ Performance Benchmarks ([ADR 005](docs/decisions/005-performance-optimization-strategy.md))
 
 **Test Environment:**
-- Machine: LG GRAM 
-- Test Date: January 2026
-- Methodology: Synthetic test images, timed operations
+- Machine: LG GRAM
+- Test Date: February 2026
+- Methodology: Synthetic test images, timed operations with psutil memory tracking
 
 ### Individual Operations
 
@@ -502,15 +429,14 @@ Complete end-to-end workflow (yarn color extraction → background removal → g
 - ✅ Start Over reset functionality
 - ✅ Consistent CSS styling
 
-### 📅 Phase 4: Polish & Deployment (Planned)
+### 📅 Phase 4: Polish & Deployment (Complete)
 
 - Drag-and-drop upload
 - Mobile responsive design
 - UI/UX improvements
 - Backend deployment (Railway/Render)
 - Frontend deployment (Vercel/Netlify)
-- Production monitoring
-- Performance optimizations
+- Performance optimizations (future)
 
 ## 🤝 Contributing
 
@@ -547,13 +473,14 @@ This project is open source and available under the MIT License.
 
 For detailed technical decisions and architecture documentation, see:
 
-- `docs/decisions/001-color-filtering-strategy.md`
-- `docs/decisions/002-background-removal.md`
-- `docs/decisions/003-api-design.md`
-- `docs/decisions/004-react-frontend-architecture.md`
-- `docs/decisions/005-performance-optimization-strategy.md`
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design, data flow, component interaction
+- [ADR 001: Color Extraction Algorithm](docs/decisions/001-color-filtering-strategy.md) - K-means clustering selection
+- [ADR 002: Background Removal](docs/decisions/002-background-removal.md) - rembg/U²-Net selection
+- [ADR 003: API Design](docs/decisions/003-api-design.md) - FastAPI REST endpoints
+- [ADR 004: Frontend Architecture](docs/decisions/004-react-frontend-architecture.md) - React + TypeScript decisions
+- [ADR 005: Performance Optimization](docs/decisions/005-performance-optimization-strategy.md) - Bottleneck analysis and optimization strategies
 
 ---
 
 Built with ❤️ for knitters and designers
-_Last updated: February 5, 2026 - Full workflow benchmarks added_
+_Last updated: February 5, 2026 - Added documentation links throughout README_
