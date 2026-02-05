@@ -2,9 +2,13 @@
 
 **Visualize how your yarn will look on any garment — before you knit a single stitch.**
 
+🌐 **[Try it live →](https://chromaknit.vercel.app)**
+
 ![ChromaKnit Demo](examples/E2E-demo.gif)
 
 Upload yarn photo → Extract colors automatically → Recolor any garment
+
+> **Note:** First request may take 30-60 seconds if the server is waking up (free tier). See [Deployment Guide](docs/DEPLOYMENT.md) for details.
 
 ---
 
@@ -429,13 +433,14 @@ Complete end-to-end workflow (yarn color extraction → background removal → g
 - ✅ Start Over reset functionality
 - ✅ Consistent CSS styling
 
-### 📅 Phase 4: Polish & Deployment (Complete)
+### ✅ Phase 4: Polish & Deployment (Complete)
 
-- Drag-and-drop upload
-- Mobile responsive design
-- UI/UX improvements
-- Backend deployment (Railway/Render)
-- Frontend deployment (Vercel/Netlify)
+- ✅ Backend deployment (Render) - https://chromaknit.onrender.com
+- ✅ Frontend deployment (Vercel) - https://chromaknit.vercel.app
+- ✅ Lazy loading optimization for memory-constrained hosting
+- ✅ CORS configuration for production
+- Drag-and-drop upload (future)
+- Mobile responsive design (future)
 - Performance optimizations (future)
 
 ## 🤝 Contributing
@@ -474,6 +479,7 @@ This project is open source and available under the MIT License.
 For detailed technical decisions and architecture documentation, see:
 
 - **[Architecture Overview](docs/ARCHITECTURE.md)** - System design, data flow, component interaction
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production URLs, cold start info, troubleshooting
 - [ADR 001: Color Extraction Algorithm](docs/decisions/001-color-filtering-strategy.md) - K-means clustering selection
 - [ADR 002: Background Removal](docs/decisions/002-background-removal.md) - rembg/U²-Net selection
 - [ADR 003: API Design](docs/decisions/003-api-design.md) - FastAPI REST endpoints
