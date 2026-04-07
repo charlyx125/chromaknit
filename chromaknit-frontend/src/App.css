@@ -4,7 +4,7 @@
 .header-bg {
   position: fixed; inset: 0;
   background-image: url("/header-yarn-background.jpg");
-  background-size: cover; background-position: center;
+  background-size: 100%; background-position: center;
   z-index: 0;
 }
 
