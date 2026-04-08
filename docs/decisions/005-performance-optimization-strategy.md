@@ -132,7 +132,7 @@ Large Image Time Breakdown:
 
 **Approach:** Import heavy libraries (rembg/onnxruntime) only when needed, not at server startup.
 
-**Problem:** rembg with onnxruntime requires ~300-400MB memory just to import. On memory-constrained hosts (Render free tier: 512MB), this causes OOM crashes at startup.
+**Problem:** rembg with onnxruntime requires ~300-400MB memory just to import. On memory-constrained hosts (512MB), this causes OOM crashes at startup.
 
 **Implementation:**
 ```python
@@ -154,7 +154,7 @@ def remove_background(self):
 | Subsequent Requests | → Same as before |
 | Implementation | ✅ Simple (move import) |
 
-**Status:** ✅ Implemented for Render free tier deployment (Feb 2026)
+**Status:** ✅ Implemented for Railway deployment (Feb 2026)
 
 ---
 
