@@ -395,14 +395,21 @@ All Phase 4A optimizations plus additional memory optimizations driven by Railwa
 
 | # | Optimization | Where | Impact |
 |---|-------------|-------|--------|
-| 1 | MiniBatchKMeans + n_init=3 | Backend (`yarn_color_extractor.py`) | ~5x faster color extraction |
-| 2 | Image downscaling (400px yarn, 800px garment) | Frontend (`App.tsx`) + Backend (`main.py`) | Less data to transfer and process |
-| 3 | Lightweight rembg model (`u2netp`) | Backend (`garment_recolor.py`) | ~50% less memory for background removal |
-| 4 | Frontend image resize before upload | Frontend (`App.tsx`) | Reduces network transfer + server load |
-| 5 | Server-side downscale safety net | Backend (`main.py`) | Prevents OOM from direct API usage |
+| 1 | MiniBatchKMeans + n_init=3 | Backend (`yarn_color_extractor.py`) | ~100x faster color extraction |
+| 2 | Frontend image resize before upload | Frontend (`App.tsx`) | Yarn: 400x400, Garment: 500x500. Reduces network transfer + server load |
+| 3 | Server-side image downscale safety net | Backend (`main.py`) | Caps at 400px (extract) / 800px (recolor). Prevents OOM from direct API usage |
+| 4 | Lightweight rembg model (`u2netp`) | Backend (`garment_recolor.py`) | ~50% less memory for background removal |
+| 5 | AbortController for fetch cancellation | Frontend (`App.tsx`) | Cancels in-flight requests on reset, saves server resources |
+| 6 | StrictMode-safe useEffect | Frontend (`App.tsx`) | Cancelled flag prevents double-fire from corrupting state |
 
-**Results on Railway free tier:**
-- Color extraction: ~5s (was 1.2 min before optimizations)
+**Measured results on Railway free tier (April 2026):**
+
+| Operation | Before | After | Improvement |
+|-----------|--------|-------|-------------|
+| Color extraction | 72s | 692ms | **~100x faster** |
+| Garment recoloring | 34s | 2.5s | **~14x faster** |
+| Total workflow | 106s | ~3.2s | **~33x faster** |
+
 - Memory: peaks ~400MB (was causing OOM at ~500MB+)
 
 ### Not Implementing
