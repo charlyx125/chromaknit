@@ -33,8 +33,9 @@ class GarmentRecolorer:
 
         try:
             # Lazy import to reduce memory at startup
-            from rembg import remove
-            self.image_no_bg = remove(self.image)
+            from rembg import remove, new_session
+            session = new_session("u2netp")
+            self.image_no_bg = remove(self.image, session=session)
             self.mask = self.image_no_bg[:, :, 3]
             return True
         except Exception as e:

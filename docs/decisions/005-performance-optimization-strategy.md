@@ -186,7 +186,7 @@ def extract_colors_optimized(image_path, n_colors=5, max_size=400):
 | Memory | ✅ Lower memory usage |
 | Implementation | ✅ Simple (5 lines of code) |
 
-**Recommendation:** Implement with configurable max_size parameter. Default 400px for interactive use, full resolution for quality mode.
+**Status:** ✅ Implemented (April 2026) — frontend resizes yarn to 400x400, garment to 800x800 before upload. Server-side downscaling added as safety net.
 
 ---
 
@@ -220,7 +220,7 @@ kmeans = MiniBatchKMeans(n_clusters=5, batch_size=1024, random_state=42)
 | Memory | ✅ Much lower (processes batches) |
 | Implementation | ✅ Drop-in replacement |
 
-**Recommendation:** Test accuracy degradation by comparing extracted colors visually. If results are acceptable for yarn color matching, use as default.
+**Status:** ✅ Implemented (April 2026) — `MiniBatchKMeans(n_clusters=5, n_init=3, batch_size=1000)` replaces `KMeans`. Combined with n_init reduction (Strategy 3).
 
 ---
 
@@ -246,7 +246,7 @@ kmeans = KMeans(n_clusters=5, n_init=3, max_iter=100, random_state=42)
 | Memory | → No change |
 | Implementation | ✅ Parameter change only |
 
-**Recommendation:** Acceptable for yarn images which typically have distinct color regions.
+**Status:** ✅ Implemented (April 2026) — n_init reduced to 3, combined with MiniBatchKMeans (Strategy 2).
 
 ---
 
@@ -389,10 +389,26 @@ def full_workflow_parallel(yarn_path, garment_path, colors=None):
 - Parallel processing (Phase 4B - needs testing)
 - GPU acceleration (Phase 5 - infrastructure dependency)
 
+### Implemented in April 2026
+
+All Phase 4A optimizations plus additional memory optimizations driven by Railway's 512MB RAM limit:
+
+| # | Optimization | Where | Impact |
+|---|-------------|-------|--------|
+| 1 | MiniBatchKMeans + n_init=3 | Backend (`yarn_color_extractor.py`) | ~5x faster color extraction |
+| 2 | Image downscaling (400px yarn, 800px garment) | Frontend (`App.tsx`) + Backend (`main.py`) | Less data to transfer and process |
+| 3 | Lightweight rembg model (`u2netp`) | Backend (`garment_recolor.py`) | ~50% less memory for background removal |
+| 4 | Frontend image resize before upload | Frontend (`App.tsx`) | Reduces network transfer + server load |
+| 5 | Server-side downscale safety net | Backend (`main.py`) | Prevents OOM from direct API usage |
+
+**Results on Railway free tier:**
+- Color extraction: ~5s (was 1.2 min before optimizations)
+- Memory: peaks ~400MB (was causing OOM at ~500MB+)
+
 ### Not Implementing
 
 - Custom clustering algorithm - Too much effort, scikit-learn is good enough
-- Image compression before upload - Browser handles this, low ROI
+- GPU acceleration - Railway free tier has no GPU
 
 ---
 
