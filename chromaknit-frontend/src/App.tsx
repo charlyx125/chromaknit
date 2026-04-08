@@ -16,6 +16,8 @@ function App() {
   const [showSteps, setShowSteps] = useState(false);
   const stepsRef = useRef<HTMLDivElement>(null);
 
+  const [resetKey, setResetKey] = useState(0);
+
   // --- Yarn state ---
   const [yarnImage, setYarnImage] = useState<File | null>(null);
   const [isExtractingColors, setIsExtractingColors] = useState(false);
@@ -202,6 +204,7 @@ function App() {
     setIsExtractingColors(false);
     setIsRecoloring(false);
     setShowSteps(false);
+    setResetKey((prev) => prev + 1);
   };
 
   return (
@@ -226,10 +229,18 @@ function App() {
             detail="ChromaKnit analyses colours using K-means clustering. The messier and more textured the yarn, the better! This ensures we capture the full range of your palette."
           />
           <UploadZone
+            key={`yarn-${resetKey}`}
             icon="&#x1FAA2;"
             heading="drop your yarn photo here"
             subtitle="jpg or png &middot; up to 5MB"
             onFileSelect={handleYarnUpload}
+            onClear={() => {
+              extractAbortRef.current?.abort();
+              setYarnImage(null);
+              setExtractedColors([]);
+              setIsExtractingColors(false);
+              setError(null);
+            }}
           />
           {isExtractingColors && (
             <LoadingCat
@@ -260,10 +271,19 @@ function App() {
                 detail="ChromaKnit uses background removal (rembg) to isolate your garment, then maps the yarn palette onto it using HSV colour space transformation."
               />
               <UploadZone
+                key={`garment-${resetKey}`}
                 icon="&#x1F9E5;"
                 heading="drop your garment photo here"
                 subtitle="flat-lay or worn &middot; jpg or png"
                 onFileSelect={handleGarmentUpload}
+                onClear={() => {
+                  recolorAbortRef.current?.abort();
+                  setGarmentImage(null);
+                  setGarmentPreviewUrl(null);
+                  setRecoloredImageUrl(null);
+                  setIsRecoloring(false);
+                  setError(null);
+                }}
               />
               {garmentImage && !isRecoloring && !recoloredImageUrl && (
                 <div style={{ textAlign: "center", marginTop: 18 }}>
@@ -307,7 +327,7 @@ function App() {
         )}
 
         {/* Reset */}
-        {showSteps && yarnImage && (
+        {recoloredImageUrl && (
           <div className="reset-row">
             <button className="btn-ghost" onClick={handleReset}>
               start over

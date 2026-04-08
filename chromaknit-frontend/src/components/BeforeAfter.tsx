@@ -31,39 +31,43 @@ function BeforeAfter({ beforeUrl, afterUrl, onDownload }: BeforeAfterProps) {
   return (
     <div className="slider-card">
       <h3>your result</h3>
-      <div
-        className="ba-container"
-        ref={containerRef}
-        onMouseDown={onMouseDown}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        onMouseMove={onMouseMove}
-        onTouchMove={onTouchMove}
-      >
-        <div className="ba-before">
-          <img src={beforeUrl} alt="Original garment" />
+      <div className="ba-wrapper">
+        <div className="ba-inner">
+          <div
+            className="ba-container"
+            ref={containerRef}
+            onMouseDown={onMouseDown}
+            onMouseUp={onMouseUp}
+            onMouseLeave={onMouseUp}
+            onMouseMove={onMouseMove}
+            onTouchMove={onTouchMove}
+          >
+            <div className="ba-before">
+              <img src={beforeUrl} alt="Original garment" />
+            </div>
+            <div
+              className="ba-after"
+              style={{ clipPath: `inset(0 0 0 ${position}%)` }}
+            >
+              <img src={afterUrl} alt="Recoloured garment" />
+            </div>
+            <div className="ba-divider" style={{ left: `${position}%` }} />
+            <div className="ba-handle" style={{ left: `${position}%` }}>
+              &#x25C0;&#x25B6;
+            </div>
+            <span className="ba-lbl left">original</span>
+            <span className="ba-lbl right">recoloured</span>
+          </div>
+          <input
+            type="range"
+            className="range-input"
+            min="0"
+            max="100"
+            value={position}
+            onChange={(e) => setPosition(Number(e.target.value))}
+          />
         </div>
-        <div
-          className="ba-after"
-          style={{ clipPath: `inset(0 0 0 ${position}%)` }}
-        >
-          <img src={afterUrl} alt="Recoloured garment" />
-        </div>
-        <div className="ba-divider" style={{ left: `${position}%` }} />
-        <div className="ba-handle" style={{ left: `${position}%` }}>
-          &#x25C0;&#x25B6;
-        </div>
-        <span className="ba-lbl left">original</span>
-        <span className="ba-lbl right">recoloured</span>
       </div>
-      <input
-        type="range"
-        className="range-input"
-        min="0"
-        max="100"
-        value={position}
-        onChange={(e) => setPosition(Number(e.target.value))}
-      />
       <div className="btn-row">
         <button className="btn-dl" onClick={onDownload}>
           &#x2B07; download
