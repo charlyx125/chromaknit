@@ -66,8 +66,9 @@ No service variables required. CORS is configured to allow both production and d
 - Server starts at ~200MB, peaks at ~400MB during recoloring
 
 **Production Performance (Railway free tier):**
-- Color extraction: **~700ms** (was 72s before optimizations)
-- Garment recoloring: **~2.5s** (was 34s before optimizations)
+- Color extraction: **487–711ms** (was 72s before optimizations)
+- Garment recoloring: **1.8–37s** (was 34s before optimizations)
+- The wide recoloring range is due to lazy-loaded rembg: first request after idle (~37s) loads the model, subsequent requests are fast (~1.8s)
 
 ### Frontend (Vercel)
 

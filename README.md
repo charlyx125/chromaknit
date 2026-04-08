@@ -402,8 +402,10 @@ After optimizations (April 2026), production performance on Railway's constraine
 
 | Operation | Before | After | Improvement |
 |-----------|--------|-------|-------------|
-| Color Extraction | 72s | 692ms | **~100x faster** |
-| Garment Recoloring | 34s | 2.5s | **~14x faster** |
+| Color Extraction | 72s | 487–711ms | **~100-150x faster** |
+| Garment Recoloring | 34s | 1.8–37s | **~1-19x faster** |
+
+> **Note:** Recoloring has a wide range because rembg's neural network is lazy-loaded to keep idle memory under 512MB. The first recolor after idle (~37s) pays the model loading cost. Every subsequent request is fast (~1.8s). This is a deliberate trade-off — low idle memory vs. cold-start latency.
 
 **Optimizations applied:**
 1. **Frontend image resize** - yarn to 400x400, garment to 500x500 before uploading
