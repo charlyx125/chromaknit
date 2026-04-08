@@ -387,8 +387,10 @@ After optimizations (April 2026), production performance on Railway's constraine
 
 | Operation | Before | After | Improvement |
 |-----------|--------|-------|-------------|
-| Color Extraction | 72s | 692ms | **~100x faster** |
-| Garment Recoloring | 34s | 2.5s | **~14x faster** |
+| Color Extraction | 72s | 487–711ms | **~100-150x faster** |
+| Garment Recoloring | 34s | 1.8–37s | **~1-19x faster** |
+
+> **Note:** Recoloring has a wide range because rembg's neural network is lazy-loaded to keep idle memory under 512MB. The first recolor after idle (~37s) pays the model loading cost. Every subsequent request is fast (~1.8s). This is a deliberate trade-off — low idle memory vs. cold-start latency.
 
 **Optimizations applied:**
 1. **Frontend image resize** - yarn to 400x400, garment to 500x500 before uploading
@@ -403,9 +405,9 @@ After optimizations (April 2026), production performance on Railway's constraine
 - **Foreground Detection:** Currently recolors all detected foreground objects (may include person, not just garment)
 - **Best Results:** Works optimally with solid-colored garments on simple backgrounds
 - **Processing Time:** (see [Performance Benchmarks](#-performance-benchmarks) for details)
-  - Color extraction: ~700ms on Railway free tier (optimized with MiniBatchKMeans + frontend resize)
-  - Background removal + recoloring: ~2.5s on Railway free tier (optimized with u2netp + frontend resize)
-  - Total workflow: ~3.2s on production
+  - Color extraction: 487–711ms on Railway free tier (optimized with MiniBatchKMeans + frontend resize)
+  - Background removal + recoloring: 1.8–37s on Railway free tier (first request loads model ~37s, subsequent ~1.8s)
+  - Total workflow: ~2.3s warm, ~38s cold
 - **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
 - **File Size Limit:** 5MB maximum for API uploads
 - **Mobile UI:** Not yet optimized for mobile devices (coming in Phase 4)
