@@ -8,7 +8,7 @@
 
 Upload yarn photo → Extract colors automatically → Recolor any garment
 
-> **Note:** First request may take 30-60 seconds if the server is waking up (free tier). See [Deployment Guide](docs/DEPLOYMENT.md) for details.
+> **Note:** Backend hosted on Railway (no cold starts). See [Deployment Guide](docs/DEPLOYMENT.md) for details.
 
 ---
 
@@ -435,7 +435,7 @@ Complete end-to-end workflow (yarn color extraction → background removal → g
 
 ### ✅ Phase 4: Polish & Deployment (Complete)
 
-- ✅ Backend deployment (Render) - https://chromaknit.onrender.com
+- ✅ Backend deployment (Railway) - https://chromaknit-production.up.railway.app
 - ✅ Frontend deployment (Vercel) - https://chromaknit.vercel.app
 - ✅ Lazy loading optimization for memory-constrained hosting
 - ✅ CORS configuration for production

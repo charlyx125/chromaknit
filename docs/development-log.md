@@ -405,6 +405,26 @@ npm run dev
 
 ---
 
+## Phase 4B: Bug Fixes (April 2026)
+
+### Bug: In-flight API requests not cancelled on reset
+
+**Date:** April 8, 2026
+
+**Problem:** Clicking "Start Over" while a color extraction or recolor request was in-flight did not cancel the pending fetch calls. The API requests continued running on Railway, and if they resolved after the reset, stale results could overwrite the clean state. This also wasted Railway compute credits — each orphaned request consumed server resources for nothing.
+
+**How it was found:** Network tab showed multiple pending `extract` requests stacking up after repeated Start Over clicks mid-request. First request took ~1.2 min on Railway (vs 3-7s locally), making the window for this bug much wider in production.
+
+**Root cause:** `fetch()` calls had no `AbortController` — there was no way to cancel them.
+
+**Fix:** Added `AbortController` refs for both extract and recolor fetch calls. `handleReset` now aborts any in-flight requests. The `useEffect` cleanup for color extraction also aborts on unmount/re-trigger. Aborted requests are silently ignored (no error shown to user).
+
+**Files changed:** `chromaknit-frontend/src/App.tsx`
+
+**Lesson:** Always use `AbortController` with long-running fetch calls, especially when the user can navigate away or reset mid-request. On slow deployments (free-tier hosting), the time window for this class of bug is much larger than in local dev.
+
+---
+
 ## Lessons Learned
 
 ### Technical Lessons
@@ -455,7 +475,7 @@ npm run dev
 - [ ] Loading spinners
 
 ### Medium-term (Phase 5)
-- [ ] Deploy backend (Railway/Render)
+- [ ] Deploy backend (Railway)
 - [ ] Deploy frontend (Vercel/Netlify)
 - [ ] Production optimizations
 - [ ] Analytics/monitoring

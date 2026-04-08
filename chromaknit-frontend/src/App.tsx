@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ImageUpload from "./ImageUpload";
 import { API_BASE_URL } from "./config";
 import "./App.css";
@@ -18,6 +18,9 @@ function App() {
     null
   );
 
+  const extractAbortRef = useRef<AbortController | null>(null);
+  const recolorAbortRef = useRef<AbortController | null>(null);
+
   const handleYarnUpload = (file: File, previewUrl: string) => {
     setYarnImage(file);
     setYarnPreviewUrl(previewUrl);
@@ -32,6 +35,8 @@ function App() {
   };
 
   const handleReset = () => {
+    extractAbortRef.current?.abort();
+    recolorAbortRef.current?.abort();
     setYarnImage(null);
     setYarnPreviewUrl(null);
     setExtractedColors([]);
@@ -39,6 +44,8 @@ function App() {
     setGarmentPreviewUrl(null);
     setRecoloredImageUrl(null);
     setError(null);
+    setIsExtractingColors(false);
+    setIsRecoloring(false);
     setResetKey((prev) => prev + 1);
   };
 
@@ -53,6 +60,10 @@ function App() {
       return;
     }
 
+    recolorAbortRef.current?.abort();
+    const controller = new AbortController();
+    recolorAbortRef.current = controller;
+
     setIsRecoloring(true);
     setError(null);
 
@@ -66,6 +77,7 @@ function App() {
         {
           method: "POST",
           body: formData,
+          signal: controller.signal,
         }
       );
 
@@ -77,6 +89,7 @@ function App() {
       const imageUrl = URL.createObjectURL(blob);
       setRecoloredImageUrl(imageUrl);
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setError("Failed to recolor garment. Please try again.");
       console.error("Recolor error:", error);
     } finally {
@@ -87,9 +100,13 @@ function App() {
   useEffect(() => {
     if (!yarnImage) return;
 
+    extractAbortRef.current?.abort();
+    const controller = new AbortController();
+    extractAbortRef.current = controller;
+
     const extractColors = async () => {
       setIsExtractingColors(true);
-      setError(null); // Clear previous errors
+      setError(null);
 
       try {
         const formData = new FormData();
@@ -100,6 +117,7 @@ function App() {
           {
             method: "POST",
             body: formData,
+            signal: controller.signal,
           }
         );
 
@@ -110,16 +128,19 @@ function App() {
         const data = await response.json();
         setExtractedColors(data.colors);
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setError(
           err instanceof Error ? err.message : "Failed to extract colors"
         );
-        setExtractedColors([]); // Clear colors on error
+        setExtractedColors([]);
       } finally {
-        setIsExtractingColors(false); // ← Always runs, even if error
+        setIsExtractingColors(false);
       }
     };
 
     extractColors();
+
+    return () => controller.abort();
   }, [yarnImage]);
 
   return (
