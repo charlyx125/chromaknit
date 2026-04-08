@@ -405,6 +405,56 @@ npm run dev
 
 ---
 
+## Phase 4B: Bug Fixes (April 2026)
+
+### Bug: In-flight API requests not cancelled on reset
+
+**Date:** April 8, 2026
+
+**Problem:** Clicking "Start Over" while a color extraction or recolor request was in-flight did not cancel the pending fetch calls. The API requests continued running on Railway, and if they resolved after the reset, stale results could overwrite the clean state. This also wasted Railway compute credits — each orphaned request consumed server resources for nothing.
+
+**How it was found:** Network tab showed multiple pending `extract` requests stacking up after repeated Start Over clicks mid-request. First request took ~1.2 min on Railway (vs 3-7s locally), making the window for this bug much wider in production.
+
+**Root cause:** `fetch()` calls had no `AbortController` — there was no way to cancel them.
+
+**Fix:** Added `AbortController` refs for both extract and recolor fetch calls. `handleReset` now aborts any in-flight requests. The `useEffect` cleanup for color extraction also aborts on unmount/re-trigger. Aborted requests are silently ignored (no error shown to user).
+
+**Files changed:** `chromaknit-frontend/src/App.tsx`
+
+**Lesson:** Always use `AbortController` with long-running fetch calls, especially when the user can navigate away or reset mid-request. On slow deployments (free-tier hosting), the time window for this class of bug is much larger than in local dev.
+
+---
+
+### Performance: 100x faster color extraction, 14x faster recoloring
+
+**Date:** April 8, 2026
+
+**Problem:** On Railway's free tier (~0.05 vCPU, 512MB RAM), color extraction took 72 seconds and recoloring took 34 seconds. Recoloring also caused OOM crashes.
+
+**Root causes:**
+- Full-resolution images (2000x1500+) sent to a server with almost no CPU
+- KMeans running 10 times on 3 million pixels
+- Default rembg model (`u2net`) using excessive memory
+
+**Optimizations applied:**
+
+| Change | Before | After |
+|--------|--------|-------|
+| Frontend yarn resize (400x400) | 3M pixels uploaded | 160K pixels uploaded |
+| Frontend garment resize (500x500) | Full-res uploaded | 250K pixels uploaded |
+| MiniBatchKMeans + n_init=3 | KMeans, n_init=10 on all pixels | Batch sampling, 3 runs |
+| Lightweight rembg model (`u2netp`) | `u2net` (~400MB) | `u2netp` (~200MB) |
+| Server-side downscale safety net | No cap | 400px extract, 800px recolor |
+
+**Results:**
+- Color extraction: **72s → 692ms** (~100x faster)
+- Garment recoloring: **34s → 2.5s** (~14x faster)
+- No more OOM crashes
+
+**Lesson:** Don't throw money at infrastructure before looking at what your code is actually doing. The server wasn't slow — we were sending it 100x more work than necessary. Frontend preprocessing is free and can have a bigger impact than a server upgrade.
+
+---
+
 ## Lessons Learned
 
 ### Technical Lessons
@@ -455,7 +505,7 @@ npm run dev
 - [ ] Loading spinners
 
 ### Medium-term (Phase 5)
-- [ ] Deploy backend (Railway/Render)
+- [ ] Deploy backend (Railway)
 - [ ] Deploy frontend (Vercel/Netlify)
 - [ ] Production optimizations
 - [ ] Analytics/monitoring

@@ -11,9 +11,12 @@ from fastapi.responses import Response, JSONResponse
 import json
 import tempfile
 import os
+import cv2
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
-from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.middleware.cors import CORSMiddleware
+
+MAX_IMAGE_DIMENSION = 800 
 
 
 # Initialize FastAPI application
@@ -23,22 +26,16 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS configuration - production vs development
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-
-if ENVIRONMENT == "production":
-    origins = [
-        "https://chromaknit.vercel.app",
-        "https://chromaknit-git-main-charlyx125.vercel.app",
-        "https://chromaknit-charlyx125.vercel.app",
-    ]
-else:
-    origins = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ]
+# CORS configuration - allow both production and development origins
+origins = [
+    "https://chromaknit.vercel.app",
+    "https://chromaknit-git-main-charlyx125.vercel.app",
+    "https://chromaknit-charlyx125.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +47,20 @@ app.add_middleware(
 
 # Configuration
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB in bytes
+
+
+def downscale_image(path: str, max_dim: int = MAX_IMAGE_DIMENSION) -> None:
+    """Downscale image on disk if it exceeds max_dim. Reduces memory usage for processing."""
+    img = cv2.imread(path)
+    if img is None:
+        return
+    h, w = img.shape[:2]
+    if max(h, w) <= max_dim:
+        return
+    scale = max_dim / max(h, w)
+    new_w, new_h = int(w * scale), int(h * scale)
+    img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    cv2.imwrite(path, img)
 
 
 # ============================================================================
@@ -137,7 +148,7 @@ async def extract_colors(
         temp_path = temp_file.name
     
     try:
-        # Extract colors using ColorExtractor
+        downscale_image(temp_path, max_dim=400)
         extractor = ColorExtractor(image_path=temp_path, n_colors=n_colors)
         colors = extractor.extract_dominant_colors()
         
@@ -252,7 +263,7 @@ async def recolor_garment(
         temp_path = temp_file.name
     
     try:
-        # Recolor the garment
+        downscale_image(temp_path)
         recolorer = GarmentRecolorer(garment_image_path=temp_path)
         recolored_image = recolorer.recolor_garment(color_list)
         

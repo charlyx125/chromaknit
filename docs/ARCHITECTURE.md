@@ -14,7 +14,7 @@ ChromaKnit is a full-stack application for visualizing yarn colors on garments. 
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     FastAPI Backend (Python)                     │
-│                     localhost:8000 / Render                      │
+│                     localhost:8000 / Railway                     │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -278,7 +278,7 @@ chromaknit/
 
 ### Lazy Loading for Memory Efficiency
 
-The `rembg` library (with onnxruntime) requires ~300-400MB of memory. To reduce startup memory on memory-constrained hosts (e.g., Render free tier with 512MB):
+The `rembg` library (with onnxruntime) requires ~300-400MB of memory. To reduce startup memory on memory-constrained hosts (e.g., Railway with 512MB):
 
 ```python
 # Instead of top-level import:

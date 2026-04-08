@@ -30,6 +30,37 @@ function App() {
   // --- Error state ---
   const [error, setError] = useState<string | null>(null);
 
+  // --- Abort controllers ---
+  const extractAbortRef = useRef<AbortController | null>(null);
+  const recolorAbortRef = useRef<AbortController | null>(null);
+
+  // --- Image resize helper ---
+  const resizeImage = (file: File, maxSize: number): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width <= maxSize && img.height <= maxSize) {
+          resolve(file);
+          return;
+        }
+        const scale = maxSize / Math.max(img.width, img.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            resolve(new File([blob!], file.name, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   // --- "Try it now" handler ---
   const handleStart = () => {
     setShowSteps(true);
@@ -39,14 +70,16 @@ function App() {
   };
 
   // --- Yarn upload ---
-  const handleYarnUpload = (file: File, _previewUrl: string) => {
-    setYarnImage(file);
+  const handleYarnUpload = async (file: File, _previewUrl: string) => {
+    const resized = await resizeImage(file, 400);
+    setYarnImage(resized);
     setError(null);
   };
 
   // --- Garment upload ---
-  const handleGarmentUpload = (file: File, previewUrl: string) => {
-    setGarmentImage(file);
+  const handleGarmentUpload = async (file: File, previewUrl: string) => {
+    const resized = await resizeImage(file, 500);
+    setGarmentImage(resized);
     setGarmentPreviewUrl(previewUrl);
     setRecoloredImageUrl(null);
     setError(null);
@@ -55,6 +88,11 @@ function App() {
   // --- Extract colors (auto-triggers on yarn upload) ---
   useEffect(() => {
     if (!yarnImage) return;
+
+    let cancelled = false;
+    extractAbortRef.current?.abort();
+    const controller = new AbortController();
+    extractAbortRef.current = controller;
 
     const extractColors = async () => {
       setIsExtractingColors(true);
@@ -67,6 +105,7 @@ function App() {
         const response = await fetch(`${API_BASE_URL}/api/colors/extract`, {
           method: "POST",
           body: formData,
+          signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -74,16 +113,26 @@ function App() {
         }
 
         const data = await response.json();
-        setExtractedColors(data.colors);
+        if (!cancelled) {
+          setExtractedColors(data.colors);
+        }
       } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
         setError(err instanceof Error ? err.message : "Failed to extract colors");
         setExtractedColors([]);
       } finally {
-        setIsExtractingColors(false);
+        if (!cancelled) {
+          setIsExtractingColors(false);
+        }
       }
     };
 
     extractColors();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [yarnImage]);
 
   // --- Recolor garment ---
@@ -97,6 +146,10 @@ function App() {
       return;
     }
 
+    recolorAbortRef.current?.abort();
+    const controller = new AbortController();
+    recolorAbortRef.current = controller;
+
     setIsRecoloring(true);
     setError(null);
 
@@ -108,6 +161,7 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/api/garments/recolor`, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -118,6 +172,7 @@ function App() {
       const imageUrl = URL.createObjectURL(blob);
       setRecoloredImageUrl(imageUrl);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError("Failed to recolor garment. Please try again.");
       console.error("Recolor error:", err);
     } finally {
@@ -136,6 +191,8 @@ function App() {
 
   // --- Reset ---
   const handleReset = () => {
+    extractAbortRef.current?.abort();
+    recolorAbortRef.current?.abort();
     setYarnImage(null);
     setExtractedColors([]);
     setGarmentImage(null);
