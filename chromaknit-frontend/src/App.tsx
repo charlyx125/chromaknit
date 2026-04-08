@@ -1,26 +1,40 @@
 import { useState, useEffect, useRef } from "react";
-import ImageUpload from "./ImageUpload";
 import { API_BASE_URL } from "./config";
 import "./App.css";
 
-function App() {
-  const [yarnImage, setYarnImage] = useState<File | null>(null);
-  const [yarnPreviewUrl, setYarnPreviewUrl] = useState<string | null>(null);
-  const [isExtractingColors, setIsExtractingColors] = useState<boolean>(false);
-  const [extractedColors, setExtractedColors] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [resetKey, setResetKey] = useState(0);
+import PetalBackground from "./components/PetalBackground";
+import Header from "./components/Header";
+import StepSection from "./components/StepSection";
+import InfoPanel from "./components/InfoPanel";
+import UploadZone from "./components/UploadZone";
+import ColorPalette from "./components/ColorPalette";
+import LoadingCat from "./components/LoadingCat";
+import BeforeAfter from "./components/BeforeAfter";
 
+function App() {
+  // --- UI state ---
+  const [showSteps, setShowSteps] = useState(false);
+  const stepsRef = useRef<HTMLDivElement>(null);
+
+  // --- Yarn state ---
+  const [yarnImage, setYarnImage] = useState<File | null>(null);
+  const [isExtractingColors, setIsExtractingColors] = useState(false);
+  const [extractedColors, setExtractedColors] = useState<string[]>([]);
+
+  // --- Garment state ---
   const [garmentImage, setGarmentImage] = useState<File | null>(null);
   const [garmentPreviewUrl, setGarmentPreviewUrl] = useState<string | null>(null);
-  const [isRecoloring, setIsRecoloring] = useState<boolean>(false);
-  const [recoloredImageUrl, setRecoloredImageUrl] = useState<string | null>(
-    null
-  );
+  const [isRecoloring, setIsRecoloring] = useState(false);
+  const [recoloredImageUrl, setRecoloredImageUrl] = useState<string | null>(null);
 
+  // --- Error state ---
+  const [error, setError] = useState<string | null>(null);
+
+  // --- Abort controllers ---
   const extractAbortRef = useRef<AbortController | null>(null);
   const recolorAbortRef = useRef<AbortController | null>(null);
 
+  // --- Image resize helper ---
   const resizeImage = (file: File, maxSize: number): Promise<File> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -47,13 +61,22 @@ function App() {
     });
   };
 
-  const handleYarnUpload = async (file: File, previewUrl: string) => {
+  // --- "Try it now" handler ---
+  const handleStart = () => {
+    setShowSteps(true);
+    setTimeout(() => {
+      stepsRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  // --- Yarn upload ---
+  const handleYarnUpload = async (file: File, _previewUrl: string) => {
     const resized = await resizeImage(file, 400);
     setYarnImage(resized);
-    setYarnPreviewUrl(previewUrl);
     setError(null);
   };
 
+  // --- Garment upload ---
   const handleGarmentUpload = async (file: File, previewUrl: string) => {
     const resized = await resizeImage(file, 500);
     setGarmentImage(resized);
@@ -62,27 +85,62 @@ function App() {
     setError(null);
   };
 
-  const handleReset = () => {
-    extractAbortRef.current?.abort();
-    recolorAbortRef.current?.abort();
-    setYarnImage(null);
-    setYarnPreviewUrl(null);
-    setExtractedColors([]);
-    setGarmentImage(null);
-    setGarmentPreviewUrl(null);
-    setRecoloredImageUrl(null);
-    setError(null);
-    setIsExtractingColors(false);
-    setIsRecoloring(false);
-    setResetKey((prev) => prev + 1);
-  };
+  // --- Extract colors (auto-triggers on yarn upload) ---
+  useEffect(() => {
+    if (!yarnImage) return;
 
+    let cancelled = false;
+    extractAbortRef.current?.abort();
+    const controller = new AbortController();
+    extractAbortRef.current = controller;
+
+    const extractColors = async () => {
+      setIsExtractingColors(true);
+      setError(null);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", yarnImage);
+
+        const response = await fetch(`${API_BASE_URL}/api/colors/extract`, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!cancelled) {
+          setExtractedColors(data.colors);
+        }
+      } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
+        setError(err instanceof Error ? err.message : "Failed to extract colors");
+        setExtractedColors([]);
+      } finally {
+        if (!cancelled) {
+          setIsExtractingColors(false);
+        }
+      }
+    };
+
+    extractColors();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [yarnImage]);
+
+  // --- Recolor garment ---
   const handleRecolor = async () => {
     if (!garmentImage) {
       setError("Please upload a garment image");
       return;
     }
-
     if (extractedColors.length === 0) {
       setError("Please upload yarn first to extract colors");
       return;
@@ -100,14 +158,11 @@ function App() {
       formData.append("file", garmentImage);
       formData.append("colors", JSON.stringify(extractedColors));
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/garments/recolor`,
-        {
-          method: "POST",
-          body: formData,
-          signal: controller.signal,
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/garments/recolor`, {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -116,178 +171,151 @@ function App() {
       const blob = await response.blob();
       const imageUrl = URL.createObjectURL(blob);
       setRecoloredImageUrl(imageUrl);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError("Failed to recolor garment. Please try again.");
-      console.error("Recolor error:", error);
+      console.error("Recolor error:", err);
     } finally {
       setIsRecoloring(false);
     }
   };
 
-  useEffect(() => {
-    if (!yarnImage) return;
+  // --- Download recolored image ---
+  const handleDownload = () => {
+    if (!recoloredImageUrl) return;
+    const a = document.createElement("a");
+    a.href = recoloredImageUrl;
+    a.download = "chromaknit-recoloured.png";
+    a.click();
+  };
 
-    let cancelled = false;
+  // --- Reset ---
+  const handleReset = () => {
     extractAbortRef.current?.abort();
-    const controller = new AbortController();
-    extractAbortRef.current = controller;
-
-    const extractColors = async () => {
-      setIsExtractingColors(true);
-      setError(null);
-
-      try {
-        const formData = new FormData();
-        formData.append("file", yarnImage);
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/colors/extract`,
-          {
-            method: "POST",
-            body: formData,
-            signal: controller.signal,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!cancelled) {
-          setExtractedColors(data.colors);
-        }
-      } catch (err) {
-        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to extract colors"
-        );
-        setExtractedColors([]);
-      } finally {
-        if (!cancelled) {
-          setIsExtractingColors(false);
-        }
-      }
-    };
-
-    extractColors();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [yarnImage]);
+    recolorAbortRef.current?.abort();
+    setYarnImage(null);
+    setExtractedColors([]);
+    setGarmentImage(null);
+    setGarmentPreviewUrl(null);
+    setRecoloredImageUrl(null);
+    setError(null);
+    setIsExtractingColors(false);
+    setIsRecoloring(false);
+    setShowSteps(false);
+  };
 
   return (
-    <div className="app">
-      <header>
-        <h1>🧶 ChromaKnit</h1>
-        <p>Preview yarn colors on garments before buying</p>
-      </header>
+    <>
+      <PetalBackground />
 
-      <main>
-        <section className="step">
-          <h2>Step 1: Upload Yarn Photo</h2>
+      <Header onStart={handleStart} />
 
-          <ImageUpload
-            key={`yarn-${resetKey}`}
-            label="Drop yarn image here"
-            onImageSelect={handleYarnUpload}
-            showPreview={false}
+      {/* ---- STEPS ---- */}
+      <div
+        ref={stepsRef}
+        className={`steps-wrap ${showSteps ? "visible" : "hidden"}`}
+      >
+        {/* STEP 1 — Upload Yarn + Palette */}
+        <StepSection
+          number={1}
+          label="step one"
+          title={<>upload your <em>yarn</em></>}
+        >
+          <InfoPanel
+            shortText="a photo of your yarn is all you need"
+            detail="ChromaKnit analyses colours using K-means clustering. The messier and more textured the yarn, the better! This ensures we capture the full range of your palette."
           />
-
-          {yarnImage && (
-            <p className="upload-success">✅ Uploaded: {yarnImage.name}</p>
+          <UploadZone
+            icon="&#x1FAA2;"
+            heading="drop your yarn photo here"
+            subtitle="jpg or png &middot; up to 5MB"
+            onFileSelect={handleYarnUpload}
+          />
+          {isExtractingColors && (
+            <LoadingCat
+              message="gathering pixels..."
+              subtitle="analysing your yarn colours"
+            />
           )}
-
-          {isExtractingColors && <p>⏳ Extracting colors...</p>}
-
-          {yarnPreviewUrl && extractedColors.length > 0 && (
-            <div className="yarn-colors-container">
-              <img
-                src={yarnPreviewUrl}
-                alt="Yarn preview"
-                className="yarn-preview"
-              />
-              <div className="extracted-colors">
-                <h3>Extracted Colors:</h3>
-                <div className="color-palette-vertical">
-                  {extractedColors.map((color, index) => (
-                    <div
-                      key={index}
-                      className="color-box"
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
+          {error && !isExtractingColors && extractedColors.length === 0 && (
+            <div className="error-msg">{error}</div>
+          )}
+          {extractedColors.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <ColorPalette colors={extractedColors} />
             </div>
           )}
+        </StepSection>
 
-          {error && <div className="error">❌ Error: {error}</div>}
-        </section>
-
+        {/* STEP 2 — Upload Garment (visible after colors extracted) */}
         {extractedColors.length > 0 && (
-          <section className="step">
-            <h2>Step 2: Upload Garment Photo</h2>
-
-            <ImageUpload
-              key={`garment-${resetKey}`}
-              label="Drop garment image here"
-              onImageSelect={handleGarmentUpload}
-              showPreview={false}
-            />
-
-            {garmentImage && (
-              <p className="upload-success">✅ Uploaded: {garmentImage.name}</p>
-            )}
-
-            <button
-              className="action-button"
-              onClick={handleRecolor}
-              disabled={
-                !garmentImage || extractedColors.length === 0 || isRecoloring
-              }
+          <>
+            <StepSection
+              number={2}
+              label="step two"
+              title={<>upload your <em>garment</em></>}
             >
-              {isRecoloring ? "⏳ Recoloring..." : "🎨 Recolor Garment"}
-            </button>
-
-            {garmentPreviewUrl && (
-              <div className="garment-result-container">
-                <div className="garment-image-wrapper">
-                  <h3>Original:</h3>
-                  <img
-                    src={garmentPreviewUrl}
-                    alt="Garment preview"
-                    className="garment-preview"
-                  />
+              <InfoPanel
+                shortText="a flat-lay photo works great!"
+                detail="ChromaKnit uses background removal (rembg) to isolate your garment, then maps the yarn palette onto it using HSV colour space transformation."
+              />
+              <UploadZone
+                icon="&#x1F9E5;"
+                heading="drop your garment photo here"
+                subtitle="flat-lay or worn &middot; jpg or png"
+                onFileSelect={handleGarmentUpload}
+              />
+              {garmentImage && !isRecoloring && !recoloredImageUrl && (
+                <div style={{ textAlign: "center", marginTop: 18 }}>
+                  <button className="btn-primary" onClick={handleRecolor}>
+                    &#x1F3A8; recolour garment
+                  </button>
                 </div>
-                {recoloredImageUrl && (
-                  <div className="garment-image-wrapper">
-                    <h3>Recolored:</h3>
-                    <img
-                      src={recoloredImageUrl}
-                      alt="Recolored garment"
-                      className="garment-preview"
-                    />
-                  </div>
-                )}
+              )}
+              {isRecoloring && (
+                <LoadingCat
+                  message="recolouring your garment..."
+                  subtitle="this takes just a moment"
+                  showCat
+                />
+              )}
+              {error && !isRecoloring && garmentImage && (
+                <div className="error-msg">{error}</div>
+              )}
+            </StepSection>
+          </>
+        )}
+
+        {/* STEP 3 — Before & After (visible after recolor) */}
+        {recoloredImageUrl && garmentPreviewUrl && (
+          <>
+            <StepSection
+              number={3}
+              label="step three"
+              title={<>before <em>&amp; after</em></>}
+            >
+              <div className="step-short">
+                <span>drag to compare — then go buy that yarn</span>
               </div>
-            )}
-
-            {error && <div className="error">❌ Error: {error}</div>}
-          </section>
+              <BeforeAfter
+                beforeUrl={garmentPreviewUrl}
+                afterUrl={recoloredImageUrl}
+                onDownload={handleDownload}
+              />
+            </StepSection>
+          </>
         )}
 
-        {yarnImage && (
-          <button className="reset-button" onClick={handleReset}>
-            🔄 Start Over
-          </button>
+        {/* Reset */}
+        {showSteps && yarnImage && (
+          <div className="reset-row">
+            <button className="btn-ghost" onClick={handleReset}>
+              start over
+            </button>
+          </div>
         )}
-      </main>
-    </div>
+      </div>
+    </>
   );
 }
 
