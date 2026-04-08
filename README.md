@@ -35,11 +35,11 @@ Knitters spend hours (and money) on yarn, only to discover the finished garment 
 
 | Input Yarn                             | Extracted Colors                                 |
 | -------------------------------------- | ------------------------------------------------ |
-| ![Blue Yarn](examples/sample-yarn.jpg) | ![Color Palette](results/sample-yarn-colors.png) |
+| ![Blue Yarn](examples/yarn/sample-yarn.jpg) | ![Color Palette](results/sample-yarn-colors.png) |
 
 | Original Garment                                | Recolored Result                                |
 | ----------------------------------------------- | ----------------------------------------------- |
-| ![Yellow Cardigan](examples/sample-garment.jpg) | ![Blue Cardigan](results/recolored_garment.png) |
+| ![Yellow Cardigan](examples/garment/sample-garment.jpg) | ![Blue Cardigan](results/recolored_garment.png) |
 
 _Original garment image from Wool and the Gang_
 
@@ -251,12 +251,12 @@ uvicorn api.main:app --reload
 ```bash
 # Extract colors
 curl -X POST "http://127.0.0.1:8000/api/colors/extract" \
-  -F "file=@examples/sample-yarn.jpg" \
+  -F "file=@examples/yarn/sample-yarn.jpg" \
   -F "n_colors=5"
 
 # Recolor garment
 curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
-  -F "file=@examples/sample-garment.jpg" \
+  -F "file=@examples/garment/sample-garment.jpg" \
   -F "colors=#142a68,#23438d,#0c153b" \
   --output recolored.png
 ```

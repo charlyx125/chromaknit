@@ -241,6 +241,14 @@ function App() {
               setIsExtractingColors(false);
               setError(null);
             }}
+            samples={[
+              { src: "/samples/yarn-blue.jpg", label: "blue" },
+              { src: "/samples/yarn-green.jpg", label: "green" },
+              { src: "/samples/yarn-pink.jpg", label: "pink" },
+              { src: "/samples/yarn-purple.jpg", label: "purple" },
+              { src: "/samples/yarn-dark-green.jpg", label: "dark green" },
+              { src: "/samples/yarn-light-blue.jpg", label: "light blue" },
+            ]}
           />
           {isExtractingColors && (
             <LoadingCat
@@ -284,6 +292,13 @@ function App() {
                   setIsRecoloring(false);
                   setError(null);
                 }}
+                samples={[
+                  { src: "/samples/garment-cardigan.jpg", label: "cardigan" },
+                  { src: "/samples/garment-sweater.jpg", label: "sweater" },
+                  { src: "/samples/garment-baby.jpg", label: "baby knit" },
+                  { src: "/samples/garment-bag.jpg", label: "bag" },
+                  { src: "/samples/garment-pillow.jpg", label: "pillow" },
+                ]}
               />
               {garmentImage && !isRecoloring && !recoloredImageUrl && (
                 <div style={{ textAlign: "center", marginTop: 18 }}>
