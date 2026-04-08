@@ -25,8 +25,9 @@ Knitters spend hours (and money) on yarn, only to discover the finished garment 
 | **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-background-removal.md) |
 | **REST API** | FastAPI endpoints with Swagger docs at `/docs` | [ADR 003](docs/decisions/003-api-design.md) |
 | **React Frontend** | TypeScript + Vite with real-time color extraction | [ADR 004](docs/decisions/004-react-frontend-architecture.md) |
+| **UI Design** | Frosted glass header, step-based workflow, before/after slider | [ADR 006](docs/decisions/006-ui-redesign.md) |
 
-**Status:** ✅ Phases 1-3 Complete | 📅 Phase 4 (Production Deployment) Planned
+**Status:** ✅ Phases 1-4 Complete
 
 ## 🎨 Results
 
@@ -54,16 +55,28 @@ chromaknit/
 ├── api/
 │   └── main.py                  # FastAPI REST endpoints with CORS
 ├── chromaknit-frontend/         # React frontend
+│   ├── public/
+│   │   └── header-yarn-background.jpg  # Header background image
 │   ├── src/
-│   │   ├── App.tsx              # Main application component
-│   │   ├── ImageUpload.tsx      # Reusable file upload component
-│   │   ├── App.css              # Application styles
+│   │   ├── App.tsx              # Main application (state + API logic)
+│   │   ├── App.css              # All component styles (~500 lines)
+│   │   ├── index.css            # Design system variables + keyframes
+│   │   ├── config.ts            # API base URL configuration
 │   │   ├── main.tsx             # React entry point
-│   │   └── index.css            # Global styles
+│   │   └── components/
+│   │       ├── Header.tsx       # Frosted glass header with CTA
+│   │       ├── PetalBackground.tsx  # Fixed background + floating petals
+│   │       ├── BuilderNotes.tsx # Collapsible tech stack panel
+│   │       ├── StepSection.tsx  # Reusable step wrapper
+│   │       ├── InfoPanel.tsx    # Expandable info tooltips
+│   │       ├── UploadZone.tsx   # Styled file upload dropzone
+│   │       ├── ColorPalette.tsx # Colour swatches + distribution bar
+│   │       ├── LoadingCat.tsx   # Cat + yarn ball loading animation
+│   │       └── BeforeAfter.tsx  # Draggable comparison slider
 │   ├── package.json             # Node dependencies
 │   ├── tsconfig.json            # TypeScript configuration
 │   ├── vite.config.ts           # Vite build configuration
-│   └── index.html               # HTML shell
+│   └── index.html               # HTML shell + Google Fonts
 ├── tests/
 │   ├── test_color_extractor.py  # Color extraction tests
 │   ├── test_garment_recolor.py  # Garment recoloring tests
@@ -92,10 +105,11 @@ chromaknit/
 
 **Frontend:**
 
-- React 18 - UI library
+- React 19 - UI library
 - TypeScript - Type safety and better DX
 - Vite - Lightning-fast build tool and dev server
-- CSS3 - Custom styling with modern features
+- Cormorant Garamond + DM Sans - Typography (Google Fonts)
+- CSS3 - Custom design system with frosted glass effects, CSS variables, keyframe animations
 
 **Development Tools:**
 
@@ -194,19 +208,18 @@ npm run dev
 
 1. **Start both servers** (see Full Stack Development above)
 2. **Open http://localhost:5173 in browser**
-3. **Upload yarn image:**
-   - Click upload area or drag-and-drop
-   - See image preview
-   - Colors extracted automatically
-4. **View color palette:**
-   - Visual color boxes
-   - Hover to see hex codes
-5. **Upload garment:**
-   - Click upload or drag-and-drop
-   - See image preview
-6. **Click "Recolor Garment":**
-   - View original and recolored side-by-side
-7. **Start Over:** Reset to try new images
+3. **Click "try it now"** on the header to begin
+4. **Step 1 — Upload yarn image:**
+   - Click the upload zone to select an image
+   - Colours are extracted automatically (loading animation while processing)
+   - Extracted palette with distribution bar appears below
+5. **Step 2 — Upload garment image:**
+   - Click the upload zone to select a garment photo
+   - Click "recolour garment" button
+   - Cat + yarn ball animation plays while processing
+6. **Step 3 — Before and after:**
+   - Drag the slider to compare original vs recoloured garment
+   - Download the result or start over
 
 ### Option 2: Use the REST API Directly
 
@@ -323,12 +336,14 @@ npm run preview
 - **Multi-Color:** Brightness-based distribution (dark areas → dark yarn colors)
 - **Background Removal:** rembg with U²-Net model
 
-### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md))
+### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md), [ADR 006](docs/decisions/006-ui-redesign.md))
 
-- **Component-Based:** Reusable ImageUpload component with TypeScript props
-- **State Management:** React hooks (useState, useEffect) for reactive UI
+- **Component-Based:** 9 focused components (Header, PetalBackground, StepSection, UploadZone, ColorPalette, LoadingCat, BeforeAfter, InfoPanel, BuilderNotes)
+- **State Management:** React hooks (useState, useEffect) — all state in App.tsx, components are presentational
 - **API Integration:** Fetch API with async/await and error handling
-- **Real-Time Updates:** Automatic color extraction on upload
+- **Progressive Workflow:** Steps reveal one at a time as the user completes each stage
+- **Design System:** 9-token colour palette, Cormorant Garamond + DM Sans typography, frosted glass header with `backdrop-filter: blur(28px)`
+- **Before/After Slider:** Draggable comparison using `clip-path: inset()` with mouse, touch, and range input support
 - **Type Safety:** Full TypeScript coverage for compile-time error detection
 
 ### API Design ([ADR 003](docs/decisions/003-api-design.md))
@@ -387,8 +402,10 @@ After optimizations (April 2026), production performance on Railway's constraine
 
 | Operation | Before | After | Improvement |
 |-----------|--------|-------|-------------|
-| Color Extraction | 72s | 692ms | **~100x faster** |
-| Garment Recoloring | 34s | 2.5s | **~14x faster** |
+| Color Extraction | 72s | 487–711ms | **~100-150x faster** |
+| Garment Recoloring | 34s | 1.8–37s | **~1-19x faster** |
+
+> **Note:** Recoloring has a wide range because rembg's neural network is lazy-loaded to keep idle memory under 512MB. The first recolor after idle (~37s) pays the model loading cost. Every subsequent request is fast (~1.8s). This is a deliberate trade-off — low idle memory vs. cold-start latency.
 
 **Optimizations applied:**
 1. **Frontend image resize** - yarn to 400x400, garment to 500x500 before uploading
@@ -408,7 +425,7 @@ After optimizations (April 2026), production performance on Railway's constraine
   - Total workflow: ~3.2s on production
 - **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
 - **File Size Limit:** 5MB maximum for API uploads
-- **Mobile UI:** Not yet optimized for mobile devices (coming in Phase 4)
+- **Mobile UI:** Basic responsive breakpoint at 600px, but not fully polished for small screens
 
 ## 🗺️ Roadmap
 
@@ -435,12 +452,15 @@ After optimizations (April 2026), production performance on Railway's constraine
 - ✅ React + TypeScript + Vite setup
 - ✅ Image upload component with validation
 - ✅ Real-time color extraction
-- ✅ Visual color palette display
+- ✅ Visual color palette with distribution bar
 - ✅ Garment upload workflow
 - ✅ Garment recoloring integration
-- ✅ Before/after comparison view (side-by-side)
+- ✅ Draggable before/after comparison slider
 - ✅ Start Over reset functionality
-- ✅ Consistent CSS styling
+- ✅ UI redesign: frosted glass header, step-based workflow, petal animations
+- ✅ Cat + yarn ball loading animation
+- ✅ Collapsible builder notes and info panels
+- ✅ Custom design system (Cormorant Garamond + DM Sans, 9-token colour palette)
 
 ### ✅ Phase 4: Polish & Deployment (Complete)
 
@@ -448,9 +468,10 @@ After optimizations (April 2026), production performance on Railway's constraine
 - ✅ Frontend deployment (Vercel) - https://chromaknit.vercel.app
 - ✅ Lazy loading optimization for memory-constrained hosting
 - ✅ CORS configuration for production
-- Drag-and-drop upload (future)
-- Mobile responsive design (future)
+- Drag-and-drop upload with drag events (future)
+- Mobile responsive polish (future)
 - Performance optimizations (future)
+- More whimsical interactive elements (future)
 
 ## 🤝 Contributing
 
@@ -494,8 +515,9 @@ For detailed technical decisions and architecture documentation, see:
 - [ADR 003: API Design](docs/decisions/003-api-design.md) - FastAPI REST endpoints
 - [ADR 004: Frontend Architecture](docs/decisions/004-react-frontend-architecture.md) - React + TypeScript decisions
 - [ADR 005: Performance Optimization](docs/decisions/005-performance-optimization-strategy.md) - Bottleneck analysis and optimization strategies
+- [ADR 006: UI Redesign](docs/decisions/006-ui-redesign.md) - Frosted glass header, step-based workflow, design system
 
 ---
 
 Built with ❤️ for knitters and designers
-_Last updated: February 5, 2026 - Added documentation links throughout README_
+_Last updated: April 7, 2026 - UI redesign with frosted glass header and step-based workflow_
