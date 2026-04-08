@@ -55,14 +55,15 @@ Railway's container environment does not include GUI system libraries (libxcb, l
 - **Domain:** `chromaknit-production.up.railway.app` (Port 8080)
 
 **Environment Variables:**
-| Key | Value |
-|-----|-------|
-| `ENVIRONMENT` | `production` |
-| `PYTHON_VERSION` | `3.11.0` |
+No service variables required. CORS is configured to allow both production and development origins without an `ENVIRONMENT` flag.
 
-**Memory Optimization:**
+**Memory & Performance Optimizations:**
 - rembg is lazy-loaded to reduce startup memory
-- Server starts at ~200MB, peaks at ~500MB during recoloring
+- rembg uses the lightweight `u2netp` model (~50% less memory than default `u2net`)
+- Server-side image downscaling caps images at 800x800 (400x400 for color extraction) before processing
+- Frontend resizes images before uploading (yarn: 400x400, garment: 800x800)
+- MiniBatchKMeans replaces KMeans for faster color extraction on limited CPU
+- Server starts at ~200MB, peaks at ~400MB during recoloring
 
 ### Frontend (Vercel)
 
