@@ -21,8 +21,35 @@ function App() {
   const extractAbortRef = useRef<AbortController | null>(null);
   const recolorAbortRef = useRef<AbortController | null>(null);
 
-  const handleYarnUpload = (file: File, previewUrl: string) => {
-    setYarnImage(file);
+  const resizeImage = (file: File, maxSize: number): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width <= maxSize && img.height <= maxSize) {
+          resolve(file);
+          return;
+        }
+        const scale = maxSize / Math.max(img.width, img.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            resolve(new File([blob!], file.name, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleYarnUpload = async (file: File, previewUrl: string) => {
+    const resized = await resizeImage(file, 400);
+    setYarnImage(resized);
     setYarnPreviewUrl(previewUrl);
     setError(null);
   };
@@ -100,6 +127,7 @@ function App() {
   useEffect(() => {
     if (!yarnImage) return;
 
+    let cancelled = false;
     extractAbortRef.current?.abort();
     const controller = new AbortController();
     extractAbortRef.current = controller;
@@ -126,21 +154,28 @@ function App() {
         }
 
         const data = await response.json();
-        setExtractedColors(data.colors);
+        if (!cancelled) {
+          setExtractedColors(data.colors);
+        }
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
         setError(
           err instanceof Error ? err.message : "Failed to extract colors"
         );
         setExtractedColors([]);
       } finally {
-        setIsExtractingColors(false);
+        if (!cancelled) {
+          setIsExtractingColors(false);
+        }
       }
     };
 
     extractColors();
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [yarnImage]);
 
   return (
