@@ -8,7 +8,7 @@ Date: 2025-11-07
 
 import cv2
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from core.utils import load_image, convert_bgr_to_rgb, rgb_to_hex, print_header, print_step, print_success
@@ -115,7 +115,7 @@ class ColorExtractor:
         print_step(3, "Running K-means clustering")
         print(f"Finding {self.n_colors} dominant colors...")
         
-        kmeans = KMeans(n_clusters=self.n_colors, random_state=42, n_init=10)
+        kmeans = MiniBatchKMeans(n_clusters=self.n_colors, random_state=42, n_init=3, batch_size=1000)
         kmeans.fit(pixels)
         
         print_success("K-means complete!")
