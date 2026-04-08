@@ -425,6 +425,36 @@ npm run dev
 
 ---
 
+### Performance: 100x faster color extraction, 14x faster recoloring
+
+**Date:** April 8, 2026
+
+**Problem:** On Railway's free tier (~0.05 vCPU, 512MB RAM), color extraction took 72 seconds and recoloring took 34 seconds. Recoloring also caused OOM crashes.
+
+**Root causes:**
+- Full-resolution images (2000x1500+) sent to a server with almost no CPU
+- KMeans running 10 times on 3 million pixels
+- Default rembg model (`u2net`) using excessive memory
+
+**Optimizations applied:**
+
+| Change | Before | After |
+|--------|--------|-------|
+| Frontend yarn resize (400x400) | 3M pixels uploaded | 160K pixels uploaded |
+| Frontend garment resize (500x500) | Full-res uploaded | 250K pixels uploaded |
+| MiniBatchKMeans + n_init=3 | KMeans, n_init=10 on all pixels | Batch sampling, 3 runs |
+| Lightweight rembg model (`u2netp`) | `u2net` (~400MB) | `u2netp` (~200MB) |
+| Server-side downscale safety net | No cap | 400px extract, 800px recolor |
+
+**Results:**
+- Color extraction: **72s → 692ms** (~100x faster)
+- Garment recoloring: **34s → 2.5s** (~14x faster)
+- No more OOM crashes
+
+**Lesson:** Don't throw money at infrastructure before looking at what your code is actually doing. The server wasn't slow — we were sending it 100x more work than necessary. Frontend preprocessing is free and can have a bigger impact than a server upgrade.
+
+---
+
 ## Lessons Learned
 
 ### Technical Lessons

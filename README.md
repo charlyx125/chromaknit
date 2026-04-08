@@ -377,26 +377,35 @@ Complete end-to-end workflow (yarn color extraction → background removal → g
 | Large | Color Extraction | 80.8% |
 
 **Key Findings:**
-- **Color Extraction** is the clear bottleneck (K-means clustering scales with pixel count)
-- **Background Removal** stays constant (~1.6s) due to fixed model inference time
+- **Color Extraction** was the clear bottleneck (K-means clustering scales with pixel count)
+- **Background Removal** stays constant (~1.6s locally) due to fixed model inference time
 - **Garment Recoloring** is negligible (<0.05s)
 
-**Optimization Opportunities:**
-1. **Cache extracted colors** - instant results for repeat yarn uploads
-2. **Downscale images before K-means** - trade quality for speed
-3. **Optimize K-means** - reduce iterations or use MiniBatchKMeans
-4. **GPU acceleration** - faster background removal with CUDA
+### Production Performance (Railway Free Tier)
 
-**See full benchmarks:** [benchmarks/](./benchmarks/)
+After optimizations (April 2026), production performance on Railway's constrained CPU:
+
+| Operation | Before | After | Improvement |
+|-----------|--------|-------|-------------|
+| Color Extraction | 72s | 692ms | **~100x faster** |
+| Garment Recoloring | 34s | 2.5s | **~14x faster** |
+
+**Optimizations applied:**
+1. **Frontend image resize** - yarn to 400x400, garment to 500x500 before uploading
+2. **MiniBatchKMeans** - samples batches instead of processing all pixels, n_init reduced from 10 to 3
+3. **Lightweight rembg model** - `u2netp` uses ~50% less memory than default `u2net`
+4. **Server-side downscale safety net** - caps image dimensions before processing
+
+**See full benchmarks:** [benchmarks/](./benchmarks/) | **See optimization details:** [ADR 005](docs/decisions/005-performance-optimization-strategy.md)
 
 ## ⚠️ Known Limitations
 
 - **Foreground Detection:** Currently recolors all detected foreground objects (may include person, not just garment)
 - **Best Results:** Works optimally with solid-colored garments on simple backgrounds
 - **Processing Time:** (see [Performance Benchmarks](#-performance-benchmarks) for details)
-  - Color extraction: 3-7 seconds (K-means clustering, scales with image size)
-  - Background removal + recoloring: ~1.8 seconds (rembg model dominates)
-  - Total workflow: 5-9 seconds for tested sizes
+  - Color extraction: ~700ms on Railway free tier (optimized with MiniBatchKMeans + frontend resize)
+  - Background removal + recoloring: ~2.5s on Railway free tier (optimized with u2netp + frontend resize)
+  - Total workflow: ~3.2s on production
 - **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
 - **File Size Limit:** 5MB maximum for API uploads
 - **Mobile UI:** Not yet optimized for mobile devices (coming in Phase 4)

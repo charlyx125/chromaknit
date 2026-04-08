@@ -58,12 +58,16 @@ Railway's container environment does not include GUI system libraries (libxcb, l
 No service variables required. CORS is configured to allow both production and development origins without an `ENVIRONMENT` flag.
 
 **Memory & Performance Optimizations:**
+- Frontend resizes images before uploading (yarn: 400x400, garment: 500x500) to reduce network transfer and server load
+- Server-side image downscaling as safety net (400px for extraction, 800px for recoloring)
+- MiniBatchKMeans with n_init=3 replaces KMeans with n_init=10 for faster color extraction
 - rembg is lazy-loaded to reduce startup memory
 - rembg uses the lightweight `u2netp` model (~50% less memory than default `u2net`)
-- Server-side image downscaling caps images at 800x800 (400x400 for color extraction) before processing
-- Frontend resizes images before uploading (yarn: 400x400, garment: 800x800)
-- MiniBatchKMeans replaces KMeans for faster color extraction on limited CPU
 - Server starts at ~200MB, peaks at ~400MB during recoloring
+
+**Production Performance (Railway free tier):**
+- Color extraction: **~700ms** (was 72s before optimizations)
+- Garment recoloring: **~2.5s** (was 34s before optimizations)
 
 ### Frontend (Vercel)
 
