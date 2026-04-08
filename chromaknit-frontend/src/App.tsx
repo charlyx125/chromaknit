@@ -55,7 +55,7 @@ function App() {
   };
 
   const handleGarmentUpload = async (file: File, previewUrl: string) => {
-    const resized = await resizeImage(file, 800);
+    const resized = await resizeImage(file, 500);
     setGarmentImage(resized);
     setGarmentPreviewUrl(previewUrl);
     setRecoloredImageUrl(null);
