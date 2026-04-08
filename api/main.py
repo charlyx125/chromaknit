@@ -23,22 +23,16 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS configuration - production vs development
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-
-if ENVIRONMENT == "production":
-    origins = [
-        "https://chromaknit.vercel.app",
-        "https://chromaknit-git-main-charlyx125.vercel.app",
-        "https://chromaknit-charlyx125.vercel.app",
-    ]
-else:
-    origins = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ]
+# CORS configuration - allow both production and development origins
+origins = [
+    "https://chromaknit.vercel.app",
+    "https://chromaknit-git-main-charlyx125.vercel.app",
+    "https://chromaknit-charlyx125.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
 
 app.add_middleware(
     CORSMiddleware,
