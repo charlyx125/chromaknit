@@ -199,6 +199,141 @@
 }
 
 /* ============================================================
+   SAMPLE STRIP
+   ============================================================ */
+.sample-strip {
+  position: relative; z-index: 5;
+  text-align: center; padding: 48px 20px 56px;
+  background: var(--cream);
+  animation: fadeSlideUp 0.6s ease-out;
+}
+
+.strip-label {
+  font-family: "Cormorant Garamond", serif; font-size: 32px;
+  font-style: italic; color: var(--dark); margin-bottom: 8px;
+}
+
+.strip-sublabel {
+  font-size: 16px; color: #b89aa0; margin-bottom: 32px;
+}
+
+.strip-cards {
+  display: flex; justify-content: center; gap: 0;
+  perspective: 800px;
+}
+
+.sample-card {
+  width: 110px; height: 148px; border-radius: 16px;
+  overflow: hidden; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  border: 3px solid rgba(255,255,255,0.9);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin: 0 -8px;
+  position: relative;
+}
+
+.sample-card:nth-child(1) { transform: rotate(-8deg); z-index: 1; }
+.sample-card:nth-child(2) { transform: rotate(-5deg); z-index: 2; }
+.sample-card:nth-child(3) { transform: rotate(-2deg); z-index: 3; }
+.sample-card:nth-child(4) { transform: rotate(1deg); z-index: 4; }
+.sample-card:nth-child(5) { transform: rotate(4deg); z-index: 3; }
+.sample-card:nth-child(6) { transform: rotate(7deg); z-index: 2; }
+.sample-card:nth-child(7) { transform: rotate(10deg); z-index: 1; }
+
+.sample-card:hover {
+  transform: rotate(0deg) translateY(-18px) scale(1.1);
+  z-index: 10;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+  border-color: var(--blush);
+}
+
+.sample-card.selected {
+  transform: rotate(0deg) translateY(-18px) scale(1.1);
+  border-color: var(--rose);
+  box-shadow: 0 16px 40px rgba(196, 112, 122, 0.3);
+  z-index: 10;
+}
+
+.sample-card.dimmed { opacity: 0.5; pointer-events: none; }
+
+.sample-card img { width: 100%; height: 100%; object-fit: cover; }
+
+.sample-card-label {
+  position: absolute; bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(255,255,255,0.92); color: var(--dark);
+  padding: 2px 8px; border-radius: 10px;
+  white-space: nowrap;
+  opacity: 0; transition: opacity 0.2s;
+}
+
+.sample-card:hover .sample-card-label,
+.sample-card.selected .sample-card-label { opacity: 1; }
+
+.strip-or {
+  font-size: 15px; color: #b89aa0; margin-top: 28px;
+}
+
+.strip-upload-link {
+  color: var(--rose); text-decoration: underline; cursor: pointer;
+  font-weight: 500;
+}
+.strip-upload-link:hover { color: var(--dark); }
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Yarn unravelling loading (used in UploadZone) ---- */
+.yarn-unravel-zone {
+  border: 1.5px solid var(--lavender); border-radius: 16px;
+  padding: 40px 24px; text-align: center; background: #faf6ff;
+  margin-top: 12px; overflow: hidden;
+}
+
+.yarn-unravel-zone .loading-text {
+  font-family: "Cormorant Garamond", serif; font-size: 22px;
+  color: var(--dark); margin-bottom: 4px;
+}
+
+.yarn-unravel-zone .loading-sub {
+  font-size: 14px; color: #b89aa0; margin-bottom: 24px;
+}
+
+.yarn-unravel {
+  position: relative; height: 40px; margin: 0 auto; max-width: 360px;
+}
+
+.yarn-ball-anim {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  animation: rollBall 3s ease-in-out infinite;
+}
+
+.yarn-wave {
+  position: absolute; top: 0; left: 0; right: 50px; height: 40px;
+  overflow: hidden;
+}
+
+.yarn-wave svg {
+  position: absolute; top: 0; left: 0;
+  width: 200%; height: 100%;
+  animation: waveScroll 2s linear infinite;
+}
+
+@keyframes rollBall {
+  0% { right: 100%; transform: translateY(-50%) rotate(0deg); }
+  100% { right: 0%; transform: translateY(-50%) rotate(360deg); }
+}
+
+@keyframes waveScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ============================================================
    STEPS SECTION
    ============================================================ */
 .steps-wrap {
@@ -572,4 +707,8 @@
   .step-title { font-size: 32px; }
   .ba-before img { max-height: 280px; }
   .dev-stats { flex-direction: column; }
+  .sample-card { width: 68px; height: 92px; border-radius: 10px; margin: 0 -6px; }
+  .sample-card-label { font-size: 8px; }
+  .strip-label { font-size: 24px; }
+  .strip-sublabel { font-size: 13px; }
 }

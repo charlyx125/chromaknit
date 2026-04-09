@@ -10,6 +10,7 @@ import UploadZone from "./components/UploadZone";
 import ColorPalette from "./components/ColorPalette";
 import LoadingCat from "./components/LoadingCat";
 import BeforeAfter from "./components/BeforeAfter";
+import SampleStrip from "./components/SampleStrip";
 
 function App() {
   // --- UI state ---
@@ -64,8 +65,29 @@ function App() {
     });
   };
 
+  // --- UI state for sample strip ---
+  const [showSampleStrip, setShowSampleStrip] = useState(false);
+  const sampleStripRef = useRef<HTMLDivElement>(null);
+
   // --- "Try it now" handler ---
   const handleStart = () => {
+    setShowSampleStrip(true);
+    setTimeout(() => {
+      sampleStripRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  // --- Sample selected from strip ---
+  const handleSampleSelect = async (file: File, previewUrl: string) => {
+    setShowSteps(true);
+    await handleYarnUpload(file, previewUrl);
+    setTimeout(() => {
+      stepsRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 200);
+  };
+
+  // --- Skip to upload (no sample) ---
+  const handleSkipToUpload = () => {
     setShowSteps(true);
     setTimeout(() => {
       stepsRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -211,6 +233,7 @@ function App() {
     setIsExtractingColors(false);
     setIsRecoloring(false);
     setShowSteps(false);
+    setShowSampleStrip(false);
     setResetKey((prev) => prev + 1);
   };
 
@@ -219,6 +242,16 @@ function App() {
       <PetalBackground />
 
       <Header onStart={handleStart} />
+
+      {/* ---- SAMPLE STRIP ---- */}
+      {showSampleStrip && (
+        <div ref={sampleStripRef}>
+          <SampleStrip
+            onSelectSample={handleSampleSelect}
+            onSkipToUpload={handleSkipToUpload}
+          />
+        </div>
+      )}
 
       {/* ---- STEPS ---- */}
       <div
