@@ -729,7 +729,7 @@ All frontend features implemented:
 ### Related ADRs
 
 - [ADR 001: Color Extraction Algorithm](001-color-extraction-algorithm.md)
-- [ADR 002: Background Removal Strategy](002-background-removal-strategy.md)
+- [ADR 002: Background Removal Strategy](002-recoloring-strategy.md)
 - [ADR 003: API Design Decisions](003-api-design.md)
 
 ---

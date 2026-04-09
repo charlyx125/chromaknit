@@ -159,9 +159,14 @@ async def extract_colors(
                 detail="Could not extract colors from image. The file may be corrupted or invalid."
             )
         
+        # Calculate percentages from pixel counts
+        total_pixels = extractor.counts.sum()
+        percentages = [round(float(c) / total_pixels, 4) for c in extractor.counts]
+
         return {
             "success": True,
             "colors": colors,
+            "percentages": percentages,
             "count": len(colors),
             "filename": file.filename
         }
@@ -178,7 +183,8 @@ async def extract_colors(
 @app.post("/api/garments/recolor")
 async def recolor_garment(
     file: UploadFile = File(..., description="Garment image file (JPG, PNG)"),
-    colors: str = Form(..., description='Hex colors as JSON array ["#FF0000"] or comma-separated #FF0000,#00FF00')
+    colors: str = Form(..., description='Hex colors as JSON array ["#FF0000"] or comma-separated #FF0000,#00FF00'),
+    percentages: str = Form(default="", description='Color percentages as JSON array [0.30, 0.22, 0.21]')
 ):
     """
     Recolor garment image with provided color palette while preserving texture and lighting.
@@ -264,8 +270,17 @@ async def recolor_garment(
     
     try:
         downscale_image(temp_path)
+
+        # Parse percentages if provided
+        weight_list = None
+        if percentages.strip():
+            try:
+                weight_list = json.loads(percentages.strip())
+            except (json.JSONDecodeError, ValueError):
+                weight_list = None
+
         recolorer = GarmentRecolorer(garment_image_path=temp_path)
-        recolored_image = recolorer.recolor_garment(color_list)
+        recolored_image = recolorer.recolor_garment(color_list, weights=weight_list)
         
         # Check if recoloring succeeded
         if recolored_image is None or recolored_image.size == 0:

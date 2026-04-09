@@ -22,6 +22,7 @@ function App() {
   const [yarnImage, setYarnImage] = useState<File | null>(null);
   const [isExtractingColors, setIsExtractingColors] = useState(false);
   const [extractedColors, setExtractedColors] = useState<string[]>([]);
+  const [colorPercentages, setColorPercentages] = useState<number[]>([]);
 
   // --- Garment state ---
   const [garmentImage, setGarmentImage] = useState<File | null>(null);
@@ -117,11 +118,13 @@ function App() {
         const data = await response.json();
         if (!cancelled) {
           setExtractedColors(data.colors);
+          setColorPercentages(data.percentages || []);
         }
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
         setError(err instanceof Error ? err.message : "Failed to extract colors");
         setExtractedColors([]);
+        setColorPercentages([]);
       } finally {
         if (!cancelled) {
           setIsExtractingColors(false);
@@ -159,6 +162,9 @@ function App() {
       const formData = new FormData();
       formData.append("file", garmentImage);
       formData.append("colors", JSON.stringify(extractedColors));
+      if (colorPercentages.length > 0) {
+        formData.append("percentages", JSON.stringify(colorPercentages));
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/garments/recolor`, {
         method: "POST",
@@ -197,6 +203,7 @@ function App() {
     recolorAbortRef.current?.abort();
     setYarnImage(null);
     setExtractedColors([]);
+    setColorPercentages([]);
     setGarmentImage(null);
     setGarmentPreviewUrl(null);
     setRecoloredImageUrl(null);
@@ -248,6 +255,7 @@ function App() {
               { src: "/samples/yarn-purple.jpg", label: "purple" },
               { src: "/samples/yarn-dark-green.jpg", label: "dark green" },
               { src: "/samples/yarn-light-blue.jpg", label: "light blue" },
+              { src: "/samples/yarn-light-green.jpg", label: "light green" },
             ]}
           />
           {isExtractingColors && (
@@ -294,10 +302,10 @@ function App() {
                 }}
                 samples={[
                   { src: "/samples/garment-cardigan.jpg", label: "cardigan" },
-                  { src: "/samples/garment-sweater.jpg", label: "sweater" },
                   { src: "/samples/garment-baby.jpg", label: "baby knit" },
                   { src: "/samples/garment-bag.jpg", label: "bag" },
-                  { src: "/samples/garment-pillow.jpg", label: "pillow" },
+                  { src: "/samples/garment-bag-black.jpg", label: "black bag" },
+                  { src: "/samples/garment-bag-ivory.jpg", label: "ivory bag" },
                 ]}
               />
               {garmentImage && !isRecoloring && !recoloredImageUrl && (

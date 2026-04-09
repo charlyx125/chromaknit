@@ -89,8 +89,8 @@ Each technology choice is documented with rationale in Architecture Decision Rec
 
 | Component | Technology | Why | ADR |
 |-----------|------------|-----|-----|
-| Color Extraction | K-means (scikit-learn) | Industry standard, frequency-based sorting | [ADR 001](decisions/001-color-filtering-strategy.md) |
-| Background Removal | rembg (U²-Net) | Automatic, high quality, simple API | [ADR 002](decisions/002-background-removal.md) |
+| Color Extraction | K-means (scikit-learn) | Industry standard, frequency-based sorting | [ADR 001](decisions/001-yarn-color-extraction.md) |
+| Background Removal | rembg (U²-Net) | Automatic, high quality, simple API | [ADR 002](decisions/002-recoloring-strategy.md) |
 | API Framework | FastAPI | Auto-docs, validation, async support | [ADR 003](decisions/003-api-design.md) |
 | Frontend | React + TypeScript | Component reuse, type safety | [ADR 004](decisions/004-react-frontend-architecture.md) |
 | Build Tool | Vite | Fast HMR, modern defaults | [ADR 004](decisions/004-react-frontend-architecture.md) |
@@ -169,7 +169,7 @@ Garment Image (JPG/PNG)
 │  For each pixel where mask > 0:         │
 │  - Replace H with yarn color hue        │
 │  - Replace S with yarn color saturation │
-│  - Keep V unchanged (preserves texture) │
+│  - Remap V to yarn's brightness range   │
 └─────────────────────────────────────────┘
         │
         ▼
@@ -249,8 +249,8 @@ chromaknit/
 ├── docs/                           # Documentation
 │   ├── ARCHITECTURE.md             # This file
 │   └── decisions/                  # Architecture Decision Records
-│       ├── 001-color-filtering-strategy.md
-│       ├── 002-background-removal.md
+│       ├── 001-yarn-color-extraction.md
+│       ├── 002-recoloring-strategy.md
 │       ├── 003-api-design.md
 │       ├── 004-react-frontend-architecture.md
 │       └── 005-performance-optimization-strategy.md
@@ -310,8 +310,8 @@ def remove_background(self):
 
 ## Related Documentation
 
-- [ADR 001: Color Extraction](decisions/001-color-filtering-strategy.md)
-- [ADR 002: Background Removal](decisions/002-background-removal.md)
+- [ADR 001: Color Extraction](decisions/001-yarn-color-extraction.md)
+- [ADR 002: Recoloring Strategy](decisions/002-recoloring-strategy.md)
 - [ADR 003: API Design](decisions/003-api-design.md)
 - [ADR 004: Frontend Architecture](decisions/004-react-frontend-architecture.md)
 - [ADR 005: Performance Optimization](decisions/005-performance-optimization-strategy.md)
