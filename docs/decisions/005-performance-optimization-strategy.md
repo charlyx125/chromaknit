@@ -488,8 +488,8 @@ Run benchmark suite, record:
 
 ### Related ADRs
 
-- [ADR 001: Color Filtering Strategy](001-color-filtering-strategy.md)
-- [ADR 002: Background Removal](002-background-removal.md)
+- [ADR 001: Color Filtering Strategy](001-yarn-color-extraction.md)
+- [ADR 002: Background Removal](002-recoloring-strategy.md)
 - [ADR 004: React Frontend Architecture](004-react-frontend-architecture.md)
 
 ---

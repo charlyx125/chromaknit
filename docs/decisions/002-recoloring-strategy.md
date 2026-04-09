@@ -1,4 +1,4 @@
-# Decision 002: Background Removal Strategy
+# Decision 002: Recoloring Strategy
 
 **Date:** 2025-11-14  
 **Status:** Accepted  
@@ -272,12 +272,75 @@ color_indices = (normalized * (num_colors - 1)).astype(int)
 | **Saturation override on near-white/grey areas** | Replacing S forces vivid color onto pixels that were originally desaturated (e.g., white highlights, grey shadows) | Highlights can look unnaturally vivid; grey shadows pick up color they shouldn't have | Blend target S with original S based on original saturation — low-saturation pixels should stay muted |
 | **Hue wrapping at red boundary** | In OpenCV HSV, hue wraps at 180 (0° and 360° are both red). Reds near the boundary can produce unexpected jumps | Only affects red/magenta target colors — blues, greens, yellows are fine | Handle hue arithmetic with modular wrapping |
 | **Single V channel carries all texture** | V encodes *both* real texture (stitch pattern, fuzz) and lighting artifacts (harsh shadows, specular highlights) — no way to distinguish them | Strong directional lighting gets "baked in" as colour variation | Pre-process with histogram equalization or use a lighting estimation model |
-| **Uniform zone sizes** | The linear mapping gives equal brightness range to each yarn color, but the actual brightness distribution may be skewed (e.g., mostly dark with a few highlights) | Some yarn colors may only appear on a tiny number of pixels | Use quantile-based mapping instead of linear to give each color roughly equal pixel count |
+| **Uniform zone sizes** | The linear mapping gives equal brightness range to each yarn color, but the actual brightness distribution may be skewed (e.g., mostly dark with a few highlights) | Some yarn colors may only appear on a tiny number of pixels | ✅ **Fixed (April 2026)** — distribution-weighted mapping uses extraction percentages to assign pixels proportionally |
+| **Brightness not remapped** | Preserving V entirely means dark yarn on bright garment stays bright, and vice versa | Recolored garment doesn't match yarn's actual brightness | ✅ **Fixed (April 2026)** — brightness range remapping shifts garment V to match yarn V while preserving relative texture |
 
 ### Result
 
 Before HSV breakthrough: flat, single-colour paint bucket effect
 After HSV breakthrough: realistic recoloring with all original texture, shadows, and stitching detail preserved
+
+---
+
+## Recoloring Accuracy Iterations (April 2026)
+
+After deploying to production, expanded testing with diverse yarn/garment brightness combinations revealed that the original HSV approach produced inaccurate results when the yarn and garment had very different brightness levels. A dark green yarn (V=45) on a bright yellow cardigan (V=199) produced a bright lime green instead of dark green.
+
+### The Root Problem
+
+The original approach preserved the garment's V channel entirely. This meant:
+- Dark yarn + bright garment → bright garment (wrong — should be dark)
+- Bright yarn + dark garment → dark garment (wrong — should be bright)
+- The garment's brightness was treated as sacred, but it should match the **yarn's** brightness
+
+### Iteration 1: Fixed Brightness Blending (35%)
+
+**Approach:** Blend 35% of the yarn's brightness into the garment pixel.
+
+**Result:** Not enough. Dark green yarn (V=45) on bright cardigan (V=199) → V=145. Still too bright.
+
+### Iteration 2: Adaptive Per-Pixel Blending
+
+**Approach:** Blend more aggressively when the gap between garment and yarn brightness is large, less when they're similar.
+
+**Result:** Better for medium gaps, but dark-on-bright combos still looked too bright. The blend capped at 0.80 which wasn't aggressive enough for extreme gaps.
+
+### Iteration 3: Distribution-Weighted Color Mapping
+
+**Approach:** Instead of splitting garment pixels into equal brightness bands (20% each for 5 colors), use the actual extraction percentages as weights. If the yarn is 30% darkest-shade, 22% second-darkest, etc., assign garment pixels proportionally.
+
+**Result:** Combined with adaptive blending, improved the distribution but the fundamental problem remained — preserving the garment's V channel meant brightness couldn't shift enough.
+
+### Iteration 4: Brightness Range Remapping (Current)
+
+**Approach:** Completely remap the garment's brightness range to the yarn's brightness range. For each color band:
+1. Find the garment's brightness range (2nd–98th percentile to avoid outliers)
+2. Normalize each pixel's position within that range (0.0 = darkest, 1.0 = brightest)
+3. Map to the yarn color's brightness ± a small spread (15% of yarn range) for texture variation
+
+This preserves the garment's **relative** lighting pattern (folds stay darker than flat areas) while shifting the **absolute** brightness to match the yarn.
+
+**Result:** Dark yarn on bright garment now actually looks dark. Bright yarn on dark garment now actually looks bright. Texture is preserved through the relative brightness mapping within each color band.
+
+### Test Matrix
+
+Tested 9 combinations across 3 yarn types (dark, vivid, muted) and 3 garment types (light, vivid, dark):
+
+| | Light garment (baby knit) | Vivid garment (cardigan) | Dark garment (black bag) |
+|---|---|---|---|
+| **Dark yarn** (dark green, V=45) | Dark green — accurate | Dark green — accurate | Dark green — visible, not just tinted black |
+| **Vivid yarn** (pink, V=210) | Vivid pink — accurate | Vivid pink — accurate | Pink — visible, bag is recoloured not just highlighted |
+| **Muted yarn** (purple, V=179) | Soft purple — accurate | Purple — slightly lighter than yarn | Purple — visible |
+
+### Key Insight
+
+The original "preserve V" approach was correct for same-brightness combos but fundamentally wrong for cross-brightness combos. The fix was to think of recoloring not as "painting the garment with yarn hue/saturation" but as "making the garment look like it's made from this yarn." That means the brightness range must come from the yarn, not the garment.
+
+### Files Changed
+
+- `core/garment_recolor.py` — `_apply_hsv_recoloring` now remaps brightness; `_get_color_mapping` uses extraction percentages as weights; `apply_colors` accepts and passes weights
+- `api/main.py` — extract endpoint returns percentages; recolor endpoint accepts and passes them
+- `chromaknit-frontend/src/App.tsx` — captures percentages from extract, sends to recolor
 
 ---
 

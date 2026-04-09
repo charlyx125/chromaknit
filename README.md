@@ -20,9 +20,9 @@ Knitters spend hours (and money) on yarn, only to discover the finished garment 
 
 | Feature | Description | Details |
 |---------|-------------|---------|
-| **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-color-filtering-strategy.md) |
-| **Background Removal** | AI-powered segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-background-removal.md) |
-| **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-background-removal.md) |
+| **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-yarn-color-extraction.md) |
+| **Background Removal** | AI-powered segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
+| **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
 | **REST API** | FastAPI endpoints with Swagger docs at `/docs` | [ADR 003](docs/decisions/003-api-design.md) |
 | **React Frontend** | TypeScript + Vite with real-time color extraction | [ADR 004](docs/decisions/004-react-frontend-architecture.md) |
 | **UI Design** | Frosted glass header, step-based workflow, before/after slider | [ADR 006](docs/decisions/006-ui-redesign.md) |
@@ -321,20 +321,20 @@ npm run preview
 
 ## 📊 Technical Approach
 
-### Color Extraction ([ADR 001](docs/decisions/001-color-filtering-strategy.md))
+### Color Extraction ([ADR 001](docs/decisions/001-yarn-color-extraction.md))
 
 - **Algorithm:** K-means clustering in RGB space
 - **Optimization:** Configurable cluster count, random seed for reproducibility
 - **Output:** Sorted by frequency, hex codes with percentages
 
-### Garment Recoloring ([ADR 002](docs/decisions/002-background-removal.md))
+### Garment Recoloring ([ADR 002](docs/decisions/002-recoloring-strategy.md))
 
 - **Color Space:** HSV (Hue, Saturation, Value)
   - H: Changed to yarn color hue
   - S: Changed to yarn color saturation
-  - V: Preserved from original (maintains texture/lighting!)
-- **Multi-Color:** Brightness-based distribution (dark areas → dark yarn colors)
-- **Background Removal:** rembg with U²-Net model
+  - V: Remapped from garment range to yarn range (preserves relative texture while matching yarn brightness)
+- **Multi-Color:** Distribution-weighted mapping using extraction percentages (dark yarn = more dark pixels)
+- **Background Removal:** rembg with u2netp model
 
 ### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md), [ADR 006](docs/decisions/006-ui-redesign.md))
 
@@ -510,8 +510,8 @@ For detailed technical decisions and architecture documentation, see:
 
 - **[Architecture Overview](docs/ARCHITECTURE.md)** - System design, data flow, component interaction
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production URLs, cold start info, troubleshooting
-- [ADR 001: Color Extraction Algorithm](docs/decisions/001-color-filtering-strategy.md) - K-means clustering selection
-- [ADR 002: Background Removal](docs/decisions/002-background-removal.md) - rembg/U²-Net selection
+- [ADR 001: Yarn Color Extraction](docs/decisions/001-yarn-color-extraction.md) - K-means clustering selection
+- [ADR 002: Recoloring Strategy](docs/decisions/002-recoloring-strategy.md) - rembg/U²-Net selection
 - [ADR 003: API Design](docs/decisions/003-api-design.md) - FastAPI REST endpoints
 - [ADR 004: Frontend Architecture](docs/decisions/004-react-frontend-architecture.md) - React + TypeScript decisions
 - [ADR 005: Performance Optimization](docs/decisions/005-performance-optimization-strategy.md) - Bottleneck analysis and optimization strategies

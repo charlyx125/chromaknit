@@ -1276,8 +1276,8 @@ async def extract_colors(...):
 
 ## Related Documents
 
-- [ADR 001: Color Extraction Algorithm](001-color-extraction-algorithm.md)
-- [ADR 002: Background Removal Strategy](002-background-removal-strategy.md)
+- [ADR 001: Yarn Color Extraction](001-yarn-color-extraction.md)
+- [ADR 002: Recoloring Strategy](002-recoloring-strategy.md)
 - [API Documentation](../api/README.md)
 - [ChromaKnit README](../../README.md)
 

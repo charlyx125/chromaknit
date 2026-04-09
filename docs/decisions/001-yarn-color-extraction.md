@@ -1,4 +1,4 @@
-# Decision Record 001: Color Extraction Algorithm Selection
+# Decision 001: Yarn Color Extraction
 
 ## Status
 
