@@ -4,20 +4,13 @@ import "./App.css";
 
 import PetalBackground from "./components/PetalBackground";
 import Header from "./components/Header";
-import StepSection from "./components/StepSection";
-import InfoPanel from "./components/InfoPanel";
-import UploadZone from "./components/UploadZone";
-import ColorPalette from "./components/ColorPalette";
-import LoadingCat from "./components/LoadingCat";
-import BeforeAfter from "./components/BeforeAfter";
 import SampleStrip from "./components/SampleStrip";
 
 function App() {
-  // --- UI state ---
-  const [showSteps, setShowSteps] = useState(false);
-  const stepsRef = useRef<HTMLDivElement>(null);
-
   const [resetKey, setResetKey] = useState(0);
+
+  // --- Tab state ---
+  const [activeTab, setActiveTab] = useState(0);
 
   // --- Yarn state ---
   const [yarnImage, setYarnImage] = useState<File | null>(null);
@@ -73,25 +66,39 @@ function App() {
   const handleStart = () => {
     setShowSampleStrip(true);
     setTimeout(() => {
-      sampleStripRef.current?.scrollIntoView({ behavior: "smooth" });
+      sampleStripRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
 
   // --- Sample selected from strip ---
   const handleSampleSelect = async (file: File, previewUrl: string) => {
-    setShowSteps(true);
+    extractAbortRef.current?.abort();
+    setExtractedColors([]);
+    setColorPercentages([]);
+    setGarmentImage(null);
+    setGarmentPreviewUrl(null);
+    setRecoloredImageUrl(null);
+    setError(null);
+    setActiveTab(0);
     await handleYarnUpload(file, previewUrl);
-    setTimeout(() => {
-      stepsRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 200);
   };
 
-  // --- Skip to upload (no sample) ---
+  // --- Upload own yarn (opens file picker directly) ---
+  const uploadOwnRef = useRef<HTMLInputElement>(null);
+
   const handleSkipToUpload = () => {
-    setShowSteps(true);
-    setTimeout(() => {
-      stepsRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    uploadOwnRef.current?.click();
+  };
+
+  const handleOwnFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setExtractedColors([]);
+    setColorPercentages([]);
+    setError(null);
+    setActiveTab(0);
+    await handleYarnUpload(file, url);
   };
 
   // --- Yarn upload ---
@@ -141,6 +148,7 @@ function App() {
         if (!cancelled) {
           setExtractedColors(data.colors);
           setColorPercentages(data.percentages || []);
+          setActiveTab(1);
         }
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
@@ -201,6 +209,7 @@ function App() {
       const blob = await response.blob();
       const imageUrl = URL.createObjectURL(blob);
       setRecoloredImageUrl(imageUrl);
+      setActiveTab(2);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setError("Failed to recolor garment. Please try again.");
@@ -232,8 +241,7 @@ function App() {
     setError(null);
     setIsExtractingColors(false);
     setIsRecoloring(false);
-    setShowSteps(false);
-    setShowSampleStrip(false);
+    setActiveTab(0);
     setResetKey((prev) => prev + 1);
   };
 
@@ -243,154 +251,46 @@ function App() {
 
       <Header onStart={handleStart} />
 
-      {/* ---- SAMPLE STRIP ---- */}
+      {/* ---- SAMPLE STRIP (tabbed workspace) ---- */}
       {showSampleStrip && (
         <div ref={sampleStripRef}>
           <SampleStrip
             onSelectSample={handleSampleSelect}
             onSkipToUpload={handleSkipToUpload}
+            isExtracting={isExtractingColors}
+            extractedColors={extractedColors}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            resetKey={resetKey}
+            onGarmentUpload={handleGarmentUpload}
+            onGarmentClear={() => {
+              recolorAbortRef.current?.abort();
+              setGarmentImage(null);
+              setGarmentPreviewUrl(null);
+              setRecoloredImageUrl(null);
+              setIsRecoloring(false);
+              setError(null);
+            }}
+            garmentImage={garmentImage}
+            isRecoloring={isRecoloring}
+            recoloredImageUrl={recoloredImageUrl}
+            garmentPreviewUrl={garmentPreviewUrl}
+            error={error}
+            onRecolor={handleRecolor}
+            onDownload={handleDownload}
+            onReset={handleReset}
           />
         </div>
       )}
 
-      {/* ---- STEPS ---- */}
-      <div
-        ref={stepsRef}
-        className={`steps-wrap ${showSteps ? "visible" : "hidden"}`}
-      >
-        {/* STEP 1 — Upload Yarn + Palette */}
-        <StepSection
-          number={1}
-          label="step one"
-          title={<>upload your <em>yarn</em></>}
-        >
-          <InfoPanel
-            shortText="a photo of your yarn is all you need"
-            detail="ChromaKnit analyses colours using K-means clustering. The messier and more textured the yarn, the better! This ensures we capture the full range of your palette."
-          />
-          <UploadZone
-            key={`yarn-${resetKey}`}
-            icon="&#x1FAA2;"
-            heading="drop your yarn photo here"
-            subtitle="jpg or png &middot; up to 5MB"
-            onFileSelect={handleYarnUpload}
-            onClear={() => {
-              extractAbortRef.current?.abort();
-              setYarnImage(null);
-              setExtractedColors([]);
-              setIsExtractingColors(false);
-              setError(null);
-            }}
-            samples={[
-              { src: "/samples/yarn-blue.jpg", label: "blue" },
-              { src: "/samples/yarn-green.jpg", label: "green" },
-              { src: "/samples/yarn-pink.jpg", label: "pink" },
-              { src: "/samples/yarn-purple.jpg", label: "purple" },
-              { src: "/samples/yarn-dark-green.jpg", label: "dark green" },
-              { src: "/samples/yarn-light-blue.jpg", label: "light blue" },
-              { src: "/samples/yarn-light-green.jpg", label: "light green" },
-            ]}
-          />
-          {isExtractingColors && (
-            <LoadingCat
-              message="gathering pixels..."
-              subtitle="analysing your yarn colours"
-            />
-          )}
-          {error && !isExtractingColors && extractedColors.length === 0 && (
-            <div className="error-msg">{error}</div>
-          )}
-          {extractedColors.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <ColorPalette colors={extractedColors} />
-            </div>
-          )}
-        </StepSection>
-
-        {/* STEP 2 — Upload Garment (visible after colors extracted) */}
-        {extractedColors.length > 0 && (
-          <>
-            <StepSection
-              number={2}
-              label="step two"
-              title={<>upload your <em>garment</em></>}
-            >
-              <InfoPanel
-                shortText="a flat-lay photo works great!"
-                detail="ChromaKnit uses background removal (rembg) to isolate your garment, then maps the yarn palette onto it using HSV colour space transformation."
-              />
-              <UploadZone
-                key={`garment-${resetKey}`}
-                icon="&#x1F9E5;"
-                heading="drop your garment photo here"
-                subtitle="flat-lay or worn &middot; jpg or png"
-                onFileSelect={handleGarmentUpload}
-                onClear={() => {
-                  recolorAbortRef.current?.abort();
-                  setGarmentImage(null);
-                  setGarmentPreviewUrl(null);
-                  setRecoloredImageUrl(null);
-                  setIsRecoloring(false);
-                  setError(null);
-                }}
-                samples={[
-                  { src: "/samples/garment-cardigan.jpg", label: "cardigan" },
-                  { src: "/samples/garment-baby.jpg", label: "baby knit" },
-                  { src: "/samples/garment-bag.jpg", label: "bag" },
-                  { src: "/samples/garment-bag-black.jpg", label: "black bag" },
-                  { src: "/samples/garment-bag-ivory.jpg", label: "ivory bag" },
-                ]}
-              />
-              {garmentImage && !isRecoloring && !recoloredImageUrl && (
-                <div style={{ textAlign: "center", marginTop: 18 }}>
-                  <button className="btn-primary" onClick={handleRecolor}>
-                    &#x1F3A8; recolour garment
-                  </button>
-                </div>
-              )}
-              {isRecoloring && (
-                <LoadingCat
-                  message="recolouring your garment..."
-                  subtitle="this takes just a moment"
-                  showCat
-                />
-              )}
-              {error && !isRecoloring && garmentImage && (
-                <div className="error-msg">{error}</div>
-              )}
-            </StepSection>
-          </>
-        )}
-
-        {/* STEP 3 — Before & After (visible after recolor) */}
-        {recoloredImageUrl && garmentPreviewUrl && (
-          <>
-            <StepSection
-              number={3}
-              label="step three"
-              title={<>before <em>&amp; after</em></>}
-            >
-              <div className="step-short">
-                <span>drag to compare — then go buy that yarn</span>
-              </div>
-              <BeforeAfter
-                beforeUrl={garmentPreviewUrl}
-                afterUrl={recoloredImageUrl}
-                onDownload={handleDownload}
-              />
-            </StepSection>
-          </>
-        )}
-
-        {/* Reset */}
-        {recoloredImageUrl && (
-          <div className="reset-row">
-            <button className="btn-ghost" onClick={handleReset}>
-              start over
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Hidden file input for "upload your own yarn" */}
+      <input
+        ref={uploadOwnRef}
+        type="file"
+        accept="image/*"
+        onChange={handleOwnFileChange}
+        style={{ display: "none" }}
+      />
     </>
   );
 }

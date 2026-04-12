@@ -11,14 +11,16 @@ interface UploadZoneProps {
   subtitle: string;
   onFileSelect: (file: File, previewUrl: string) => void;
   onClear?: () => void;
+  onRecolor?: () => void;
   disabled?: boolean;
   samples?: SampleImage[];
+  colors?: string[];
+  isRecoloring?: boolean;
 }
 
-function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, disabled, samples }: UploadZoneProps) {
+function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, onRecolor, disabled, samples, colors = [], isRecoloring = false }: UploadZoneProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [loadingSample, setLoadingSample] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -67,16 +69,12 @@ function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, disabled, 
     e.stopPropagation();
     setFileName(null);
     setPreviewUrl(null);
-    setShowPreview(false);
     if (inputRef.current) inputRef.current.value = "";
     onClear?.();
   };
 
   return (
-    <div
-      className={`upload-zone${isDone ? " done" : ""}`}
-      onClick={() => !isDone && !disabled && !loadingSample && inputRef.current?.click()}
-    >
+    <div className={`upload-zone${isDone ? " done" : ""}`}>
       <input
         ref={inputRef}
         type="file"
@@ -85,56 +83,61 @@ function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, disabled, 
         disabled={disabled}
         style={{ display: "none" }}
       />
-      <span className="upload-icon">{icon}</span>
-      <h3>{isDone ? fileName : heading}</h3>
-      <p>{isDone ? "image uploaded" : subtitle}</p>
-      {!isDone && samples && samples.length > 0 && !loadingSample && (
-        <div className="sample-section" onClick={(e) => e.stopPropagation()}>
-          <p className="sample-label">or try a sample</p>
-          <div className="sample-grid">
-            {samples.map((sample) => (
-              <button
-                key={sample.label}
-                className="sample-thumb"
-                onClick={() => handleSampleClick(sample)}
-              >
-                <img src={sample.src} alt={sample.label} />
-                <span>{sample.label}</span>
+      {isDone && previewUrl ? (
+        <div className="upload-done">
+          <img
+            src={previewUrl}
+            alt={fileName ?? "Uploaded image"}
+            className="upload-hero-img"
+          />
+          <div className="upload-done-actions">
+            {colors.length > 0 && (
+              <div className="recolour-with">
+                <span className="recolour-with-label">recolour with</span>
+                {colors.map((c, i) => (
+                  <span key={i} className="upload-swatch" style={{ background: c }} />
+                ))}
+              </div>
+            )}
+            {onRecolor && !isRecoloring && (
+              <button className="btn-primary" onClick={onRecolor}>
+                recolour garment
               </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {loadingSample && (
-        <p className="sample-loading">loading sample...</p>
-      )}
-      {isDone && (
-        <>
-          <div className="upload-confirm">
-            &#x2714; uploaded!
-          </div>
-          <div className="upload-actions">
+            )}
             <button
-              className="preview-toggle"
-              onClick={(e) => { e.stopPropagation(); setShowPreview(!showPreview); }}
-            >
-              {showPreview ? "hide image" : "view your image"} {showPreview ? "\u25B2" : "\u25BC"}
-            </button>
-            <button
-              className="preview-toggle"
+              className="change-btn"
               onClick={(e) => { handleReupload(e); inputRef.current?.click(); }}
             >
               change image
             </button>
           </div>
-          {showPreview && previewUrl && (
-            <img
-              src={previewUrl}
-              alt={fileName ?? "Uploaded image"}
-              className="upload-preview"
-            />
+        </div>
+      ) : (
+        <div onClick={() => !disabled && !loadingSample && inputRef.current?.click()}>
+          <span className="upload-icon">{icon}</span>
+          <h3>{heading}</h3>
+          <p>{subtitle}</p>
+          {samples && samples.length > 0 && !loadingSample && (
+            <div className="sample-section" onClick={(e) => e.stopPropagation()}>
+              <p className="sample-label">or try a sample</p>
+              <div className="sample-grid">
+                {samples.map((sample) => (
+                  <button
+                    key={sample.label}
+                    className="sample-thumb"
+                    onClick={() => handleSampleClick(sample)}
+                  >
+                    <img src={sample.src} alt={sample.label} />
+                    <span>{sample.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </>
+          {loadingSample && (
+            <p className="sample-loading">loading sample...</p>
+          )}
+        </div>
       )}
     </div>
   );
