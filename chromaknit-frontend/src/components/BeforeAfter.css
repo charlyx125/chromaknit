@@ -1,0 +1,96 @@
+.slider-card {
+  background: #f5ede0; border: 1px solid #e4d5c4; border-radius: 16px;
+  padding: 24px;
+}
+
+.strip-glass .slider-card {
+  background: none; border: none; border-radius: 0;
+  padding: 0; box-shadow: none;
+}
+
+.slider-card h3 {
+  font-family: "Cormorant Garamond", serif; font-size: 20px;
+  color: var(--dark); margin-bottom: 16px;
+}
+
+.strip-glass .slider-card h3 { display: none; }
+
+.ba-wrapper {
+  display: flex; flex-direction: column; align-items: center;
+}
+
+.ba-inner {
+  display: inline-flex; flex-direction: column; max-width: 100%;
+}
+
+.ba-container {
+  position: relative; border-radius: 12px; overflow: hidden;
+  cursor: ew-resize; user-select: none; background: #fff;
+}
+
+.ba-before {
+  display: block;
+}
+
+.ba-before img {
+  display: block; max-width: 100%; max-height: 450px;
+  object-fit: contain;
+}
+
+.ba-after {
+  position: absolute; inset: 0;
+}
+
+.ba-after img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+
+.ba-divider {
+  position: absolute; top: 0; left: 50%; width: 2px; height: 100%;
+  background: #fff; z-index: 10; transform: translateX(-50%);
+}
+
+.ba-handle {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--lavender);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--dark); z-index: 11;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.ba-lbl {
+  position: absolute; bottom: 12px; font-size: 13px; font-weight: 500;
+  background: rgba(255, 255, 255, 0.82); padding: 3px 10px;
+  border-radius: 12px; color: var(--dark); z-index: 5;
+}
+
+.ba-lbl.left { left: 12px; }
+.ba-lbl.right { right: 12px; }
+
+.range-input {
+  width: 100%; margin-top: 14px; accent-color: var(--lavender);
+}
+
+.btn-row { display: flex; gap: 10px; margin-top: 18px; }
+
+.btn-dl {
+  font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 500;
+  background: var(--rose); color: #fff; border: none; border-radius: 30px;
+  padding: 11px 24px; cursor: pointer; transition: all 0.2s;
+}
+
+.btn-dl:hover { background: #d06070; transform: translateY(-1px); }
+
+.btn-ghost {
+  font-family: "DM Sans", sans-serif; font-size: 15px;
+  background: transparent; color: var(--rose);
+  border: 1.5px solid #f0c0c8; border-radius: 30px;
+  padding: 10px 20px; cursor: pointer; transition: all 0.2s;
+}
+
+.btn-ghost:hover { background: #fff4f6; }
+
+@media (max-width: 600px) {
+  .ba-before img { max-height: 280px; }
+}
