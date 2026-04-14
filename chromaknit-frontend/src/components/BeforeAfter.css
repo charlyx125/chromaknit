@@ -1,5 +1,5 @@
 .slider-card {
-  background: #f5ede0; border: 1px solid #e4d5c4; border-radius: 16px;
+  background: #fff; border: 1px solid #f0dde2; border-radius: 16px;
   padding: 24px;
 }
 
@@ -72,7 +72,10 @@
   width: 100%; margin-top: 14px; accent-color: var(--lavender);
 }
 
-.btn-row { display: flex; gap: 10px; margin-top: 18px; }
+.btn-actions {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; margin-top: 20px;
+}
 
 .btn-dl {
   font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 500;
@@ -80,16 +83,35 @@
   padding: 11px 24px; cursor: pointer; transition: all 0.2s;
 }
 
+.btn-dl-full { width: 100%; max-width: 320px; padding: 13px 24px; font-size: 16px; }
+
 .btn-dl:hover { background: #d06070; transform: translateY(-1px); }
 
-.btn-ghost {
-  font-family: "DM Sans", sans-serif; font-size: 15px;
-  background: transparent; color: var(--rose);
-  border: 1.5px solid #f0c0c8; border-radius: 30px;
-  padding: 10px 20px; cursor: pointer; transition: all 0.2s;
+.btn-secondary-row {
+  display: flex; align-items: center; gap: 6px;
+  font-family: "DM Sans", sans-serif; font-size: 13px;
 }
 
-.btn-ghost:hover { background: #fff4f6; }
+.btn-link {
+  font-family: "DM Sans", sans-serif; font-size: 13px;
+  background: none; border: none; color: var(--rose);
+  cursor: pointer; padding: 2px 4px; opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-link:hover { opacity: 1; text-decoration: underline; }
+
+.btn-link-dot { color: var(--rose); opacity: 0.4; font-size: 16px; }
+
+.reset-inline {
+  display: flex; align-items: center; gap: 6px;
+}
+
+.reset-inline-text {
+  font-size: 13px; color: var(--dark); opacity: 0.6;
+}
+
+.reset-yes { font-weight: 600; opacity: 1; }
 
 @media (max-width: 600px) {
   .ba-before img { max-height: 280px; }

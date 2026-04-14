@@ -5,9 +5,12 @@ interface BeforeAfterProps {
   beforeUrl: string;
   afterUrl: string;
   onDownload: () => void;
+  onShare?: () => void;
+  onStartOver?: () => void;
 }
 
-function BeforeAfter({ beforeUrl, afterUrl, onDownload }: BeforeAfterProps) {
+function BeforeAfter({ beforeUrl, afterUrl, onDownload, onShare, onStartOver }: BeforeAfterProps) {
+  const [confirmReset, setConfirmReset] = useState(false);
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -76,13 +79,26 @@ function BeforeAfter({ beforeUrl, afterUrl, onDownload }: BeforeAfterProps) {
           />
         </div>
       </div>
-      <div className="btn-row">
-        <button className="btn-dl" onClick={onDownload} aria-label="Download recoloured image">
+      <div className="btn-actions">
+        <button className="btn-dl btn-dl-full" onClick={onDownload} aria-label="Download recoloured image">
           <span aria-hidden="true">&#x2B07;</span> download
         </button>
-        <button className="btn-ghost" onClick={onDownload} aria-label="Share recoloured image">
-          share
-        </button>
+        <div className="btn-secondary-row">
+          {onShare && (
+            <button className="btn-link" onClick={onShare}>share</button>
+          )}
+          {onShare && onStartOver && <span className="btn-link-dot" aria-hidden="true">&middot;</span>}
+          {onStartOver && !confirmReset && (
+            <button className="btn-link" onClick={() => setConfirmReset(true)}>start over</button>
+          )}
+          {onStartOver && confirmReset && (
+            <span className="reset-inline">
+              <span className="reset-inline-text">clear everything?</span>
+              <button className="btn-link reset-yes" onClick={() => { setConfirmReset(false); onStartOver(); }}>yes</button>
+              <button className="btn-link" onClick={() => setConfirmReset(false)}>cancel</button>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

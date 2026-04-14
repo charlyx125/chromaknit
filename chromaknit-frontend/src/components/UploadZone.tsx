@@ -96,7 +96,7 @@ function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, onRecolor,
             />
             <button
               className="upload-frame-change"
-              onClick={(e) => { handleReupload(e); inputRef.current?.click(); }}
+              onClick={handleReupload}
               aria-label="Change image"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -107,13 +107,18 @@ function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, onRecolor,
 
           {/* Colour chips + action */}
           {colors.length > 0 && (
-            <div className="recolour-panel">
-              <span className="recolour-panel-label">recolour with these colours</span>
+            <div className={`recolour-panel${isRecoloring ? " recolouring" : ""}`}>
+              <span className="recolour-panel-label">
+                {isRecoloring ? "recolouring..." : "recolour with these colours"}
+              </span>
               <div className="recolour-chips">
                 {colors.map((c, i) => {
                   const iconColor = colors[(i + 1) % colors.length];
+                  const bounceClass = isRecoloring
+                    ? i % 2 === 0 ? " bounce-down" : " bounce-up"
+                    : "";
                   return (
-                    <div key={i} className="recolour-chip" role="img" aria-label={`Colour ${i + 1}: ${c}`} title={c}>
+                    <div key={i} className={`recolour-chip${bounceClass}`} style={isRecoloring ? { animationDelay: `${i * 0.1}s` } : undefined} role="img" aria-label={`Colour ${i + 1}: ${c}`} title={c}>
                       <div className="recolour-chip-swatch" style={{ background: c }}>
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: iconColor, opacity: 0.5 }}>
                           <path d="M12 2 L12 22 M2 12 L22 12 M5.5 5.5 L18.5 18.5 M18.5 5.5 L5.5 18.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
