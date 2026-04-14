@@ -230,9 +230,22 @@ chromaknit/
 ├── chromaknit-frontend/            # Frontend
 │   ├── src/
 │   │   ├── App.tsx                 # Main component, state management
-│   │   ├── ImageUpload.tsx         # Reusable upload component
-│   │   ├── App.css                 # Styles
-│   │   └── main.tsx                # Entry point
+│   │   ├── App.css                 # All component styles (~900 lines)
+│   │   ├── index.css               # Design system variables + keyframes
+│   │   ├── config.ts               # API base URL configuration
+│   │   ├── main.tsx                # Entry point
+│   │   └── components/
+│   │       ├── Header.tsx          # Frosted glass header with CTA
+│   │       ├── PetalBackground.tsx # Fixed background + floating petals
+│   │       ├── BuilderNotes.tsx    # Collapsible tech stack panel
+│   │       ├── SampleStrip.tsx     # Tabbed workspace (pick yarn → garment → result)
+│   │       ├── StepSection.tsx     # Reusable step wrapper
+│   │       ├── InfoPanel.tsx       # Expandable info tooltips
+│   │       ├── UploadZone.tsx      # Styled file upload with sample images
+│   │       ├── ColorPalette.tsx    # Colour swatches + distribution bar
+│   │       ├── LoadingCat.tsx      # Cat + yarn ball loading animation
+│   │       ├── BeforeAfter.tsx     # Draggable comparison slider
+│   │       └── ReportIssue.tsx     # Floating issue reporter → GitHub Issues
 │   ├── package.json
 │   └── vite.config.ts
 │
@@ -253,7 +266,8 @@ chromaknit/
 │       ├── 002-recoloring-strategy.md
 │       ├── 003-api-design.md
 │       ├── 004-react-frontend-architecture.md
-│       └── 005-performance-optimization-strategy.md
+│       ├── 005-performance-optimization-strategy.md
+│       └── 006-ui-redesign.md
 │
 ├── examples/                       # Sample images
 ├── results/                        # Output directory
@@ -315,7 +329,8 @@ def remove_background(self):
 - [ADR 003: API Design](decisions/003-api-design.md)
 - [ADR 004: Frontend Architecture](decisions/004-react-frontend-architecture.md)
 - [ADR 005: Performance Optimization](decisions/005-performance-optimization-strategy.md)
+- [ADR 006: UI Redesign](decisions/006-ui-redesign.md)
 
 ---
 
-**Last Updated:** February 5, 2026
+**Last Updated:** April 12, 2026

@@ -1,0 +1,201 @@
+/* --- Upload zone (empty state) --- */
+.upload-zone {
+  border: 2px dashed #e0b8c0; border-radius: 24px;
+  padding: 48px 32px; text-align: center; background: #f8f0e4;
+  cursor: pointer; transition: all 0.2s;
+  position: relative;
+}
+
+.upload-zone:hover { border-color: var(--rose); background: #f2e8da; }
+
+.upload-zone.done {
+  border: none; background: none;
+  padding: 0; cursor: default;
+}
+
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer;
+}
+
+.upload-icon { font-size: 36px; margin-bottom: 14px; display: block; }
+
+.upload-zone h3 {
+  font-family: "Caveat", cursive; font-size: 26px;
+  font-weight: 700; color: var(--dark); margin-bottom: 8px;
+}
+
+.upload-zone p { font-size: 14px; color: #b89aa0; margin-bottom: 0; }
+
+/* ============================================================
+   DONE STATE
+   ============================================================ */
+.upload-done {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 24px; animation: fadeIn 0.3s ease;
+}
+
+/* --- Image frame with edit button --- */
+.upload-frame {
+  position: relative;
+  display: inline-block;
+}
+
+.upload-hero-img {
+  max-width: 100%; max-height: 300px;
+  object-fit: contain; border-radius: 16px;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.1);
+  display: block;
+}
+
+.upload-frame-change {
+  position: absolute; top: 10px; right: 10px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid #e0d0e4;
+  color: #8a6870;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+
+.upload-frame-change:hover {
+  background: #f5ede0; border-color: var(--rose); color: var(--rose);
+  transform: scale(1.1);
+}
+
+/* --- Recolour panel (chips + button) --- */
+.recolour-panel {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  background: rgba(250, 246, 240, 0.6);
+  border: 1.5px dashed #e0d0e4;
+  border-radius: 20px;
+  padding: 20px 28px 24px;
+  width: 100%;
+}
+
+.recolour-panel-label {
+  font-family: "Caveat", cursive;
+  font-size: 20px; font-weight: 700; color: var(--dark);
+}
+
+.recolour-chips {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+}
+
+.recolour-chip {
+  width: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5ede0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  transition: transform 0.2s;
+}
+
+.recolour-chip:hover { transform: translateY(-3px); }
+
+.recolour-chip-swatch {
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recolour-chip-swatch svg {
+  width: 16px; height: 16px;
+}
+
+.recolour-chip-hex {
+  display: block;
+  padding: 5px 4px 6px;
+  background: #f5ede0;
+  text-align: center;
+  font-family: "DM Sans", sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  color: #6a4a52;
+}
+
+/* --- Recolour CTA button --- */
+.recolour-btn {
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px; font-weight: 600;
+  color: #fff; background: var(--rose);
+  border: none; border-radius: 50px;
+  padding: 14px 32px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 3px 16px rgba(232, 123, 139, 0.3);
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+
+.recolour-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(232, 123, 139, 0.35);
+  background: #d86878;
+}
+
+.recolour-btn svg {
+  transition: transform 0.2s;
+}
+
+.recolour-btn:hover svg {
+  transform: translateX(3px);
+}
+
+/* ============================================================
+   SAMPLES (empty state)
+   ============================================================ */
+.sample-section {
+  margin-top: 24px; padding-top: 20px;
+  border-top: 1.5px dashed #e8d4da;
+}
+
+.sample-label {
+  font-family: "Caveat", cursive;
+  font-size: 20px; font-weight: 600; color: #8a6870; margin-bottom: 16px;
+}
+
+.sample-grid {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+
+.sample-thumb {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: none; border: 2px solid transparent; border-radius: 14px;
+  padding: 8px; cursor: pointer; transition: all 0.2s;
+}
+
+.sample-thumb:hover {
+  border-color: var(--rose); background: #f2e8da;
+  transform: translateY(-2px);
+}
+
+.sample-thumb img {
+  width: 88px; height: 88px; object-fit: cover; border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sample-thumb span {
+  font-family: "DM Sans", sans-serif; font-size: 11px;
+  font-weight: 500; color: #8a6870;
+}
+
+.sample-loading {
+  font-size: 13px; color: #b89aa0; margin-top: 12px;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 600px) {
+  .recolour-panel { padding: 16px 16px 20px; }
+  .recolour-chip { width: 56px; }
+  .recolour-chip-swatch { height: 42px; }
+  .recolour-chip-hex { font-size: 8px; }
+  .sample-thumb img { width: 56px; height: 56px; }
+}

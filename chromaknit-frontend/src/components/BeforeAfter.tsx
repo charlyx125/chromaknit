@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import "./BeforeAfter.css";
 
 interface BeforeAfterProps {
   beforeUrl: string;
@@ -36,6 +37,8 @@ function BeforeAfter({ beforeUrl, afterUrl, onDownload }: BeforeAfterProps) {
           <div
             className="ba-container"
             ref={containerRef}
+            role="img"
+            aria-label={`Before and after comparison. Showing ${Math.round(position)}% original, ${Math.round(100 - position)}% recoloured.`}
             onMouseDown={onMouseDown}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseUp}
@@ -51,12 +54,12 @@ function BeforeAfter({ beforeUrl, afterUrl, onDownload }: BeforeAfterProps) {
             >
               <img src={afterUrl} alt="Recoloured garment" />
             </div>
-            <div className="ba-divider" style={{ left: `${position}%` }} />
-            <div className="ba-handle" style={{ left: `${position}%` }}>
+            <div className="ba-divider" style={{ left: `${position}%` }} aria-hidden="true" />
+            <div className="ba-handle" style={{ left: `${position}%` }} aria-hidden="true">
               &#x25C0;&#x25B6;
             </div>
-            <span className="ba-lbl left">original</span>
-            <span className="ba-lbl right">recoloured</span>
+            <span className="ba-lbl left" aria-hidden="true">original</span>
+            <span className="ba-lbl right" aria-hidden="true">recoloured</span>
           </div>
           <input
             type="range"
@@ -64,15 +67,20 @@ function BeforeAfter({ beforeUrl, afterUrl, onDownload }: BeforeAfterProps) {
             min="0"
             max="100"
             value={position}
+            aria-label="Drag to compare original and recoloured garment"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(position)}
+            aria-valuetext={`${Math.round(position)}% original, ${Math.round(100 - position)}% recoloured`}
             onChange={(e) => setPosition(Number(e.target.value))}
           />
         </div>
       </div>
       <div className="btn-row">
-        <button className="btn-dl" onClick={onDownload}>
-          &#x2B07; download
+        <button className="btn-dl" onClick={onDownload} aria-label="Download recoloured image">
+          <span aria-hidden="true">&#x2B07;</span> download
         </button>
-        <button className="btn-ghost" onClick={onDownload}>
+        <button className="btn-ghost" onClick={onDownload} aria-label="Share recoloured image">
           share
         </button>
       </div>

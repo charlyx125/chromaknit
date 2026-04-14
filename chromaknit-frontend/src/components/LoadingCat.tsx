@@ -1,3 +1,5 @@
+import "./LoadingCat.css";
+
 interface LoadingCatProps {
   message: string;
   subtitle?: string;

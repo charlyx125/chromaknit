@@ -186,6 +186,81 @@ dominant_colors = cluster_centers[sorted_indices]
 
 ---
 
+### Option 6: DBSCAN (Density-Based Clustering) ❌
+
+**What it is:** Groups points by density — finds arbitrarily shaped clusters without specifying K upfront.
+
+**Pros:**
+
+- ✅ No need to specify number of clusters
+- ✅ Good at finding outliers
+
+**Cons:**
+
+- ❌ Cannot control exact number of output colours — may return 2 or 20
+- ❌ Struggles with varying density — yarn images have large areas of one colour (e.g. 80% navy) and tiny specks of another (e.g. 20% gold flecks). DBSCAN finds the dense navy cluster easily but may label the sparse gold pixels as noise. Lowering `eps`/`min_samples` to catch the gold risks splitting navy into multiple sub-clusters. No single parameter setting handles both dense and sparse regions in the same image.
+- ❌ Requires tuning `eps` and `min_samples` parameters per image
+
+**Verdict:** ❌ We need exactly K colours. DBSCAN solves a different problem (unknown cluster count).
+
+---
+
+### Option 7: Hierarchical/Agglomerative Clustering ❌
+
+**What it is:** Bottom-up clustering that starts with every pixel as its own cluster and merges the two closest at each step, building a tree (dendrogram).
+
+**Pros:**
+
+- ✅ Produces a hierarchy — can cut at any level for different K
+- ✅ No random initialisation
+
+**Cons:**
+
+- ❌ Requires a pairwise distance matrix: O(n^2) time and memory. A 400×400 image has 160,000 pixels → 160,000 × 160,000 pairs → ~200GB distance matrix. Completely impractical.
+- ❌ K-means only computes distances between each pixel and K centroids — O(n × K) per iteration
+
+**Verdict:** ❌ Computationally infeasible for image-sized datasets.
+
+---
+
+### Option 8: Gaussian Mixture Models (GMM) ❌
+
+**What it is:** Probabilistic version of K-means. Models clusters as Gaussian distributions with soft assignments (each pixel has a probability of belonging to each cluster).
+
+**Pros:**
+
+- ✅ More flexible — handles elliptical clusters
+- ✅ Soft assignments (probability per cluster)
+
+**Cons:**
+
+- ❌ Slower than K-means (EM algorithm with covariance estimation)
+- ❌ Extra flexibility not useful here — we just need "what are the 5 dominant colours," not probability distributions
+- ❌ More parameters to fit, more prone to convergence issues
+- ❌ Soft assignments create ambiguity for downstream recolouring, which needs crisp colour-to-percentage mappings
+
+**Where this breaks down — marled/twisted yarn example:**
+
+A navy and cream marl has two plies twisted together. At the twist points where fibres overlap, pixels are genuinely in between — not navy, not cream, but a muddy mid-tone. GMM assigns these pixels ~55% navy / ~45% cream. With thousands of these ambiguous pixels, frequency percentages shift depending on how you resolve them.
+
+Theoretical resolutions and why they fail:
+
+1. **Winner takes all** — assign to highest probability cluster. But this is just K-means with extra computation. The soft assignments collapse to hard ones.
+2. **Fractional counting** — a 55/45 pixel contributes 0.55 to navy and 0.45 to cream. More accurate percentages in theory, but the recolouring pipeline maps discrete pixels to discrete colours — you cannot recolour a pixel 55% navy and 45% cream. You still have to pick one.
+3. **Create a new cluster** — treat the ambiguous zone as its own colour. But then you extract 6 colours instead of 5, and the extra colour is a blend that does not actually exist in the yarn — it is an optical artifact of twisted plies.
+
+Every resolution either collapses back to hard assignment (K-means) or introduces a new problem. The soft assignments sound more sophisticated but do not produce a better input for the recolouring step.
+
+**Verdict:** ❌ Solves a harder problem than we have. K-means is sufficient.
+
+---
+
+### Why K-means Is the Right Fit
+
+The problem is straightforward: partition RGB pixels into exactly K groups and return the centroids. That is literally what K-means does. The more advanced methods (DBSCAN, Mean Shift, GMM, Hierarchical) solve problems this project does not have — unknown cluster counts, non-spherical clusters, probabilistic assignments, or hierarchical relationships. MiniBatchKMeans makes it fast enough for a web API.
+
+---
+
 ## Decision
 
 ### ✅ **Chosen: Option 1 - K-means Clustering**

@@ -1,0 +1,402 @@
+/* ============================================================
+   WORKSPACE SECTION
+   ============================================================ */
+.sample-strip {
+  position: relative; z-index: 5;
+  text-align: center; padding: 60px 20px 60px;
+  background:
+    linear-gradient(rgba(245, 237, 232, 0.55), rgba(245, 237, 232, 0.55)),
+    url("/pink-beige-yarn.jpg") center center / cover no-repeat,
+    #F5EDE8;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  animation: curtainDrop 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+  overflow: hidden;
+}
+
+/* Decorative squiggles */
+.strip-decor {
+  position: absolute; inset: 0;
+  z-index: 1; pointer-events: none; overflow: hidden;
+}
+
+.strip-squig { position: absolute; }
+
+.strip-squig-left {
+  left: 2%; top: 50%; transform: translateY(-50%);
+  opacity: 0.25;
+}
+
+.strip-squig-right {
+  right: 2%; top: 45%; transform: translateY(-50%);
+  opacity: 0.25;
+}
+
+.strip-squig-flower {
+  top: 12%; right: 6%;
+  opacity: 0.3;
+  animation: floatSlow 8s ease-in-out infinite;
+}
+
+.strip-squig-star {
+  bottom: 15%; left: 5%;
+  opacity: 0.25;
+  animation: floatSlow 6s ease-in-out infinite 2s;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(5deg); }
+}
+
+/* --- Main card --- */
+.strip-glass {
+  position: relative; z-index: 2;
+  background: rgba(245, 237, 224, 0.92);
+  border-radius: 24px;
+  border: 1.5px solid rgba(210, 190, 170, 0.35);
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.07);
+  padding: 32px 48px 44px;
+  max-width: 760px; width: 94%;
+}
+
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.tab-bar {
+  display: flex; justify-content: center; align-items: center; gap: 6px;
+  margin-bottom: 28px;
+}
+
+.tab-btn {
+  font-family: "DM Sans", sans-serif; font-size: 13px;
+  font-weight: 500; letter-spacing: 0.04em;
+  padding: 8px 20px; border-radius: 50px;
+  border: 1.5px solid transparent;
+  background: none; color: #6a4a52;
+  cursor: pointer; transition: all 0.25s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+
+.tab-step {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(138, 104, 112, 0.12);
+  font-size: 11px; font-weight: 700; color: #8a6870;
+  flex-shrink: 0;
+  transition: all 0.25s;
+}
+
+.tab-btn.active .tab-step {
+  background: var(--rose); color: #fff;
+  box-shadow: 0 2px 8px rgba(232, 123, 139, 0.3);
+}
+
+.tab-divider {
+  width: 20px; height: 1.5px;
+  background: rgba(138, 104, 112, 0.15);
+  flex-shrink: 0;
+}
+
+.tab-btn:hover:not(.locked) {
+  color: var(--dark); background: rgba(245, 237, 224, 0.6);
+}
+
+.tab-btn.active {
+  background: #f5eddf;
+  color: var(--dark); font-weight: 600;
+  border-color: rgba(232, 123, 139, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.tab-btn.locked {
+  opacity: 0.3; cursor: default;
+}
+
+/* ============================================================
+   TAB CONTENT
+   ============================================================ */
+.tab-content {
+  animation: fadeSlideUp 0.3s ease-out;
+}
+
+.strip-label {
+  font-family: "Caveat", cursive; font-size: 42px;
+  color: var(--dark); font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.strip-sublabel {
+  font-size: 15px; color: #6a4a52; margin-bottom: 32px;
+}
+
+/* --- Yarn cards --- */
+.strip-cards {
+  display: flex; justify-content: center; gap: 0;
+  perspective: 800px;
+}
+
+.sample-card {
+  width: 110px; height: 148px; border-radius: 16px;
+  overflow: hidden; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  border: 3px solid #fff;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin: 0 -8px;
+  position: relative;
+  animation: cardDeal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.sample-card:nth-child(1) { transform: rotate(-10deg); z-index: 1; animation-delay: 0.1s; }
+.sample-card:nth-child(2) { transform: rotate(-6deg); z-index: 2; animation-delay: 0.2s; }
+.sample-card:nth-child(3) { transform: rotate(-2deg); z-index: 3; animation-delay: 0.3s; }
+.sample-card:nth-child(4) { transform: rotate(2deg); z-index: 3; animation-delay: 0.4s; }
+.sample-card:nth-child(5) { transform: rotate(6deg); z-index: 2; animation-delay: 0.5s; }
+.sample-card:nth-child(6) { transform: rotate(10deg); z-index: 1; animation-delay: 0.6s; }
+
+@keyframes cardDeal {
+  0% { opacity: 0; transform: rotate(0deg) translateY(60px) scale(0.6); }
+  100% { opacity: 1; }
+}
+
+.sample-card:hover {
+  transform: rotate(0deg) translateY(-18px) scale(1.1);
+  z-index: 10;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+  border-color: var(--blush);
+}
+
+.sample-card.selected {
+  transform: rotate(0deg) translateY(-18px) scale(1.1);
+  border-color: var(--rose);
+  box-shadow: 0 16px 40px rgba(232, 123, 139, 0.25);
+  z-index: 10;
+}
+
+.sample-card.dimmed { opacity: 0.5; pointer-events: none; }
+
+.sample-card img { width: 100%; height: 100%; object-fit: cover; }
+
+.sample-card-label {
+  position: absolute; bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  font-family: "DM Sans", sans-serif;
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(245, 237, 224, 0.92); color: var(--dark);
+  padding: 3px 10px; border-radius: 10px;
+  white-space: nowrap;
+  opacity: 0; transition: opacity 0.2s;
+}
+
+.sample-card:hover .sample-card-label,
+.sample-card.selected .sample-card-label { opacity: 1; }
+
+/* Upload card */
+.sample-card.upload-card {
+  background: rgba(245, 237, 224, 0.7);
+  border: 3px dashed var(--blush);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+}
+
+.sample-card.upload-card:hover {
+  border-color: var(--rose);
+  background: #f5eddf;
+}
+
+.upload-card-plus {
+  font-size: 32px; font-weight: 300; color: var(--rose); line-height: 1;
+}
+
+.upload-card-text {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--rose);
+}
+
+/* --- Collapsed yarn selection --- */
+.yarn-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 8px;
+  animation: fadeSlideUp 0.3s ease-out;
+}
+
+.yarn-selected-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--blush);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.yarn-selected-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.yarn-change-btn {
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rose);
+  background: none;
+  border: 1.5px solid var(--blush);
+  border-radius: 20px;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.yarn-change-btn:hover {
+  background: rgba(232, 123, 139, 0.08);
+  border-color: var(--rose);
+}
+
+/* --- How it works steps --- */
+.strip-how {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin-top: 40px; font-size: 13px; color: #6a4a52;
+  letter-spacing: 0.04em;
+  animation: fadeSlideUp 0.8s ease-out 1s backwards;
+}
+
+.strip-how-step {
+  display: flex; align-items: center; gap: 6px;
+}
+
+.strip-how-icon {
+  font-size: 16px; line-height: 1;
+}
+
+.strip-how-arrow {
+  color: #9a7a84; font-size: 11px;
+}
+
+/* --- Loading states --- */
+.strip-loading {
+  margin-top: 32px; text-align: center;
+  animation: fadeSlideUp 0.4s ease-out;
+}
+
+.strip-palette {
+  margin-top: 24px;
+  animation: fadeSlideUp 0.4s ease-out;
+}
+
+/* --- Flow titles (tab 2 & 3) --- */
+.flow-title {
+  font-family: "Caveat", cursive; font-size: 36px;
+  color: var(--dark); font-weight: 700;
+  text-align: center; margin-bottom: 4px;
+}
+
+.flow-subtitle {
+  font-size: 14px; color: #6a4a52; text-align: center;
+  margin-bottom: 28px;
+}
+
+/* --- Loading animation styles --- */
+.curtain-message {
+  font-family: "Caveat", cursive; font-size: 32px;
+  font-weight: 700; color: var(--dark);
+  margin-bottom: 6px;
+}
+
+.curtain-subtitle {
+  font-size: 14px; color: var(--rose); display: block; margin-bottom: 24px;
+}
+
+.curtain-progress-wrap {
+  height: 6px; background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px; overflow: hidden; width: 300px; margin: 0 auto;
+}
+
+.curtain-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blush), var(--rose), var(--lavender));
+  border-radius: 4px;
+  animation: prog 3s ease-in-out infinite;
+  background-size: 200% 100%;
+}
+
+/* --- Next step button --- */
+.next-step-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 20px;
+  font-family: "DM Sans", sans-serif; font-size: 14px; font-weight: 600;
+  color: #fff; background: var(--rose);
+  border: none; border-radius: 50px;
+  padding: 14px 32px;
+  cursor: pointer;
+  box-shadow: 0 3px 16px rgba(232, 123, 139, 0.3);
+  transition: all 0.2s;
+  animation: fadeSlideUp 0.4s ease-out;
+}
+
+.next-step-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(232, 123, 139, 0.35);
+  background: #d86878;
+}
+
+.next-step-btn svg { transition: transform 0.2s; }
+.next-step-btn:hover svg { transform: translateX(3px); }
+
+/* --- Reset confirmation --- */
+.reset-confirm {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  animation: fadeSlideUp 0.2s ease-out;
+}
+
+.reset-confirm-text {
+  font-size: 13px; color: #6a4a52;
+}
+
+.reset-yes {
+  border-color: var(--rose); color: var(--rose);
+}
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes curtainDrop {
+  0% { transform: translateY(-100%); }
+  60% { transform: translateY(3%); }
+  80% { transform: translateY(-1%); }
+  100% { transform: translateY(0); }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 600px) {
+  .sample-strip { padding: 50px 16px 40px; }
+  .strip-glass { padding: 20px 20px 28px; }
+  .tab-btn { font-size: 11px; padding: 6px 14px; gap: 6px; }
+  .tab-step { width: 18px; height: 18px; font-size: 10px; }
+  .tab-divider { width: 12px; }
+  .sample-card { width: 68px; height: 92px; border-radius: 10px; margin: 0 -6px; }
+  .sample-card-label { font-size: 8px; }
+  .strip-label { font-size: 28px; }
+  .strip-sublabel { font-size: 13px; }
+  .curtain-message { font-size: 24px; }
+  .curtain-progress-wrap { width: 200px; }
+  .strip-squig { display: none; }
+  .next-step-btn { font-size: 13px; padding: 12px 24px; }
+  .yarn-selected-thumb { width: 44px; height: 44px; }
+  .yarn-selected-label { font-size: 13px; }
+}

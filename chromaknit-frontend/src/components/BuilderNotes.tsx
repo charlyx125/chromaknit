@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./BuilderNotes.css";
 
 function BuilderNotes() {
   const [open, setOpen] = useState(false);
@@ -8,10 +9,12 @@ function BuilderNotes() {
       <button
         className={`dev-toggle${open ? " open" : ""}`}
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls="builder-notes-panel"
       >
-        builder notes <span className="arrow">&#x25BE;</span>
+        builder notes <span className="arrow" aria-hidden="true">&#x25BE;</span>
       </button>
-      <div className={`dev-panel${open ? " open" : ""}`}>
+      <div className={`dev-panel${open ? " open" : ""}`} id="builder-notes-panel" role="region" aria-label="Builder notes">
         <div className="dev-inner">
           <p className="dev-section-title">tech stack</p>
           <div className="dev-pills">

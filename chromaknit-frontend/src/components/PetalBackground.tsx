@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import "./PetalBackground.css";
 
 const COLORS = ["#E87B8B", "#C9B8D8", "#A8C8DC", "#9BB89A", "#F0A882", "#F2AEBC", "#D4A843"];
 const PETAL_COUNT = 24;
@@ -31,11 +32,11 @@ function PetalBackground() {
   }, []);
 
   return (
-    <>
+    <div aria-hidden="true">
       <div className="header-bg" />
       <div className="header-overlay" />
       <div className="petals-layer" ref={layerRef} />
-    </>
+    </div>
   );
 }
 

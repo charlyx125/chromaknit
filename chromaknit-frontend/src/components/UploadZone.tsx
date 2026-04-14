@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import "./UploadZone.css";
 
 interface SampleImage {
   src: string;
@@ -74,47 +75,69 @@ function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, onRecolor,
   };
 
   return (
-    <div className={`upload-zone${isDone ? " done" : ""}`}>
+    <div className={`upload-zone${isDone ? " done" : ""}`} role="region" aria-label="Image upload">
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
+        aria-label="Choose an image file to upload"
         onChange={handleChange}
         disabled={disabled}
         style={{ display: "none" }}
       />
       {isDone && previewUrl ? (
         <div className="upload-done">
-          <img
-            src={previewUrl}
-            alt={fileName ?? "Uploaded image"}
-            className="upload-hero-img"
-          />
-          <div className="upload-done-actions">
-            {colors.length > 0 && (
-              <div className="recolour-with">
-                <span className="recolour-with-label">recolour with</span>
-                {colors.map((c, i) => (
-                  <span key={i} className="upload-swatch" style={{ background: c }} />
-                ))}
-              </div>
-            )}
-            {onRecolor && !isRecoloring && (
-              <button className="btn-primary" onClick={onRecolor}>
-                recolour garment
-              </button>
-            )}
+          {/* Image frame */}
+          <div className="upload-frame">
+            <img
+              src={previewUrl}
+              alt={fileName ?? "Uploaded image"}
+              className="upload-hero-img"
+            />
             <button
-              className="change-btn"
+              className="upload-frame-change"
               onClick={(e) => { handleReupload(e); inputRef.current?.click(); }}
+              aria-label="Change image"
             >
-              change image
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
+
+          {/* Colour chips + action */}
+          {colors.length > 0 && (
+            <div className="recolour-panel">
+              <span className="recolour-panel-label">recolour with these colours</span>
+              <div className="recolour-chips">
+                {colors.map((c, i) => {
+                  const iconColor = colors[(i + 1) % colors.length];
+                  return (
+                    <div key={i} className="recolour-chip" role="img" aria-label={`Colour ${i + 1}: ${c}`} title={c}>
+                      <div className="recolour-chip-swatch" style={{ background: c }}>
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: iconColor, opacity: 0.5 }}>
+                          <path d="M12 2 L12 22 M2 12 L22 12 M5.5 5.5 L18.5 18.5 M18.5 5.5 L5.5 18.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <span className="recolour-chip-hex">{c.toLowerCase()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {onRecolor && !isRecoloring && (
+                <button className="recolour-btn" onClick={onRecolor}>
+                  recolour garment
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M3 8 L11 8 M8 4 L12 8 L8 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
-        <div onClick={() => !disabled && !loadingSample && inputRef.current?.click()}>
-          <span className="upload-icon">{icon}</span>
+        <div role="button" tabIndex={0} aria-label={heading} onClick={() => !disabled && !loadingSample && inputRef.current?.click()} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !disabled && !loadingSample) { e.preventDefault(); inputRef.current?.click(); } }}>
+          <span className="upload-icon" aria-hidden="true">{icon}</span>
           <h3>{heading}</h3>
           <p>{subtitle}</p>
           {samples && samples.length > 0 && !loadingSample && (
