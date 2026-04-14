@@ -256,7 +256,7 @@ uvicorn api.main:app --reload
 # Extract colors
 curl -X POST "http://127.0.0.1:8000/api/colors/extract" \
   -F "file=@examples/yarn/sample-yarn.jpg" \
-  -F "n_colors=5"
+  -F "n_colors=10"
 
 # Recolor garment
 curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
@@ -271,8 +271,8 @@ curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
 ```python
 from core.yarn_color_extractor import ColorExtractor
 
-# Extract 5 dominant colors
-extractor = ColorExtractor(image_path="yarn.jpg", n_colors=5)
+# Extract 10 dominant colors (captures shadow and highlight tones)
+extractor = ColorExtractor(image_path="yarn.jpg", n_colors=10)
 colors = extractor.extract_dominant_colors()
 
 # Visualize results

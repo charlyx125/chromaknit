@@ -87,6 +87,7 @@ function App() {
       try {
         const formData = new FormData();
         formData.append("file", state.yarnImage!);
+        formData.append("n_colors", "10");
 
         const response = await extractFetch(`${API_BASE_URL}/api/colors/extract`, {
           method: "POST",

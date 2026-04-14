@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import ColorPalette from "./ColorPalette";
 import UploadZone from "./UploadZone";
 import BeforeAfter from "./BeforeAfter";
 import "./SampleStrip.css";
@@ -185,18 +184,24 @@ function SampleStrip({
         {/* Tab 1: Pick yarn */}
         <div className="tab-content" role="tabpanel" id="tabpanel-yarn" aria-labelledby="tab-yarn" style={{ display: activeTab === 0 ? "block" : "none" }}>
           {hasColors ? (
-            <>
+            <div className="yarn-result">
+              <p className="flow-title">yarn chosen</p>
               {yarnPreview && (
-                <div className="yarn-selected">
-                  <img src={yarnPreview} alt="Selected yarn" className="yarn-selected-thumb" />
-                  <span className="yarn-selected-label">{selected}</span>
-                  <button className="yarn-change-btn" onClick={handleChangeYarn}>change</button>
+                <div className="upload-frame">
+                  <img src={yarnPreview} alt="Selected yarn" className="upload-hero-img" />
+                  <button className="upload-frame-change" onClick={handleChangeYarn} aria-label="Change yarn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
                 </div>
               )}
-              <div className="strip-palette">
-                <ColorPalette colors={extractedColors} />
+              <div className="recolour-dots-row">
+                {extractedColors.map((c, i) => (
+                  <span key={i} className="recolour-dot" style={{ background: c }} title={c} role="img" aria-label={`Colour ${i + 1}: ${c}`} />
+                ))}
               </div>
-            </>
+            </div>
           ) : (
             <>
               <p className="strip-label">pick a yarn to get started</p>

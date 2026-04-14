@@ -217,12 +217,20 @@
   letter-spacing: 0.1em; color: var(--rose);
 }
 
-/* --- Collapsed yarn selection --- */
+/* --- Yarn result (after extraction) --- */
+.yarn-result {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  animation: fadeSlideUp 0.3s ease-out;
+}
+
+/* --- Collapsed yarn selection (unused, kept for reference) --- */
 .yarn-selected {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
+  flex-wrap: wrap;
   margin-bottom: 8px;
   animation: fadeSlideUp 0.3s ease-out;
 }
