@@ -194,12 +194,13 @@ dominant_colors = cluster_centers[sorted_indices]
 
 - ✅ No need to specify number of clusters
 - ✅ Good at finding outliers
+- ✅ Knitted fabric has 3D structure — stitches are raised and gaps are recessed, creating a sharp light-to-dark transition rather than a smooth gradient. This means shadow tones in the gaps (e.g. dark purple between light purple stitches, see [soft-purple yarn](../../examples/yarn/soft-purple-yarn.jpg)) can form their own dense region in colour space, separated by a sparse transition zone. DBSCAN could detect these as a separate cluster, which would be useful for realistic garment recolouring — mapping garment shadows to yarn shadow tones rather than only the top-K dominant colours
 
 **Cons:**
 
 - ❌ Cannot control exact number of output colours — may return 2 or 20
 - ❌ Struggles with varying density — yarn images have large areas of one colour (e.g. 80% navy) and tiny specks of another (e.g. 20% gold flecks). DBSCAN finds the dense navy cluster easily but may label the sparse gold pixels as noise. Lowering `eps`/`min_samples` to catch the gold risks splitting navy into multiple sub-clusters. No single parameter setting handles both dense and sparse regions in the same image.
-- ❌ Requires tuning `eps` and `min_samples` parameters per image
+- ❌ Requires tuning `eps` and `min_samples` per image — whether DBSCAN separates shadow tones or merges them into the main colour depends entirely on `eps`, and the right value changes per yarn colour. A dark blue yarn's shadows are very-dark-blue (close in colour space), requiring a small `eps` to separate them, while a lavender yarn's gap shadows are near-black (far in colour space), working with a larger `eps`. No single parameter setting generalises across yarn colours.
 
 **Verdict:** ❌ We need exactly K colours. DBSCAN solves a different problem (unknown cluster count).
 
@@ -324,11 +325,12 @@ class ColorExtractor:
 
 ### Key Parameters
 
-**n_clusters:** Number of colors to extract (default: 5)
+**n_clusters:** Number of colors to extract (default: 5, frontend override: 10)
 
 - Too few (< 3): Misses color variations
 - Too many (> 10): Includes minor artifacts
-- Sweet spot: 5-7 for most yarns
+- Original sweet spot: 5-7 for most yarns
+- **Updated to 10 for the web app** — since the input is a single yarn colour, most of the 10 clusters capture tonal variations of that colour, including shadow tones in the knit gaps. With only 5 clusters on a single-colour yarn, the shadows get absorbed into the dominant colour clusters. 10 gives K-means enough budget to surface those darker tones, improving recolour accuracy when mapping to garment shadows
 
 **random_state:** Seed for reproducibility (42)
 
@@ -349,7 +351,7 @@ Convert BGR → RGB (OpenCV uses BGR)
     ↓
 Reshape: (H, W, 3) → (H×W, 3)
     ↓
-K-means Clustering (n_clusters=5)
+K-means Clustering (n_clusters=10)
     ↓
 Extract Cluster Centers (RGB colors)
     ↓
@@ -545,6 +547,7 @@ Large         2.1M        7.014s
 - **2025-11-14:** ✅ Performance benchmarks validated
 - **2025-11-14:** ✅ Real-world testing with blue yarn successful
 - **2026-02-05:** ✅ Benchmarks updated with current results
+- **2026-04-14:** ✅ n_clusters increased from 5 to 10 in web app — captures shadow tones for single-colour yarn input
 
 ---
 
