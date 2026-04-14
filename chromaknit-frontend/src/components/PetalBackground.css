@@ -1,8 +1,8 @@
 .header-bg {
   position: fixed; inset: 0;
-  background-image: url("/pink-yarn-sunset.jpg");
+  background-image: url("/header-yarn-background.jpg");
   background-size: cover;
-  background-position: center;
+  background-position: center 40%;
   z-index: 0;
 }
 

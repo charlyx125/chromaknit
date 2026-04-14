@@ -10,11 +10,11 @@ interface Sample {
 }
 
 const YARN_SAMPLES: Sample[] = [
-  { src: "/samples/yarn-blue.jpg", label: "blue" },
-  { src: "/samples/yarn-pink.jpg", label: "pink" },
-  { src: "/samples/yarn-purple.jpg", label: "purple" },
-  { src: "/samples/yarn-light-blue.jpg", label: "light blue" },
-  { src: "/samples/yarn-light-green.jpg", label: "sage" },
+  { src: "/samples/yarn-soft-purple.jpg", label: "soft purple" },
+  { src: "/samples/yarn-dark-blue.jpg", label: "dark blue" },
+  { src: "/samples/yarn-pink-unknit.jpg", label: "pink" },
+  { src: "/samples/yarn-mint.jpg", label: "mint" },
+  { src: "/samples/yarn-red.png", label: "red" },
 ];
 
 interface SampleStripProps {
@@ -60,7 +60,6 @@ function SampleStrip({
   const [selected, setSelected] = useState<string | null>(null);
   const [yarnPreview, setYarnPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset local state when the app resets
@@ -68,8 +67,19 @@ function SampleStrip({
     setSelected(null);
     setYarnPreview(null);
     setLoading(false);
-    setConfirmReset(false);
   }, [resetKey]);
+
+  const hasColors = extractedColors.length > 0;
+
+  // Auto-advance to garment tab when colours are extracted
+  useEffect(() => {
+    if (hasColors) onTabChange(1);
+  }, [hasColors]);
+
+  // Auto-advance to result tab when recoloring completes
+  useEffect(() => {
+    if (recoloredImageUrl && garmentPreviewUrl) onTabChange(2);
+  }, [recoloredImageUrl]);
 
   const handleClick = async (sample: Sample) => {
     setSelected(sample.label);
@@ -102,7 +112,6 @@ function SampleStrip({
     onChangeYarn();
   };
 
-  const hasColors = extractedColors.length > 0;
   const hasResult = !!(recoloredImageUrl && garmentPreviewUrl);
 
   return (
@@ -186,12 +195,6 @@ function SampleStrip({
               )}
               <div className="strip-palette">
                 <ColorPalette colors={extractedColors} />
-                <button className="next-step-btn" onClick={() => onTabChange(1)}>
-                  next: upload your garment
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path d="M3 8 L11 8 M8 4 L12 8 L8 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
               </div>
             </>
           ) : (
@@ -278,30 +281,13 @@ function SampleStrip({
               isRecoloring={isRecoloring}
               colors={extractedColors}
               samples={[
+                { src: "/samples/garment-black-blanket.jpg", label: "black blanket" },
+                { src: "/samples/garment-green-beanie.jpg", label: "green beanie" },
+                { src: "/samples/garment-red-socks.jpg", label: "red socks" },
                 { src: "/samples/garment-cardigan.jpg", label: "cardigan" },
                 { src: "/samples/garment-baby.jpg", label: "baby knit" },
-                { src: "/samples/garment-bag.jpg", label: "bag" },
-                { src: "/samples/garment-bag-black.jpg", label: "black bag" },
-                { src: "/samples/garment-bag-ivory.jpg", label: "ivory bag" },
               ]}
             />
-            {isRecoloring && (
-              <div className="strip-loading" role="status" aria-live="polite">
-                <p className="curtain-message">recolouring your garment...</p>
-                <small className="curtain-subtitle">removing background &amp; mapping colours &middot; usually 5-10 seconds</small>
-                <div className="curtain-progress-wrap">
-                  <div className="curtain-progress-fill" />
-                </div>
-              </div>
-            )}
-            {!isRecoloring && hasResult && (
-              <button className="next-step-btn" onClick={() => onTabChange(2)}>
-                see your result
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M3 8 L11 8 M8 4 L12 8 L8 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            )}
             {error && !isRecoloring && garmentImage && (
               <div className="error-msg" role="alert">Something went wrong processing your image — try a clearer photo or a smaller file.</div>
             )}
@@ -316,24 +302,9 @@ function SampleStrip({
               beforeUrl={garmentPreviewUrl!}
               afterUrl={recoloredImageUrl!}
               onDownload={onDownload}
+              onShare={onDownload}
+              onStartOver={onReset}
             />
-            <div style={{ textAlign: "center", marginTop: 20 }}>
-              {!confirmReset ? (
-                <button className="btn-ghost" onClick={() => setConfirmReset(true)}>
-                  start over
-                </button>
-              ) : (
-                <div className="reset-confirm">
-                  <span className="reset-confirm-text">this will clear everything</span>
-                  <button className="btn-ghost reset-yes" onClick={() => { setConfirmReset(false); onReset(); }}>
-                    yes, reset
-                  </button>
-                  <button className="btn-ghost" onClick={() => setConfirmReset(false)}>
-                    cancel
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>

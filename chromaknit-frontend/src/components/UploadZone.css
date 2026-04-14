@@ -1,12 +1,12 @@
 /* --- Upload zone (empty state) --- */
 .upload-zone {
   border: 2px dashed #e0b8c0; border-radius: 24px;
-  padding: 48px 32px; text-align: center; background: #f8f0e4;
+  padding: 32px 24px; text-align: center; background: #fffbfc;
   cursor: pointer; transition: all 0.2s;
   position: relative;
 }
 
-.upload-zone:hover { border-color: var(--rose); background: #f2e8da; }
+.upload-zone:hover { border-color: var(--rose); background: #fff4f6; }
 
 .upload-zone.done {
   border: none; background: none;
@@ -21,7 +21,7 @@
 .upload-icon { font-size: 36px; margin-bottom: 14px; display: block; }
 
 .upload-zone h3 {
-  font-family: "Caveat", cursive; font-size: 26px;
+  font-family: "Cormorant Garamond", serif; font-size: 26px;
   font-weight: 700; color: var(--dark); margin-bottom: 8px;
 }
 
@@ -32,7 +32,7 @@
    ============================================================ */
 .upload-done {
   display: flex; flex-direction: column; align-items: center;
-  gap: 24px; animation: fadeIn 0.3s ease;
+  gap: 14px; animation: fadeIn 0.3s ease;
 }
 
 /* --- Image frame with edit button --- */
@@ -42,7 +42,7 @@
 }
 
 .upload-hero-img {
-  max-width: 100%; max-height: 300px;
+  width: 100%; max-height: 400px;
   object-fit: contain; border-radius: 16px;
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.1);
   display: block;
@@ -60,23 +60,23 @@
 }
 
 .upload-frame-change:hover {
-  background: #f5ede0; border-color: var(--rose); color: var(--rose);
+  background: #fff; border-color: var(--rose); color: var(--rose);
   transform: scale(1.1);
 }
 
 /* --- Recolour panel (chips + button) --- */
 .recolour-panel {
-  display: flex; flex-direction: column; align-items: center; gap: 16px;
-  background: rgba(250, 246, 240, 0.6);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  background: rgba(255, 255, 255, 0.6);
   border: 1.5px dashed #e0d0e4;
   border-radius: 20px;
-  padding: 20px 28px 24px;
+  padding: 20px 24px 22px;
   width: 100%;
 }
 
 .recolour-panel-label {
-  font-family: "Caveat", cursive;
-  font-size: 20px; font-weight: 700; color: var(--dark);
+  font-family: "Cormorant Garamond", serif;
+  font-size: 16px; font-weight: 700; color: var(--dark);
 }
 
 .recolour-chips {
@@ -84,11 +84,11 @@
 }
 
 .recolour-chip {
-  width: 72px;
+  width: 64px;
   border-radius: 12px;
   overflow: hidden;
-  background: #f5ede0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s;
 }
 
@@ -96,23 +96,23 @@
 
 .recolour-chip-swatch {
   width: 100%;
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .recolour-chip-swatch svg {
-  width: 16px; height: 16px;
+  width: 12px; height: 12px;
 }
 
 .recolour-chip-hex {
   display: block;
   padding: 5px 4px 6px;
-  background: #f5ede0;
+  background: #fff;
   text-align: center;
   font-family: "DM Sans", sans-serif;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   color: #6a4a52;
 }
@@ -128,7 +128,7 @@
   display: inline-flex; align-items: center; gap: 8px;
   box-shadow: 0 3px 16px rgba(232, 123, 139, 0.3);
   transition: all 0.2s;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .recolour-btn:hover {
@@ -154,7 +154,7 @@
 }
 
 .sample-label {
-  font-family: "Caveat", cursive;
+  font-family: "Cormorant Garamond", serif;
   font-size: 20px; font-weight: 600; color: #8a6870; margin-bottom: 16px;
 }
 
@@ -169,7 +169,7 @@
 }
 
 .sample-thumb:hover {
-  border-color: var(--rose); background: #f2e8da;
+  border-color: var(--rose); background: #fff4f6;
   transform: translateY(-2px);
 }
 
@@ -189,13 +189,40 @@
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
+/* --- Recolouring bounce animations --- */
+.recolour-panel.recolouring {
+  border-color: var(--rose); border-style: solid;
+}
+
+.recolour-panel.recolouring .recolour-panel-label {
+  color: var(--rose);
+}
+
+.bounce-down {
+  animation: chipBounceDown 1s ease-in-out infinite alternate;
+}
+
+.bounce-up {
+  animation: chipBounceUp 1s ease-in-out infinite alternate;
+}
+
+@keyframes chipBounceDown {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(6px); }
+}
+
+@keyframes chipBounceUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-6px); }
+}
+
 /* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 600px) {
-  .recolour-panel { padding: 16px 16px 20px; }
-  .recolour-chip { width: 56px; }
-  .recolour-chip-swatch { height: 42px; }
-  .recolour-chip-hex { font-size: 8px; }
+  .recolour-panel { padding: 12px 12px 14px; }
+  .recolour-chip { width: 40px; }
+  .recolour-chip-swatch { height: 26px; }
+  .recolour-chip-hex { font-size: 7px; }
   .sample-thumb img { width: 56px; height: 56px; }
 }
