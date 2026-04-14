@@ -64,58 +64,34 @@
   transform: scale(1.1);
 }
 
-/* --- Recolour panel (chips + button) --- */
+/* --- Recolour panel (dots + button) --- */
 .recolour-panel {
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1.5px dashed #e0d0e4;
-  border-radius: 20px;
-  padding: 20px 24px 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
   width: 100%;
 }
 
-.recolour-panel-label {
-  font-family: "Cormorant Garamond", serif;
-  font-size: 16px; font-weight: 700; color: var(--dark);
-}
-
-.recolour-chips {
-  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
-}
-
-.recolour-chip {
-  width: 64px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s;
-}
-
-.recolour-chip:hover { transform: translateY(-3px); }
-
-.recolour-chip-swatch {
-  width: 100%;
-  height: 48px;
-  display: flex;
-  align-items: center;
+.recolour-dots-row {
+  display: flex; align-items: center; gap: 8px;
   justify-content: center;
 }
 
-.recolour-chip-swatch svg {
-  width: 12px; height: 12px;
+.recolour-panel-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px; font-weight: 500; color: #8a6870;
 }
 
-.recolour-chip-hex {
-  display: block;
-  padding: 5px 4px 6px;
-  background: #fff;
-  text-align: center;
-  font-family: "DM Sans", sans-serif;
-  font-size: 8px;
-  font-weight: 600;
-  color: #6a4a52;
+.recolour-dots {
+  display: flex; gap: 6px; align-items: center;
 }
+
+.recolour-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.recolour-dot:hover { transform: scale(1.2); }
 
 /* --- Recolour CTA button --- */
 .recolour-btn {
@@ -190,12 +166,9 @@
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* --- Recolouring bounce animations --- */
-.recolour-panel.recolouring {
-  border-color: var(--rose); border-style: solid;
-}
-
 .recolour-panel.recolouring .recolour-panel-label {
   color: var(--rose);
+  font-weight: 600;
 }
 
 .bounce-down {
@@ -220,9 +193,6 @@
    RESPONSIVE
    ============================================================ */
 @media (max-width: 600px) {
-  .recolour-panel { padding: 12px 12px 14px; }
-  .recolour-chip { width: 40px; }
-  .recolour-chip-swatch { height: 26px; }
-  .recolour-chip-hex { font-size: 7px; }
+  .recolour-dot { width: 14px; height: 14px; }
   .sample-thumb img { width: 56px; height: 56px; }
 }
