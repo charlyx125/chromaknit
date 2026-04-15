@@ -330,7 +330,6 @@ function SampleStrip({
                     }}
                   >
                     <img src={sample.src} alt={`${sample.label} yarn swatch`} />
-                    <span className="sample-card-label">{sample.label}</span>
                   </div>
                 ))}
               </div>
