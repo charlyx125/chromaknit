@@ -1,0 +1,84 @@
+.palette-card {
+  padding: 24px 0;
+  text-align: center;
+}
+
+.strip-glass .palette-card {
+  background: none; border: none; border-radius: 0;
+  padding: 24px 0; box-shadow: none;
+}
+
+.palette-card h3 {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 26px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--dark);
+  margin-bottom: 20px;
+}
+
+/* --- Paint chip cards --- */
+.palette-chips {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.colour-chip {
+  width: 90px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.colour-chip:hover {
+  transform: translateY(-4px);
+}
+
+.chip-swatch {
+  width: 100%;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chip-icon {
+  opacity: 0.5;
+}
+
+.chip-label {
+  padding: 8px 6px 10px;
+  background: #fff;
+  text-align: center;
+}
+
+.chip-hex {
+  font-family: "DM Sans", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6a4a52;
+  letter-spacing: 0.02em;
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+  .colour-chip {
+    width: 70px;
+  }
+  .chip-swatch {
+    height: 76px;
+  }
+  .chip-icon {
+    width: 18px; height: 18px;
+  }
+  .chip-hex {
+    font-size: 8px;
+  }
+  .palette-card h3 {
+    font-size: 22px;
+  }
+}

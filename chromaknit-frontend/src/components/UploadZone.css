@@ -1,0 +1,198 @@
+/* --- Upload zone (empty state) --- */
+.upload-zone {
+  border: 2px dashed #e0b8c0; border-radius: 24px;
+  padding: 32px 24px; text-align: center; background: #fffbfc;
+  cursor: pointer; transition: all 0.2s;
+  position: relative;
+}
+
+.upload-zone:hover { border-color: var(--rose); background: #fff4f6; }
+
+.upload-zone.done {
+  border: none; background: none;
+  padding: 0; cursor: default;
+}
+
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer;
+}
+
+.upload-icon { font-size: 36px; margin-bottom: 14px; display: block; }
+
+.upload-zone h3 {
+  font-family: "Cormorant Garamond", serif; font-size: 26px;
+  font-weight: 700; color: var(--dark); margin-bottom: 8px;
+}
+
+.upload-zone p { font-size: 14px; color: #b89aa0; margin-bottom: 0; }
+
+/* ============================================================
+   DONE STATE
+   ============================================================ */
+.upload-done {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; animation: fadeIn 0.3s ease;
+}
+
+/* --- Image frame with edit button --- */
+.upload-frame {
+  position: relative;
+  display: inline-block;
+}
+
+.upload-hero-img {
+  width: 100%; max-height: 400px;
+  object-fit: contain; border-radius: 16px;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.1);
+  display: block;
+}
+
+.upload-frame-change {
+  position: absolute; top: 10px; right: 10px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid #e0d0e4;
+  color: #8a6870;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+
+.upload-frame-change:hover {
+  background: #fff; border-color: var(--rose); color: var(--rose);
+  transform: scale(1.1);
+}
+
+/* --- Recolour panel (dots + button) --- */
+.recolour-panel {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: 100%;
+}
+
+.recolour-dots-row {
+  display: flex; align-items: center; gap: 8px;
+  justify-content: center;
+}
+
+.recolour-panel-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px; font-weight: 500; color: #8a6870;
+}
+
+.recolour-dots {
+  display: flex; gap: 6px; align-items: center;
+}
+
+.recolour-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.recolour-dot:hover { transform: scale(1.2); }
+
+/* --- Recolour CTA button --- */
+.recolour-btn {
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px; font-weight: 600;
+  color: #fff; background: var(--rose);
+  border: none; border-radius: 50px;
+  padding: 14px 32px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 3px 16px rgba(232, 123, 139, 0.3);
+  transition: all 0.2s;
+  margin-top: 2px;
+}
+
+.recolour-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(232, 123, 139, 0.35);
+  background: #d86878;
+}
+
+.recolour-btn svg {
+  transition: transform 0.2s;
+}
+
+.recolour-btn:hover svg {
+  transform: translateX(3px);
+}
+
+/* ============================================================
+   SAMPLES (empty state)
+   ============================================================ */
+.sample-section {
+  margin-top: 24px; padding-top: 20px;
+  border-top: 1.5px dashed #e8d4da;
+}
+
+.sample-label {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 20px; font-weight: 600; color: #8a6870; margin-bottom: 16px;
+}
+
+.sample-grid {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+
+.sample-thumb {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: none; border: 2px solid transparent; border-radius: 14px;
+  padding: 8px; cursor: pointer; transition: all 0.2s;
+}
+
+.sample-thumb:hover {
+  border-color: var(--rose); background: #fff4f6;
+  transform: translateY(-2px);
+}
+
+.sample-thumb img {
+  width: 88px; height: 88px; object-fit: cover; border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sample-thumb span {
+  font-family: "DM Sans", sans-serif; font-size: 11px;
+  font-weight: 500; color: #8a6870;
+}
+
+.sample-loading {
+  font-size: 13px; color: #b89aa0; margin-top: 12px;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- Recolouring bounce animations --- */
+.recolour-panel.recolouring .recolour-panel-label {
+  color: var(--rose);
+  font-weight: 600;
+}
+
+.bounce-down {
+  animation: chipBounceDown 1s ease-in-out infinite alternate;
+}
+
+.bounce-up {
+  animation: chipBounceUp 1s ease-in-out infinite alternate;
+}
+
+@keyframes chipBounceDown {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(6px); }
+}
+
+@keyframes chipBounceUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-6px); }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 600px) {
+  .recolour-dot { width: 14px; height: 14px; }
+  .sample-thumb img { width: 56px; height: 56px; }
+}

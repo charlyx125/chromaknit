@@ -455,6 +455,30 @@ npm run dev
 
 ---
 
+### Recoloring accuracy: brightness range remapping
+
+**Date:** April 9, 2026
+
+**Problem:** Dark yarn on a bright garment looked bright (wrong), and any yarn on a dark garment looked like a faint tint rather than a full recoloring. The original HSV approach preserved the garment's V channel entirely, which meant the garment's brightness always dominated regardless of the yarn.
+
+**How it was found:** Expanded testing beyond the single blue-yarn-on-yellow-cardigan demo to a 3x3 test matrix: dark/vivid/muted yarn × light/vivid/dark garment. The dark green yarn (V=45) on the yellow cardigan (V=199) immediately showed the problem — the result was bright lime green instead of dark green.
+
+**Iterations tried:**
+1. **Fixed 35% V blending** — not enough shift for large brightness gaps
+2. **Adaptive per-pixel blending** — better but still capped too conservatively
+3. **Distribution-weighted color mapping** — used extraction percentages instead of equal bands, improved distribution but didn't fix the fundamental brightness issue
+4. **Brightness range remapping** (final) — remaps garment V range to yarn V range, preserving relative texture while matching absolute brightness
+
+**Root cause:** The original "preserve V" design was correct for same-brightness combos but wrong for cross-brightness. The algorithm was "tinting" the garment with yarn color instead of making it "look like it's made from this yarn."
+
+**Fix:** Remap each pixel's brightness from the garment's range to the yarn color's range. Relative lighting (folds, shadows) preserved, absolute brightness matches yarn.
+
+**Files changed:** `core/garment_recolor.py`, `api/main.py`, `chromaknit-frontend/src/App.tsx`, `tests/test_garment_recolor.py`
+
+**Lesson:** Testing with a single input combination hides algorithmic flaws. A systematic test matrix (classifying inputs by HSV properties) exposed a fundamental design assumption that would never have been caught by unit tests alone.
+
+---
+
 ## Lessons Learned
 
 ### Technical Lessons

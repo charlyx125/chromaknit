@@ -20,12 +20,13 @@ Knitters spend hours (and money) on yarn, only to discover the finished garment 
 
 | Feature | Description | Details |
 |---------|-------------|---------|
-| **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-color-filtering-strategy.md) |
-| **Background Removal** | AI-powered segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-background-removal.md) |
-| **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-background-removal.md) |
+| **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-yarn-color-extraction.md) |
+| **Background Removal** | AI-powered segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
+| **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
 | **REST API** | FastAPI endpoints with Swagger docs at `/docs` | [ADR 003](docs/decisions/003-api-design.md) |
 | **React Frontend** | TypeScript + Vite with real-time color extraction | [ADR 004](docs/decisions/004-react-frontend-architecture.md) |
-| **UI Design** | Frosted glass header, step-based workflow, before/after slider | [ADR 006](docs/decisions/006-ui-redesign.md) |
+| **UI Design** | Frosted glass header, tabbed workspace, before/after slider | [ADR 006](docs/decisions/006-ui-redesign.md) |
+| **Report Issue** | In-app issue reporting — users pick a category and submit directly to GitHub Issues | — |
 
 **Status:** ✅ Phases 1-4 Complete
 
@@ -35,11 +36,11 @@ Knitters spend hours (and money) on yarn, only to discover the finished garment 
 
 | Input Yarn                             | Extracted Colors                                 |
 | -------------------------------------- | ------------------------------------------------ |
-| ![Blue Yarn](examples/sample-yarn.jpg) | ![Color Palette](results/sample-yarn-colors.png) |
+| ![Blue Yarn](examples/yarn/sample-yarn.jpg) | ![Color Palette](results/sample-yarn-colors.png) |
 
 | Original Garment                                | Recolored Result                                |
 | ----------------------------------------------- | ----------------------------------------------- |
-| ![Yellow Cardigan](examples/sample-garment.jpg) | ![Blue Cardigan](results/recolored_garment.png) |
+| ![Yellow Cardigan](examples/garment/sample-garment.jpg) | ![Blue Cardigan](results/recolored_garment.png) |
 
 _Original garment image from Wool and the Gang_
 
@@ -59,7 +60,7 @@ chromaknit/
 │   │   └── header-yarn-background.jpg  # Header background image
 │   ├── src/
 │   │   ├── App.tsx              # Main application (state + API logic)
-│   │   ├── App.css              # All component styles (~500 lines)
+│   │   ├── App.css              # All component styles (~900 lines)
 │   │   ├── index.css            # Design system variables + keyframes
 │   │   ├── config.ts            # API base URL configuration
 │   │   ├── main.tsx             # React entry point
@@ -67,12 +68,14 @@ chromaknit/
 │   │       ├── Header.tsx       # Frosted glass header with CTA
 │   │       ├── PetalBackground.tsx  # Fixed background + floating petals
 │   │       ├── BuilderNotes.tsx # Collapsible tech stack panel
+│   │       ├── SampleStrip.tsx  # Tabbed workspace (pick yarn → upload garment → result)
 │   │       ├── StepSection.tsx  # Reusable step wrapper
 │   │       ├── InfoPanel.tsx    # Expandable info tooltips
-│   │       ├── UploadZone.tsx   # Styled file upload dropzone
+│   │       ├── UploadZone.tsx   # Styled file upload dropzone with sample images
 │   │       ├── ColorPalette.tsx # Colour swatches + distribution bar
 │   │       ├── LoadingCat.tsx   # Cat + yarn ball loading animation
-│   │       └── BeforeAfter.tsx  # Draggable comparison slider
+│   │       ├── BeforeAfter.tsx  # Draggable comparison slider
+│   │       └── ReportIssue.tsx  # Floating issue reporter → GitHub Issues
 │   ├── package.json             # Node dependencies
 │   ├── tsconfig.json            # TypeScript configuration
 │   ├── vite.config.ts           # Vite build configuration
@@ -209,17 +212,18 @@ npm run dev
 1. **Start both servers** (see Full Stack Development above)
 2. **Open http://localhost:5173 in browser**
 3. **Click "try it now"** on the header to begin
-4. **Step 1 — Upload yarn image:**
-   - Click the upload zone to select an image
+4. **Tab 1 — Pick yarn:**
+   - Click a sample yarn swatch or the "+" card to upload your own
    - Colours are extracted automatically (loading animation while processing)
-   - Extracted palette with distribution bar appears below
-5. **Step 2 — Upload garment image:**
-   - Click the upload zone to select a garment photo
+   - Extracted palette appears below the swatches
+5. **Tab 2 — Upload garment:**
+   - Upload a garment photo or pick a sample
    - Click "recolour garment" button
-   - Cat + yarn ball animation plays while processing
-6. **Step 3 — Before and after:**
+   - Progress animation plays while processing
+6. **Tab 3 — Result:**
    - Drag the slider to compare original vs recoloured garment
    - Download the result or start over
+7. **Report an issue:** Click the floating icon (bottom-right) to report problems directly to GitHub Issues
 
 ### Option 2: Use the REST API Directly
 
@@ -251,12 +255,12 @@ uvicorn api.main:app --reload
 ```bash
 # Extract colors
 curl -X POST "http://127.0.0.1:8000/api/colors/extract" \
-  -F "file=@examples/sample-yarn.jpg" \
-  -F "n_colors=5"
+  -F "file=@examples/yarn/sample-yarn.jpg" \
+  -F "n_colors=10"
 
 # Recolor garment
 curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
-  -F "file=@examples/sample-garment.jpg" \
+  -F "file=@examples/garment/sample-garment.jpg" \
   -F "colors=#142a68,#23438d,#0c153b" \
   --output recolored.png
 ```
@@ -267,8 +271,8 @@ curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
 ```python
 from core.yarn_color_extractor import ColorExtractor
 
-# Extract 5 dominant colors
-extractor = ColorExtractor(image_path="yarn.jpg", n_colors=5)
+# Extract 10 dominant colors (captures shadow and highlight tones)
+extractor = ColorExtractor(image_path="yarn.jpg", n_colors=10)
 colors = extractor.extract_dominant_colors()
 
 # Visualize results
@@ -321,29 +325,30 @@ npm run preview
 
 ## 📊 Technical Approach
 
-### Color Extraction ([ADR 001](docs/decisions/001-color-filtering-strategy.md))
+### Color Extraction ([ADR 001](docs/decisions/001-yarn-color-extraction.md))
 
 - **Algorithm:** K-means clustering in RGB space
 - **Optimization:** Configurable cluster count, random seed for reproducibility
 - **Output:** Sorted by frequency, hex codes with percentages
 
-### Garment Recoloring ([ADR 002](docs/decisions/002-background-removal.md))
+### Garment Recoloring ([ADR 002](docs/decisions/002-recoloring-strategy.md))
 
 - **Color Space:** HSV (Hue, Saturation, Value)
   - H: Changed to yarn color hue
   - S: Changed to yarn color saturation
-  - V: Preserved from original (maintains texture/lighting!)
-- **Multi-Color:** Brightness-based distribution (dark areas → dark yarn colors)
-- **Background Removal:** rembg with U²-Net model
+  - V: Remapped from garment range to yarn range (preserves relative texture while matching yarn brightness)
+- **Multi-Color:** Distribution-weighted mapping using extraction percentages (dark yarn = more dark pixels)
+- **Background Removal:** rembg with u2netp model
 
 ### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md), [ADR 006](docs/decisions/006-ui-redesign.md))
 
-- **Component-Based:** 9 focused components (Header, PetalBackground, StepSection, UploadZone, ColorPalette, LoadingCat, BeforeAfter, InfoPanel, BuilderNotes)
-- **State Management:** React hooks (useState, useEffect) — all state in App.tsx, components are presentational
-- **API Integration:** Fetch API with async/await and error handling
-- **Progressive Workflow:** Steps reveal one at a time as the user completes each stage
+- **Component-Based:** 11 focused components (Header, PetalBackground, SampleStrip, StepSection, UploadZone, ColorPalette, LoadingCat, BeforeAfter, InfoPanel, BuilderNotes, ReportIssue)
+- **State Management:** React hooks (useState, useEffect, useRef) — all state in App.tsx, components are presentational
+- **API Integration:** Fetch API with async/await, AbortController for cancellation, and error handling
+- **Tabbed Workspace:** Three-tab workflow (pick yarn → upload garment → result) with fanned yarn sample cards
 - **Design System:** 9-token colour palette, Cormorant Garamond + DM Sans typography, frosted glass header with `backdrop-filter: blur(28px)`
 - **Before/After Slider:** Draggable comparison using `clip-path: inset()` with mouse, touch, and range input support
+- **Issue Reporting:** Floating report button that opens pre-filled GitHub Issues with categorised templates
 - **Type Safety:** Full TypeScript coverage for compile-time error detection
 
 ### API Design ([ADR 003](docs/decisions/003-api-design.md))
@@ -457,10 +462,13 @@ After optimizations (April 2026), production performance on Railway's constraine
 - ✅ Garment recoloring integration
 - ✅ Draggable before/after comparison slider
 - ✅ Start Over reset functionality
-- ✅ UI redesign: frosted glass header, step-based workflow, petal animations
+- ✅ UI redesign: frosted glass header, tabbed workspace, petal animations
+- ✅ Fanned yarn sample cards with hover/select animations
+- ✅ Sample garment images in upload zones
 - ✅ Cat + yarn ball loading animation
 - ✅ Collapsible builder notes and info panels
 - ✅ Custom design system (Cormorant Garamond + DM Sans, 9-token colour palette)
+- ✅ In-app issue reporting via GitHub Issues
 
 ### ✅ Phase 4: Polish & Deployment (Complete)
 
@@ -510,8 +518,8 @@ For detailed technical decisions and architecture documentation, see:
 
 - **[Architecture Overview](docs/ARCHITECTURE.md)** - System design, data flow, component interaction
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production URLs, cold start info, troubleshooting
-- [ADR 001: Color Extraction Algorithm](docs/decisions/001-color-filtering-strategy.md) - K-means clustering selection
-- [ADR 002: Background Removal](docs/decisions/002-background-removal.md) - rembg/U²-Net selection
+- [ADR 001: Yarn Color Extraction](docs/decisions/001-yarn-color-extraction.md) - K-means clustering selection
+- [ADR 002: Recoloring Strategy](docs/decisions/002-recoloring-strategy.md) - rembg/U²-Net selection
 - [ADR 003: API Design](docs/decisions/003-api-design.md) - FastAPI REST endpoints
 - [ADR 004: Frontend Architecture](docs/decisions/004-react-frontend-architecture.md) - React + TypeScript decisions
 - [ADR 005: Performance Optimization](docs/decisions/005-performance-optimization-strategy.md) - Bottleneck analysis and optimization strategies
@@ -520,4 +528,4 @@ For detailed technical decisions and architecture documentation, see:
 ---
 
 Built with ❤️ for knitters and designers
-_Last updated: April 7, 2026 - UI redesign with frosted glass header and step-based workflow_
+_Last updated: April 12, 2026 - Tabbed workspace, yarn sample cards, in-app issue reporting_

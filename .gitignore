@@ -47,10 +47,11 @@ results/*
 !photos/.gitkeep
 !results/.gitkeep
 
-# DO commit example and documentation images
-!examples/*.jpg
-!examples/*.jpeg
-!examples/*.png
+# Example images (test data, don't commit)
+examples/garment/
+examples/yarn/
+
+# DO commit documentation images
 !docs/images/*.jpg
 !docs/images/*.jpeg
 !docs/images/*.png

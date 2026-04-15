@@ -1,4 +1,10 @@
 import { useState, useRef } from "react";
+import "./UploadZone.css";
+
+interface SampleImage {
+  src: string;
+  label: string;
+}
 
 interface UploadZoneProps {
   icon: string;
@@ -6,13 +12,17 @@ interface UploadZoneProps {
   subtitle: string;
   onFileSelect: (file: File, previewUrl: string) => void;
   onClear?: () => void;
+  onRecolor?: () => void;
   disabled?: boolean;
+  samples?: SampleImage[];
+  colors?: string[];
+  isRecoloring?: boolean;
 }
 
-function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, disabled }: UploadZoneProps) {
+function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, onRecolor, disabled, samples, colors = [], isRecoloring = false }: UploadZoneProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [loadingSample, setLoadingSample] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,60 +49,124 @@ function UploadZone({ icon, heading, subtitle, onFileSelect, onClear, disabled }
     reader.readAsDataURL(file);
   };
 
+  const handleSampleClick = async (sample: SampleImage) => {
+    setLoadingSample(true);
+    try {
+      const response = await fetch(sample.src);
+      const blob = await response.blob();
+      const file = new File([blob], `${sample.label}.jpg`, { type: "image/jpeg" });
+      const url = URL.createObjectURL(blob);
+      setFileName(sample.label);
+      setPreviewUrl(url);
+      onFileSelect(file, url);
+    } finally {
+      setLoadingSample(false);
+    }
+  };
+
   const isDone = fileName !== null;
 
   const handleReupload = (e: React.MouseEvent) => {
     e.stopPropagation();
     setFileName(null);
     setPreviewUrl(null);
-    setShowPreview(false);
     if (inputRef.current) inputRef.current.value = "";
     onClear?.();
   };
 
   return (
-    <div
-      className={`upload-zone${isDone ? " done" : ""}`}
-      onClick={() => !isDone && !disabled && inputRef.current?.click()}
-    >
+    <div className={`upload-zone${isDone ? " done" : ""}`} role="region" aria-label="Image upload">
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
+        aria-label="Choose an image file to upload"
         onChange={handleChange}
         disabled={disabled}
         style={{ display: "none" }}
       />
-      <span className="upload-icon">{icon}</span>
-      <h3>{isDone ? fileName : heading}</h3>
-      <p>{isDone ? "image uploaded" : subtitle}</p>
-      {isDone && (
-        <>
-          <div className="upload-confirm">
-            &#x2714; uploaded!
-          </div>
-          <div className="upload-actions">
-            <button
-              className="preview-toggle"
-              onClick={(e) => { e.stopPropagation(); setShowPreview(!showPreview); }}
-            >
-              {showPreview ? "hide image" : "view your image"} {showPreview ? "\u25B2" : "\u25BC"}
-            </button>
-            <button
-              className="preview-toggle"
-              onClick={(e) => { handleReupload(e); inputRef.current?.click(); }}
-            >
-              change image
-            </button>
-          </div>
-          {showPreview && previewUrl && (
+      {isDone && previewUrl ? (
+        <div className="upload-done">
+          {/* Image frame */}
+          <div className="upload-frame">
             <img
               src={previewUrl}
               alt={fileName ?? "Uploaded image"}
-              className="upload-preview"
+              className="upload-hero-img"
             />
+            <button
+              className="upload-frame-change"
+              onClick={handleReupload}
+              aria-label="Change image"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Colour dots + action */}
+          {colors.length > 0 && (
+            <div className={`recolour-panel${isRecoloring ? " recolouring" : ""}`}>
+              <div className="recolour-dots-row">
+                <span className="recolour-panel-label">
+                  {isRecoloring ? "recolouring..." : "using"}
+                </span>
+                <div className="recolour-dots">
+                  {colors.map((c, i) => {
+                    const bounceClass = isRecoloring
+                      ? i % 2 === 0 ? " bounce-down" : " bounce-up"
+                      : "";
+                    return (
+                      <span
+                        key={i}
+                        className={`recolour-dot${bounceClass}`}
+                        style={{ background: c, animationDelay: isRecoloring ? `${i * 0.1}s` : undefined }}
+                        title={c}
+                        role="img"
+                        aria-label={`Colour ${i + 1}: ${c}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+              {onRecolor && !isRecoloring && (
+                <button className="recolour-btn" onClick={onRecolor}>
+                  recolour garment
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M3 8 L11 8 M8 4 L12 8 L8 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
           )}
-        </>
+        </div>
+      ) : (
+        <div role="button" tabIndex={0} aria-label={heading} onClick={() => !disabled && !loadingSample && inputRef.current?.click()} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !disabled && !loadingSample) { e.preventDefault(); inputRef.current?.click(); } }}>
+          <span className="upload-icon" aria-hidden="true">{icon}</span>
+          <h3>{heading}</h3>
+          <p>{subtitle}</p>
+          {samples && samples.length > 0 && !loadingSample && (
+            <div className="sample-section" onClick={(e) => e.stopPropagation()}>
+              <p className="sample-label">or try a sample</p>
+              <div className="sample-grid">
+                {samples.map((sample) => (
+                  <button
+                    key={sample.label}
+                    className="sample-thumb"
+                    onClick={() => handleSampleClick(sample)}
+                  >
+                    <img src={sample.src} alt={sample.label} />
+                    <span>{sample.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {loadingSample && (
+            <p className="sample-loading">loading sample...</p>
+          )}
+        </div>
       )}
     </div>
   );

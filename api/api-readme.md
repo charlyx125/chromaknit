@@ -81,7 +81,7 @@ n_colors=5
 **cURL:**
 
 ```bash
-# Basic extraction with default 5 colors
+# Basic extraction (default 5 colors; frontend sends n_colors=10 for shadow detail)
 curl -X POST http://localhost:8000/api/colors/extract \
   -F "file=@yarn.jpg"
 
