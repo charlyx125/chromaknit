@@ -1,0 +1,158 @@
+/* ============================================================
+   HEADER — Vintage lace hero on yarn photo background
+   ============================================================ */
+
+.header {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  z-index: 2;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ---- Radial vignette centred on card ---- */
+.header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 48%, transparent 30%, rgba(42, 31, 40, 0.25) 100%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ---- Lace card ---- */
+.lace-card {
+  position: relative;
+  text-align: center;
+  z-index: 5;
+  padding: 24px 48px;
+  animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+
+/* Lace card */
+.lace-card::before {
+  content: "";
+  position: absolute;
+  inset: -84px -74px;
+  background: url("/lace-paper.png") center / contain no-repeat;
+  pointer-events: none;
+}
+
+/* ---- Title ---- */
+.wave-title {
+  position: relative;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 88px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  margin-bottom: 8px;
+  color: #a14558;
+  text-shadow: 0 1px 2px rgba(161, 69, 88, 0.15);
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+/* ---- Tagline ---- */
+.wave-tagline {
+  position: relative;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 32px;
+  font-weight: 600;
+  font-style: italic;
+  color: #3a261b;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+/* ---- Detail ---- */
+.wave-detail {
+  position: relative;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: rgba(58, 38, 27, 0.6);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+/* ---- CTA button ---- */
+.wave-cta {
+  position: relative;
+  z-index: 1;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #fff;
+  background: #a14558;
+  border: none;
+  border-radius: 30px;
+  padding: 14px 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wave-cta:hover {
+  background: #b85068;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(161, 69, 88, 0.3);
+}
+
+.wave-cta:active {
+  transform: translateY(0);
+}
+
+.cta-arrow {
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.wave-cta:hover .cta-arrow {
+  transform: translateX(3px);
+}
+
+/* ---- Animations ---- */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .wave-title { font-size: 54px; }
+  .wave-tagline { font-size: 22px; }
+  .lace-card::before,
+  .lace-card::after { inset: -64px -56px; }
+}
+
+@media (max-width: 600px) {
+  .wave-title { font-size: 42px; }
+  .wave-tagline { font-size: 20px; }
+  .wave-detail { font-size: 13px; }
+  .lace-card { padding: 20px 32px; }
+  .lace-card::before,
+  .lace-card::after { inset: -48px -40px; }
+}
+
+@media (max-width: 400px) {
+  .wave-title { font-size: 32px; }
+  .wave-tagline { font-size: 18px; }
+  .lace-card { padding: 16px 24px; }
+  .lace-card::before,
+  .lace-card::after { inset: -36px -28px; }
+}

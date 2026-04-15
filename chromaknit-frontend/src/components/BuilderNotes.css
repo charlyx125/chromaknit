@@ -1,0 +1,85 @@
+.dev-toggle {
+  font-family: "DM Sans", sans-serif; font-size: 12px;
+  color: rgba(255, 255, 255, 0.55); cursor: pointer;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 20px;
+  padding: 6px 16px; display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.2s;
+}
+
+.dev-toggle:hover {
+  color: rgba(255, 255, 255, 0.9); background: rgba(255, 255, 255, 0.13);
+}
+
+.dev-toggle .arrow {
+  transition: transform 0.25s; display: inline-block;
+}
+
+.dev-toggle.open .arrow {
+  transform: rotate(180deg);
+}
+
+.dev-panel {
+  overflow: hidden; max-height: 0;
+  transition: max-height 0.4s ease, opacity 0.3s; opacity: 0;
+}
+
+.dev-panel.open {
+  max-height: 500px; opacity: 1;
+}
+
+.dev-inner {
+  margin-top: 16px; padding: 20px 24px;
+  background: rgba(10, 5, 20, 0.65);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
+  text-align: left;
+}
+
+.dev-section-title {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--blush); font-weight: 500; margin-bottom: 10px; margin-top: 16px;
+}
+
+.dev-section-title:first-child { margin-top: 0; }
+
+.dev-stats { display: flex; gap: 8px; }
+
+.dev-stat {
+  flex: 1; background: rgba(255, 255, 255, 0.07); border-radius: 10px;
+  padding: 10px 8px; text-align: center;
+}
+
+.dev-stat-num {
+  font-family: "Cormorant Garamond", serif; font-size: 20px;
+  color: #fff; display: block;
+}
+
+.dev-stat-lbl {
+  font-size: 9px; color: rgba(255, 255, 255, 0.42);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;
+  display: block;
+}
+
+.dev-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.dev-pill {
+  font-size: 11px; padding: 4px 12px; border-radius: 20px;
+  background: rgba(169, 200, 220, 0.18); color: rgba(200, 225, 240, 0.88);
+  border: 1px solid rgba(169, 200, 220, 0.28);
+}
+
+.dev-note {
+  font-size: 11px; color: rgba(255, 255, 255, 0.45); line-height: 1.6;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dev-note code {
+  font-size: 10px; background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px; border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .dev-stats { flex-direction: column; }
+}

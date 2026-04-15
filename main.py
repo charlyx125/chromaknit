@@ -22,7 +22,7 @@ def main():
     # ========== STEP 1: Extract colors from yarn ==========
     print_step(1, "Extracting colors from yarn photo")
     
-    YARN_IMAGE_PATH = "examples/sample-yarn.jpg"
+    YARN_IMAGE_PATH = "examples/yarn/sample-yarn.jpg"
     N_COLORS = 5
     YARN_OUTPUT_PATH = "results/yarn_colors.png"
     
@@ -40,7 +40,7 @@ def main():
     # ========== STEP 2: Recolor garment with extracted colors ==========
     print_step(2, "Recoloring garment with yarn colors")
     
-    GARMENT_IMAGE_PATH = "examples/sample-garment.jpg"
+    GARMENT_IMAGE_PATH = "examples/garment/sample-garment.jpg"
     RECOLORED_OUTPUT_PATH = "results/recolored_garment.png"
 
     recolorer = GarmentRecolorer(garment_image_path=GARMENT_IMAGE_PATH)

@@ -1,0 +1,25 @@
+.header-bg {
+  position: fixed; inset: 0;
+  background-image: url("/header-yarn-background.jpg");
+  background-size: cover;
+  background-position: center 40%;
+  z-index: 0;
+}
+
+.header-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 1;
+}
+
+.petals-layer {
+  position: fixed; inset: 0;
+  z-index: 10; pointer-events: none; overflow: hidden;
+}
+
+.petal {
+  position: absolute;
+  border-radius: 60% 40% 60% 40%;
+  opacity: 0;
+  animation: petalfall linear infinite;
+}
