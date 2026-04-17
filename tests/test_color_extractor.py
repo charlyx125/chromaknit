@@ -167,11 +167,30 @@ def test_reshape_for_clustering(extractor):
     """Test image reshaping for clustering."""
     extractor._preprocess_image()
     pixels = extractor._reshape_for_clustering()
-    
+
     assert isinstance(pixels, np.ndarray)
     assert len(pixels.shape) == 2  # Should be 2D array
     assert pixels.shape[1] == 3  # RGB channels
     assert pixels.shape[0] == 100 * 100  # total pixels from 100x100 image
+
+
+def test_reshape_for_clustering_raises_when_not_preprocessed(extractor):
+    """Pins the contract: calling _reshape_for_clustering before preprocessing raises ValueError."""
+    with pytest.raises(ValueError, match="Image not loaded"):
+        extractor._reshape_for_clustering()
+
+
+def test_log_results_raises_when_not_preprocessed(extractor):
+    """Pins the contract: calling _log_results before preprocessing raises ValueError."""
+    with pytest.raises(ValueError, match="Image not loaded"):
+        extractor._log_results()
+
+
+def test_log_results_raises_when_no_clusters_computed(extractor):
+    """Pins the contract: calling _log_results after preprocess but before clustering raises."""
+    extractor._preprocess_image()  # sets image_rgb but not hex_codes / counts
+    with pytest.raises(ValueError, match="No colors extracted"):
+        extractor._log_results()
 
 
 # ============================================================================
