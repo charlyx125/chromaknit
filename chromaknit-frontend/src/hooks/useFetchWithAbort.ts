@@ -24,7 +24,14 @@ export function useFetchWithAbort() {
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        let detail = "";
+        try {
+          const body = await response.json();
+          if (typeof body?.detail === "string") detail = body.detail;
+        } catch {
+          // Body wasn't JSON; fall through to status-only message.
+        }
+        throw new Error(detail || `API error: ${response.status}`);
       }
 
       return response;

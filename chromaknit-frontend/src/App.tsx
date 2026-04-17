@@ -149,7 +149,10 @@ function App() {
       dispatch({ type: "RECOLOR_SUCCESS", imageUrl: URL.createObjectURL(blob) });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      dispatch({ type: "RECOLOR_ERROR", error: "Failed to recolor garment. Please try again." });
+      dispatch({
+        type: "RECOLOR_ERROR",
+        error: err instanceof Error ? err.message : "Failed to recolor garment. Please try again.",
+      });
       console.error("Recolor error:", err);
     }
   };
