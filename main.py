@@ -1,8 +1,5 @@
 """ChromaKnit CLI demo — extract yarn colors and recolor a sample garment."""
 
-import logging
-
-from core.log_config import setup_logging
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
 
@@ -12,9 +9,6 @@ def banner(title: str) -> None:
 
 
 def main() -> None:
-    setup_logging()
-    logging.getLogger().setLevel(logging.WARNING)  # CLI stays quiet unless something breaks
-
     banner("CHROMAKNIT - FULL WORKFLOW DEMO")
 
     YARN_IMAGE_PATH = "examples/yarn/sample-yarn.jpg"
