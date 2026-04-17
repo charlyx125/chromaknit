@@ -9,14 +9,22 @@ REST API Patterns:
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response, JSONResponse
 import json
+import logging
+import re
 import tempfile
 import os
 import cv2
+from core.log_config import setup_logging
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
 from fastapi.middleware.cors import CORSMiddleware
 
-MAX_IMAGE_DIMENSION = 800 
+setup_logging()
+logger = logging.getLogger(__name__)
+
+HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+MAX_IMAGE_DIMENSION = 800
 
 
 # Initialize FastAPI application
@@ -222,8 +230,8 @@ async def recolor_garment(
             # Parse as comma-separated string
             color_list = [c.strip() for c in colors_trimmed.split(',') if c.strip()]
         
-        print(f"✅ Parsed {len(color_list)} colors: {color_list}")
-        
+        logger.debug("parsed colors", extra={"count": len(color_list), "colors": color_list})
+
     except (json.JSONDecodeError, ValueError) as e:
         raise HTTPException(
             status_code=400,
@@ -238,9 +246,7 @@ async def recolor_garment(
         )
     
     # Validation 2: Check all colors are valid hex format
-    import re
-    hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
-    invalid_colors = [c for c in color_list if not hex_pattern.match(c)]
+    invalid_colors = [c for c in color_list if not HEX_COLOR_RE.match(c)]
     if invalid_colors:
         raise HTTPException(
             status_code=400,
