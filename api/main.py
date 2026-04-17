@@ -25,6 +25,37 @@ logger = logging.getLogger(__name__)
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 MAX_IMAGE_DIMENSION = 800
+UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB
+
+
+async def save_upload_capped(file: UploadFile, max_bytes: int, suffix: str) -> str:
+    """Stream an UploadFile to a new tempfile, aborting if the cap is exceeded.
+
+    Returns the path to the temp file. On overage or any other exception during
+    read/write, unlinks the partial file before propagating. Handles the case
+    where Content-Length is missing or untrustworthy — a raw file.size check
+    can be spoofed or absent for multipart uploads.
+    """
+    fd, temp_path = tempfile.mkstemp(suffix=suffix)
+    try:
+        bytes_read = 0
+        with os.fdopen(fd, "wb") as out:
+            while True:
+                chunk = await file.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                bytes_read += len(chunk)
+                if bytes_read > max_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum allowed: {max_bytes // (1024 * 1024)}MB."
+                    )
+                out.write(chunk)
+        return temp_path
+    except BaseException:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
 
 
 # Initialize FastAPI application
@@ -141,20 +172,18 @@ async def extract_colors(
             detail=f"Invalid file type: {file.content_type}. Please upload an image (JPG, PNG)."
         )
     
-    # Validation 2: File size
+    # Validation 2: File size — fast reject when Content-Length is advertised.
+    # Streaming cap below is the authoritative check (Content-Length can be
+    # absent or wrong).
     if file.size and file.size > MAX_FILE_SIZE:
         size_mb = file.size / (1024 * 1024)
         raise HTTPException(
             status_code=413,  # Payload Too Large
             detail=f"File too large: {size_mb:.2f}MB. Maximum allowed: 5MB."
         )
-    
-    # Save uploaded file temporarily
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
-        contents = await file.read()
-        temp_file.write(contents)
-        temp_path = temp_file.name
-    
+
+    temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
+
     try:
         downscale_image(temp_path, max_dim=400)
         extractor = ColorExtractor(image_path=temp_path, n_colors=n_colors)
@@ -260,19 +289,16 @@ async def recolor_garment(
             detail=f"Invalid file type: {file.content_type}. Please upload an image (JPG, PNG)."
         )
     
-    # Validation 4: File size
+    # Validation 4: File size — fast reject when Content-Length is advertised.
+    # Streaming cap below is the authoritative check.
     if file.size and file.size > MAX_FILE_SIZE:
         size_mb = file.size / (1024 * 1024)
         raise HTTPException(
             status_code=413,
             detail=f"File too large: {size_mb:.2f}MB. Maximum allowed: 5MB."
         )
-    
-    # Save uploaded garment file temporarily
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
-        contents = await file.read()
-        temp_file.write(contents)
-        temp_path = temp_file.name
+
+    temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
 
     output_path: str | None = None
     try:
