@@ -25,7 +25,7 @@ const YARN_SAMPLES: Sample[] = [
 ];
 
 interface SampleStripProps {
-  onSelectSample: (file: File, previewUrl: string) => void;
+  onSelectSample: (file: File) => void;
   onChangeYarn: () => void;
   isExtracting: boolean;
   extractedColors: string[];
@@ -88,6 +88,13 @@ function SampleStrip({
     if (recoloredImageUrl && garmentPreviewUrl) onTabChange(2);
   }, [recoloredImageUrl]);
 
+  // Revoke yarnPreview when it's a blob URL (user-upload path). Sample paths
+  // are static strings that revokeObjectURL safely ignores; the guard is for clarity.
+  useEffect(() => {
+    if (!yarnPreview?.startsWith("blob:")) return;
+    return () => { URL.revokeObjectURL(yarnPreview); };
+  }, [yarnPreview]);
+
   const handleClick = async (sample: Sample) => {
     setSelected(sample.label);
     setYarnPreview(sample.src);
@@ -98,8 +105,7 @@ function SampleStrip({
       const file = new File([blob], `${sample.label}.jpg`, {
         type: "image/jpeg",
       });
-      const url = URL.createObjectURL(blob);
-      onSelectSample(file, url);
+      onSelectSample(file);
     } finally {
       setLoading(false);
     }
@@ -111,7 +117,7 @@ function SampleStrip({
     const previewUrl = URL.createObjectURL(file);
     setSelected("your yarn");
     setYarnPreview(previewUrl);
-    onSelectSample(file, previewUrl);
+    onSelectSample(file);
     e.target.value = "";
   };
 
