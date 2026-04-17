@@ -12,7 +12,9 @@ import ReportIssue from "./components/ReportIssue";
 function resizeImage(file: File, maxSize: number): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       if (img.width <= maxSize && img.height <= maxSize) {
         resolve(file);
         return;
@@ -31,7 +33,11 @@ function resizeImage(file: File, maxSize: number): Promise<File> {
         0.9
       );
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+    img.src = objectUrl;
   });
 }
 
@@ -118,6 +124,20 @@ function App() {
       abortExtract();
     };
   }, [state.yarnImage]);
+
+  // Revoke blob URLs when replaced or on unmount. Data URLs (from FileReader)
+  // are ignored by revokeObjectURL so the guard is safety, not correctness.
+  useEffect(() => {
+    const url = state.recoloredImageUrl;
+    if (!url) return;
+    return () => { URL.revokeObjectURL(url); };
+  }, [state.recoloredImageUrl]);
+
+  useEffect(() => {
+    const url = state.garmentPreviewUrl;
+    if (!url?.startsWith("blob:")) return;
+    return () => { URL.revokeObjectURL(url); };
+  }, [state.garmentPreviewUrl]);
 
   // --- Recolor garment ---
   const handleRecolor = async () => {
