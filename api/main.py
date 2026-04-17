@@ -273,7 +273,8 @@ async def recolor_garment(
         contents = await file.read()
         temp_file.write(contents)
         temp_path = temp_file.name
-    
+
+    output_path: str | None = None
     try:
         downscale_image(temp_path)
 
@@ -287,27 +288,24 @@ async def recolor_garment(
 
         recolorer = GarmentRecolorer(garment_image_path=temp_path)
         recolored_image = recolorer.recolor_garment(color_list, weights=weight_list)
-        
+
         # Check if recoloring succeeded
         if recolored_image is None or recolored_image.size == 0:
             raise HTTPException(
                 status_code=400,
                 detail="Could not recolor garment. The image may be corrupted or invalid."
             )
-        
+
         # Save result to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as output_file:
             output_path = output_file.name
-        
+
         recolorer.save_result(output_path)
-        
+
         # Read the recolored image into memory
         with open(output_path, 'rb') as f:
             image_data = f.read()
-        
-        # Clean up output file (we have the data in memory)
-        os.unlink(output_path)
-        
+
         # Return the recolored image
         return Response(
             content=image_data,
@@ -316,11 +314,14 @@ async def recolor_garment(
                 "Content-Disposition": f'attachment; filename="recolored_{file.filename}"'
             }
         )
-    
+
     finally:
-        # Clean up input temporary file
+        # Clean up input and output temporary files. Both are covered here so a
+        # crash in save_result / open / read doesn't leak the output PNG.
         if os.path.exists(temp_path):
             os.unlink(temp_path)
+        if output_path and os.path.exists(output_path):
+            os.unlink(output_path)
 
 # ============================================================================
 # ERROR HANDLERS (Optional but professional)
