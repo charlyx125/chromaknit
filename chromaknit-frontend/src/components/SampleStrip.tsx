@@ -78,15 +78,22 @@ function SampleStrip({
 
   const hasColors = extractedColors.length > 0;
 
-  // Auto-advance to garment tab when colours are extracted
+  // Auto-advance to garment tab when colours are extracted.
+  // onTabChange is intentionally omitted — the parent passes an inline function
+  // so its identity changes every render; including it would re-fire every
+  // render. Fix requires useCallback-stabilizing onTabChange at the App.tsx
+  // call site, deferred as a focused refactor.
   useEffect(() => {
     if (hasColors) onTabChange(1);
-  }, [hasColors]);
+  }, [hasColors]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-advance to result tab when recoloring completes
+  // Auto-advance to result tab when recoloring completes.
+  // See note above re: onTabChange. garmentPreviewUrl is also omitted — in
+  // practice recoloredImageUrl only becomes truthy after garmentPreviewUrl is
+  // already set, so the missing dep doesn't produce a missed transition today.
   useEffect(() => {
     if (recoloredImageUrl && garmentPreviewUrl) onTabChange(2);
-  }, [recoloredImageUrl]);
+  }, [recoloredImageUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Revoke yarnPreview when it's a blob URL (user-upload path). Sample paths
   // are static strings that revokeObjectURL safely ignores; the guard is for clarity.

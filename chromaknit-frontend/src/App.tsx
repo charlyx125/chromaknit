@@ -143,7 +143,7 @@ function App() {
       cancelled = true;
       abortExtract();
     };
-  }, [state.yarnImage]);
+  }, [state.yarnImage, extractFetch, abortExtract, dispatch]);
 
   // Revoke blob URLs when replaced or on unmount. Data URLs (from FileReader)
   // are ignored by revokeObjectURL so the guard is safety, not correctness.
