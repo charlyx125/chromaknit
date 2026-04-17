@@ -10,7 +10,7 @@ import SampleStrip from "./components/SampleStrip";
 import ReportIssue from "./components/ReportIssue";
 
 function resizeImage(file: File, maxSize: number): Promise<File> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
@@ -27,7 +27,11 @@ function resizeImage(file: File, maxSize: number): Promise<File> {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(
         (blob) => {
-          resolve(new File([blob!], file.name, { type: "image/jpeg" }));
+          if (!blob) {
+            reject(new Error("Could not encode resized image"));
+            return;
+          }
+          resolve(new File([blob], file.name, { type: "image/jpeg" }));
         },
         "image/jpeg",
         0.9
@@ -35,7 +39,7 @@ function resizeImage(file: File, maxSize: number): Promise<File> {
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      resolve(file);
+      reject(new Error("Could not decode image — the file may be corrupted or not a supported format"));
     };
     img.src = objectUrl;
   });
@@ -71,14 +75,30 @@ function App() {
 
   // --- Yarn upload ---
   const handleYarnUpload = async (file: File) => {
-    const resized = await resizeImage(file, 400);
-    dispatch({ type: "SET_YARN_IMAGE", file: resized });
+    try {
+      const resized = await resizeImage(file, 400);
+      dispatch({ type: "SET_YARN_IMAGE", file: resized });
+    } catch (err) {
+      console.error("Yarn resize failed:", err);
+      dispatch({
+        type: "SET_ERROR",
+        error: err instanceof Error ? err.message : "Could not process yarn image",
+      });
+    }
   };
 
   // --- Garment upload ---
   const handleGarmentUpload = async (file: File, previewUrl: string) => {
-    const resized = await resizeImage(file, 500);
-    dispatch({ type: "SET_GARMENT", file: resized, previewUrl });
+    try {
+      const resized = await resizeImage(file, 500);
+      dispatch({ type: "SET_GARMENT", file: resized, previewUrl });
+    } catch (err) {
+      console.error("Garment resize failed:", err);
+      dispatch({
+        type: "SET_ERROR",
+        error: err instanceof Error ? err.message : "Could not process garment image",
+      });
+    }
   };
 
   // --- Extract colors (auto-triggers on yarn upload) ---
