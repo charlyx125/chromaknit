@@ -139,10 +139,32 @@ def test_remove_background_creates_alpha_channel(recolorer):
     """Test that background removal creates proper alpha channel."""
     recolorer.load_image()
     recolorer.remove_background()
-    
+
     # Alpha channel should be extracted from image_no_bg
     alpha_channel = recolorer.image_no_bg[:, :, 3]
     assert np.array_equal(alpha_channel, recolorer.mask)
+
+
+def test_remove_background_handles_rembg_exception(recolorer, monkeypatch):
+    """Test that remove_background returns False when rembg raises.
+
+    Pins the contract: upstream failures in the background-removal library
+    must not propagate — the method returns False and the pipeline halts
+    cleanly at the next step.
+    """
+    import rembg
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("simulated rembg failure")
+
+    monkeypatch.setattr(rembg, "new_session", _raise)
+
+    recolorer.load_image()
+    result = recolorer.remove_background()
+
+    assert result is False
+    assert recolorer.image_no_bg is None
+    assert recolorer.mask is None
 
 
 # ============================================================================
@@ -169,10 +191,36 @@ def test_get_color_mapping_varied_brightness(recolorer):
     """Test color mapping with varied brightness values."""
     brightness_values = np.linspace(0, 255, 100).astype(int)
     result = recolorer._get_color_mapping(brightness_values, num_colors=3)
-    
+
     assert len(result) == 100
     assert all(0 <= idx < 3 for idx in result)
     assert 0 in result and 2 in result  # Should use all color indices
+
+
+def test_get_color_mapping_weighted_respects_proportions(recolorer):
+    """Test that weighted mapping distributes pixels proportionally by brightness rank.
+
+    Contract: given 100 brightness values and weights [0.5, 0.3, 0.2], the
+    algorithm must place exactly 50 pixels in bucket 0 (darkest), 30 in
+    bucket 1, 20 in bucket 2. This pins the percentage-driven distribution
+    that the API exposes via the `percentages` form field.
+    """
+    brightness = np.arange(100, dtype=float)  # 0..99, strictly increasing
+    weights = [0.5, 0.3, 0.2]
+
+    result = recolorer._get_color_mapping(brightness, num_colors=3, weights=weights)
+
+    assert np.sum(result == 0) == 50
+    assert np.sum(result == 1) == 30
+    assert np.sum(result == 2) == 20
+
+    # And the 50 darkest pixels must be the ones mapped to bucket 0.
+    darkest_indices = np.argsort(brightness)[:50]
+    assert np.all(result[darkest_indices] == 0)
+
+    # The 20 brightest go to bucket 2.
+    brightest_indices = np.argsort(brightness)[-20:]
+    assert np.all(result[brightest_indices] == 2)
 
 
 # ============================================================================
@@ -222,18 +270,53 @@ def test_apply_colors_remaps_brightness(recolorer_with_background_removed, targe
 
 def test_apply_colors_changes_hue_saturation(recolorer_with_background_removed):
     """Test that recoloring changes hue and saturation."""
-    original_image_hsv = cv2.cvtColor(recolorer_with_background_removed.image, 
+    original_image_hsv = cv2.cvtColor(recolorer_with_background_removed.image,
                                       cv2.COLOR_BGR2HSV)
     original_hs = original_image_hsv[recolorer_with_background_removed.mask > 0, :2]
-    
+
     recolorer_with_background_removed.apply_colors(['#FF0000'])
-    
-    recolored_image_hsv = cv2.cvtColor(recolorer_with_background_removed.recolored_image, 
+
+    recolored_image_hsv = cv2.cvtColor(recolorer_with_background_removed.recolored_image,
                                        cv2.COLOR_BGR2HSV)
     recolored_hs = recolored_image_hsv[recolorer_with_background_removed.mask > 0, :2]
-    
+
     # H and S should change
     assert not np.array_equal(original_hs, recolored_hs)
+
+
+def test_apply_colors_with_weights_succeeds(recolorer_with_background_removed, target_colors):
+    """Test that apply_colors takes the weighted branch when weights are provided.
+
+    Exercises the weighted sort path in apply_colors — zipping hsv colors with
+    weights, sorting together by brightness, then passing aligned weights into
+    _get_color_mapping.
+    """
+    weights = [0.5, 0.3, 0.2]
+    result = recolorer_with_background_removed.apply_colors(target_colors, weights=weights)
+
+    assert result is True
+    assert recolorer_with_background_removed.recolored_image is not None
+
+
+def test_apply_colors_handles_flat_brightness_image(target_colors, tmp_path):
+    """Test that apply_colors handles an image with uniform brightness.
+
+    When every garment pixel has the same V value, garment_range is 0 and the
+    clamp kicks in to prevent divide-by-zero. Bypasses load_image + remove_background
+    to construct the degenerate state directly.
+    """
+    from core.garment_recolor import GarmentRecolorer
+
+    recolorer = GarmentRecolorer(garment_image_path=str(tmp_path / "unused.jpg"))
+    # Uniform mid-gray — all pixels share the same HSV V value.
+    recolorer.image = np.full((50, 50, 3), 128, dtype=np.uint8)
+    recolorer.mask = np.full((50, 50), 255, dtype=np.uint8)
+
+    result = recolorer.apply_colors(target_colors)
+
+    assert result is True
+    assert recolorer.recolored_image is not None
+    assert recolorer.recolored_image.shape == recolorer.image.shape
 
 
 # ============================================================================
