@@ -41,17 +41,6 @@ class GarmentRecolorer:
             logger.exception("background removal failed")
             return False
 
-    def _hex_colors_to_hsv(self, hex_colors: list[str]) -> list[np.ndarray]:
-        """Convert hex color codes to HSV and sort by brightness."""
-        hsv_colors = []
-        for hex_color in hex_colors:
-            bgr = hex_to_bgr(hex_color)
-            pixel = np.uint8([[bgr]])
-            hsv = cv2.cvtColor(pixel, cv2.COLOR_BGR2HSV)[0][0]
-            hsv_colors.append(hsv)
-
-        return sorted(hsv_colors, key=lambda x: x[2])
-
     def _get_color_mapping(self, brightness_values: np.ndarray, num_colors: int,
                            weights: list[float] | None = None) -> np.ndarray:
         """Map brightness values to color indices using distribution weights.
