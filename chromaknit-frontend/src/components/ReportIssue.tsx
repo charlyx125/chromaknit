@@ -8,12 +8,15 @@ const ISSUE_CATEGORIES = [
   { id: "other", label: "Other" },
 ];
 
-const REPO_URL = "https://github.com/charlyx125/chromaknit/issues/new";
+const FORMSPREE_URL = "https://formspree.io/f/mqewplpo";
 
 function ReportIssue() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [details, setDetails] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Focus trap and Escape key handling
@@ -47,32 +50,38 @@ function ReportIssue() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selected) return;
 
     const category = ISSUE_CATEGORIES.find((c) => c.id === selected);
-    const title = selected === "other"
-      ? `[User Report] ${details.slice(0, 60) || "Issue report"}`
-      : `[User Report] ${category!.label}`;
+    setSubmitting(true);
+    setSubmitError(false);
 
-    const bodyParts = [
-      `**Category:** ${category!.label}`,
-      details ? `\n**Details:**\n${details}` : "",
-      `\n---\n*Submitted via in-app report*`,
-    ];
+    try {
+      const res = await fetch(FORMSPREE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          category: category!.label,
+          details: details || "(no details provided)",
+        }),
+      });
 
-    const url = `${REPO_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(bodyParts.join("\n"))}&labels=user-report`;
-    window.open(url, "_blank");
-
-    setOpen(false);
-    setSelected(null);
-    setDetails("");
+      if (!res.ok) throw new Error();
+      setSubmitted(true);
+    } catch {
+      setSubmitError(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
     setOpen(false);
     setSelected(null);
     setDetails("");
+    setSubmitted(false);
+    setSubmitError(false);
   };
 
   return (
@@ -105,45 +114,64 @@ function ReportIssue() {
               &times;
             </button>
 
-            <h3 className="report-title" id="report-dialog-title">report an issue</h3>
-            <p className="report-subtitle">what went wrong?</p>
+            {submitted ? (
+              <div className="report-success">
+                <span className="report-success-icon" aria-hidden="true">&#x2714;</span>
+                <h3 className="report-title" id="report-dialog-title">thanks!</h3>
+                <p className="report-subtitle">your report has been sent</p>
+                <button className="btn-primary report-submit" onClick={handleClose}>
+                  close
+                </button>
+              </div>
+            ) : (
+              <>
+                <h3 className="report-title" id="report-dialog-title">report an issue</h3>
+                <p className="report-subtitle">what went wrong?</p>
 
-            <div className="report-options">
-              {ISSUE_CATEGORIES.map((cat) => (
-                <label
-                  key={cat.id}
-                  className={`report-option${selected === cat.id ? " selected" : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="issue-category"
-                    value={cat.id}
-                    checked={selected === cat.id}
-                    onChange={() => setSelected(cat.id)}
+                <div className="report-options">
+                  {ISSUE_CATEGORIES.map((cat) => (
+                    <label
+                      key={cat.id}
+                      className={`report-option${selected === cat.id ? " selected" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="issue-category"
+                        value={cat.id}
+                        checked={selected === cat.id}
+                        onChange={() => setSelected(cat.id)}
+                      />
+                      <span className="report-option-radio" />
+                      <span>{cat.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {selected && (
+                  <textarea
+                    className="report-textarea"
+                    placeholder={selected === "other" ? "describe the issue..." : "any extra details? (optional)"}
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    rows={3}
                   />
-                  <span className="report-option-radio" />
-                  <span>{cat.label}</span>
-                </label>
-              ))}
-            </div>
+                )}
 
-            {selected && (
-              <textarea
-                className="report-textarea"
-                placeholder={selected === "other" ? "describe the issue..." : "any extra details? (optional)"}
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                rows={3}
-              />
+                {submitError && (
+                  <p className="report-error" role="alert">
+                    something went wrong, please try again
+                  </p>
+                )}
+
+                <button
+                  className="btn-primary report-submit"
+                  disabled={submitting || !selected || (selected === "other" && !details.trim())}
+                  onClick={handleSubmit}
+                >
+                  {submitting ? "sending..." : "report"}
+                </button>
+              </>
             )}
-
-            <button
-              className="btn-primary report-submit"
-              disabled={!selected || (selected === "other" && !details.trim())}
-              onClick={handleSubmit}
-            >
-              report
-            </button>
           </div>
         </div>
       )}

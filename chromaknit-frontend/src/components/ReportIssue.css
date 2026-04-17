@@ -127,6 +127,24 @@
   background: #fff; transform: none;
 }
 
+.report-success {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.report-success-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: #e8f5e9; color: #4caf50;
+  font-size: 24px; margin-bottom: 12px;
+}
+
+.report-error {
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px; color: #c0392b;
+  text-align: center; margin-bottom: 12px;
+}
+
 @keyframes reportFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes reportSlideUp {
   from { opacity: 0; transform: translateY(20px); }

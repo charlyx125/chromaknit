@@ -21,7 +21,7 @@ Knitters spend hours (and money) on yarn, only to discover the finished garment 
 | Feature | Description | Details |
 |---------|-------------|---------|
 | **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-yarn-color-extraction.md) |
-| **Background Removal** | AI-powered segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
+| **Background Removal** | Neural segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
 | **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
 | **REST API** | FastAPI endpoints with Swagger docs at `/docs` | [ADR 003](docs/decisions/003-api-design.md) |
 | **React Frontend** | TypeScript + Vite with real-time color extraction | [ADR 004](docs/decisions/004-react-frontend-architecture.md) |
@@ -103,7 +103,7 @@ chromaknit/
 - OpenCV - Image processing
 - NumPy - Numerical operations
 - scikit-learn - K-means clustering
-- rembg - AI-powered background removal
+- rembg - U²-Net background removal
 - Uvicorn - ASGI server
 
 **Frontend:**
@@ -297,16 +297,21 @@ recolorer.save_result(output_path="results/recolored_sweater.png")
 
 ## 🧪 Testing
 
-**Backend tests:**
+Tests are organised by layer:
+
+- **Core unit tests** ([tests/test_color_extractor.py](tests/test_color_extractor.py), [tests/test_garment_recolor.py](tests/test_garment_recolor.py), [tests/test_utils.py](tests/test_utils.py)) cover the image-processing engine in isolation.
+- **API integration tests** ([tests/test_api.py](tests/test_api.py)) exercise every endpoint through FastAPI's `TestClient`, covering happy paths plus each validation branch (content-type, file size, malformed colors, corrupt image, custom 404).
+- **Helper unit test** for `save_upload_capped` regression-guards the streaming upload cap, which `TestClient` can't reach because it always populates `file.size`.
+
 ```bash
 # Run all tests
 pytest tests/ -v
 
-# Test with coverage
+# Run with coverage (97% overall, 92% on api/main.py)
 pytest tests/ --cov=core --cov=api --cov-report=term-missing
 
-# Run specific test suite
-pytest tests/test_color_extractor.py -v
+# Run a specific suite
+pytest tests/test_api.py -v
 ```
 
 **Frontend development:**
@@ -343,7 +348,7 @@ npm run preview
 ### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md), [ADR 006](docs/decisions/006-ui-redesign.md))
 
 - **Component-Based:** 11 focused components (Header, PetalBackground, SampleStrip, StepSection, UploadZone, ColorPalette, LoadingCat, BeforeAfter, InfoPanel, BuilderNotes, ReportIssue)
-- **State Management:** React hooks (useState, useEffect, useRef) — all state in App.tsx, components are presentational
+- **State Management:** `useReducer` via a custom `useAppState` hook — 12-field state with typed actions; components are presentational
 - **API Integration:** Fetch API with async/await, AbortController for cancellation, and error handling
 - **Tabbed Workspace:** Three-tab workflow (pick yarn → upload garment → result) with fanned yarn sample cards
 - **Design System:** 9-token colour palette, Cormorant Garamond + DM Sans typography, frosted glass header with `backdrop-filter: blur(28px)`
@@ -505,7 +510,7 @@ This project is open source and available under the MIT License.
 ## 🙏 Acknowledgments
 
 - [scikit-learn](https://scikit-learn.org/) - K-means clustering implementation
-- [rembg](https://github.com/danielgatis/rembg) - AI-powered background removal
+- [rembg](https://github.com/danielgatis/rembg) - U²-Net-based background removal
 - [OpenCV](https://opencv.org/) - Computer vision tools
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [React](https://react.dev/) - UI library
@@ -524,6 +529,7 @@ For detailed technical decisions and architecture documentation, see:
 - [ADR 004: Frontend Architecture](docs/decisions/004-react-frontend-architecture.md) - React + TypeScript decisions
 - [ADR 005: Performance Optimization](docs/decisions/005-performance-optimization-strategy.md) - Bottleneck analysis and optimization strategies
 - [ADR 006: UI Redesign](docs/decisions/006-ui-redesign.md) - Frosted glass header, step-based workflow, design system
+- [ADR 007: Scaling Strategy](docs/decisions/007-scaling-strategy.md) - Single-worker CPU-bound bottleneck, race conditions, and when to escalate to a task queue
 
 ---
 
