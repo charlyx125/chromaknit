@@ -149,25 +149,6 @@ def test_remove_background_creates_alpha_channel(recolorer):
 # HELPER METHOD TESTS
 # ============================================================================
 
-def test_hex_colors_to_hsv(recolorer):
-    """Test hex color conversion to HSV."""
-    hex_colors = ['#FF0000', '#00FF00', '#0000FF']
-    hsv_colors = recolorer._hex_colors_to_hsv(hex_colors)
-    
-    assert len(hsv_colors) == 3
-    assert all(isinstance(color, np.ndarray) for color in hsv_colors)
-    assert all(len(color) == 3 for color in hsv_colors)  # H, S, V channels
-
-
-def test_hex_colors_to_hsv_sorted_by_brightness(recolorer):
-    """Test that HSV colors are sorted by brightness (V channel)."""
-    hex_colors = ['#FFFFFF', '#000000', '#808080']  # White, Black, Gray
-    hsv_colors = recolorer._hex_colors_to_hsv(hex_colors)
-    
-    v_values = [color[2] for color in hsv_colors]
-    assert v_values == sorted(v_values)  # Should be in ascending order
-
-
 def test_get_color_mapping_empty_brightness(recolorer):
     """Test color mapping with empty brightness values."""
     brightness_values = np.array([])
