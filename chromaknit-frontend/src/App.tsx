@@ -57,10 +57,10 @@ function App() {
   };
 
   // --- Sample selected from strip ---
-  const handleSampleSelect = async (file: File, previewUrl: string) => {
+  const handleSampleSelect = async (file: File) => {
     abortExtract();
     dispatch({ type: "CLEAR_FOR_NEW_YARN" });
-    await handleYarnUpload(file, previewUrl);
+    await handleYarnUpload(file);
   };
 
   // --- Change yarn (go back to swatch selection) ---
@@ -70,7 +70,7 @@ function App() {
   };
 
   // --- Yarn upload ---
-  const handleYarnUpload = async (file: File, _previewUrl: string) => {
+  const handleYarnUpload = async (file: File) => {
     const resized = await resizeImage(file, 400);
     dispatch({ type: "SET_YARN_IMAGE", file: resized });
   };
