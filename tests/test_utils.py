@@ -8,13 +8,10 @@ import pytest
 import numpy as np
 import cv2
 from core.utils import (
-    load_image, 
-    convert_bgr_to_rgb, 
-    rgb_to_hex, 
+    load_image,
+    convert_bgr_to_rgb,
+    rgb_to_hex,
     hex_to_bgr,
-    print_header,
-    print_step,
-    print_success
 )
 
 
@@ -141,33 +138,3 @@ def test_hex_to_bgr_mixed_colors():
     assert hex_to_bgr("#800080") == (128, 0, 128)  # Purple
 
 
-# ============================================================================
-# PRINT FUNCTION TESTS
-# ============================================================================
-
-def test_print_header(capsys):
-    """Test print_header outputs correctly."""
-    print_header("TEST HEADER")
-    captured = capsys.readouterr()
-    
-    assert "TEST HEADER" in captured.out
-    assert "=" * 60 in captured.out
-
-
-def test_print_step(capsys):
-    """Test print_step outputs correctly."""
-    print_step(1, "Loading image")
-    captured = capsys.readouterr()
-    
-    assert "Step 1" in captured.out
-    assert "Loading image" in captured.out
-    assert "---" in captured.out
-
-
-def test_print_success(capsys):
-    """Test print_success outputs correctly."""
-    print_success("Operation completed")
-    captured = capsys.readouterr()
-    
-    assert "✓" in captured.out
-    assert "Operation completed" in captured.out

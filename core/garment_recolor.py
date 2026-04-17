@@ -1,15 +1,14 @@
-"""
-ChromaKnit - Garment recolorer
-Recolors input garment
+"""Recolor garments using HSV brightness remapping driven by a yarn palette."""
 
-Author: Joyce Chong
-Date: 2025-11-07
-"""
+import logging
+from pathlib import Path
 
 import cv2
 import numpy as np
-from pathlib import Path
-from core.utils import load_image, hex_to_bgr, print_header, print_step, print_success
+
+from core.utils import load_image, hex_to_bgr
+
+logger = logging.getLogger(__name__)
 
 
 class GarmentRecolorer:
@@ -28,18 +27,18 @@ class GarmentRecolorer:
     def remove_background(self) -> bool:
         """Remove background from garment image using rembg."""
         if self.image is None:
-            print("Error: No image loaded. Call load_image() first.")
+            logger.error("no image loaded; call load_image() first")
             return False
 
         try:
-            # Lazy import to reduce memory at startup
+            # Lazy import to reduce memory at startup.
             from rembg import remove, new_session
             session = new_session("u2netp")
             self.image_no_bg = remove(self.image, session=session)
             self.mask = self.image_no_bg[:, :, 3]
             return True
-        except Exception as e:
-            print(f"Error removing background: {e}")
+        except Exception:
+            logger.exception("background removal failed")
             return False
 
     def _hex_colors_to_hsv(self, hex_colors: list[str]) -> list[np.ndarray]:
@@ -50,7 +49,7 @@ class GarmentRecolorer:
             pixel = np.uint8([[bgr]])
             hsv = cv2.cvtColor(pixel, cv2.COLOR_BGR2HSV)[0][0]
             hsv_colors.append(hsv)
-        
+
         return sorted(hsv_colors, key=lambda x: x[2])
 
     def _get_color_mapping(self, brightness_values: np.ndarray, num_colors: int,
@@ -98,15 +97,14 @@ class GarmentRecolorer:
         recolored_hsv = image_hsv.copy()
         y_coords, x_coords = np.where(garment_mask)
 
-        # Get the full garment brightness range for remapping
+        # Percentiles avoid outliers (specular highlights, shadow pixels).
         all_v = image_hsv[garment_mask, 2]
-        garment_min_v = float(np.percentile(all_v, 2))   # use percentiles to avoid outliers
+        garment_min_v = float(np.percentile(all_v, 2))
         garment_max_v = float(np.percentile(all_v, 98))
         garment_range = garment_max_v - garment_min_v
         if garment_range < 1:
             garment_range = 1.0
 
-        # Get the yarn's overall brightness range from all target colors
         yarn_min_v = float(min(c[2] for c in target_hsv))
         yarn_max_v = float(max(c[2] for c in target_hsv))
 
@@ -115,18 +113,13 @@ class GarmentRecolorer:
             y_for_color = y_coords[pixels_mask]
             x_for_color = x_coords[pixels_mask]
 
-            # Replace hue and saturation from yarn
             recolored_hsv[y_for_color, x_for_color, 0] = hsv_color[0]
             recolored_hsv[y_for_color, x_for_color, 1] = hsv_color[1]
 
-            # Remap brightness: garment range → yarn range
-            # Normalize pixel position within garment's range (0.0 = darkest, 1.0 = brightest)
             original_v = recolored_hsv[y_for_color, x_for_color, 2]
             normalized = (original_v - garment_min_v) / garment_range
             normalized = np.clip(normalized, 0.0, 1.0)
 
-            # Map to yarn range, centered around this color's brightness
-            # Allow texture variation of ±spread around the target V
             target_v = float(hsv_color[2])
             spread = (yarn_max_v - yarn_min_v) * 0.15  # 15% of yarn range for texture
             low_v = max(0, target_v - spread)
@@ -146,11 +139,9 @@ class GarmentRecolorer:
                      If provided, garment pixels are distributed proportionally.
         """
         if self.image is None or self.mask is None:
-            print("Error: Need image and mask first")
+            logger.error("image and mask required before applying colors")
             return False
 
-        # Convert colors to HSV sorted by brightness (dark to bright)
-        # We need to sort weights alongside colors
         hsv_colors = []
         for hex_color in target_colors:
             bgr = hex_to_bgr(hex_color)
@@ -158,7 +149,7 @@ class GarmentRecolorer:
             hsv = cv2.cvtColor(pixel, cv2.COLOR_BGR2HSV)[0][0]
             hsv_colors.append(hsv)
 
-        # Sort by brightness, keeping weights aligned
+        # Sort by brightness, keeping weights aligned.
         if weights and len(weights) == len(hsv_colors):
             paired = sorted(zip(hsv_colors, weights), key=lambda x: x[0][2])
             target_hsv_colors = [p[0] for p in paired]
@@ -167,60 +158,55 @@ class GarmentRecolorer:
             target_hsv_colors = sorted(hsv_colors, key=lambda x: x[2])
             sorted_weights = None
 
-        # Convert image to HSV
         image_hsv = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV).astype(np.float32)
 
-        # Get garment pixels and their brightness
         garment_mask = self.mask > 0
         brightness_values = image_hsv[garment_mask, 2]
 
-        # Map brightness to colors using distribution weights
-        color_indices = self._get_color_mapping(brightness_values, len(target_hsv_colors),
-                                                sorted_weights)
+        color_indices = self._get_color_mapping(
+            brightness_values, len(target_hsv_colors), sorted_weights
+        )
 
-        # Apply recoloring
-        recolored_hsv = self._apply_hsv_recoloring(image_hsv, target_hsv_colors,
-                                                    color_indices, garment_mask)
+        recolored_hsv = self._apply_hsv_recoloring(
+            image_hsv, target_hsv_colors, color_indices, garment_mask
+        )
 
-        # Convert back to BGR
         self.recolored_image = cv2.cvtColor(recolored_hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
-        print(f"✓ Applied {len(target_hsv_colors)} colors")
+        logger.info("applied colors", extra={"count": len(target_hsv_colors)})
         return True
 
     def save_result(self, output_path: str) -> bool:
         """Save the recolored garment image to disk."""
         if self.recolored_image is None:
-            print("Error: No recolored image to save")
+            logger.error("no recolored image to save")
             return False
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         success = cv2.imwrite(str(output_path), self.recolored_image)
-        
+
         if success:
-            print(f"✓ Recolored image saved to {output_path}")
+            logger.info("recolored image saved", extra={"path": str(output_path)})
             return True
-        else:
-            print(f"❌ Error: Failed to save image to {output_path}")
-            return False
+        logger.error("failed to write recolored image", extra={"path": str(output_path)})
+        return False
 
     def recolor_garment(self, target_colors: list[str], weights: list[float] | None = None) -> np.ndarray | None:
-        """Main orchestrator method to recolor a garment."""
-        print_header("CHROMAKNIT - GARMENT RECOLORING")
+        """Run the full recoloring pipeline."""
+        logger.info("starting garment recoloring", extra={"n_colors": len(target_colors)})
 
         steps = [
-            (1, "Loading image", self.load_image),
-            (2, "Removing background", self.remove_background),
-            (3, "Applying colors", lambda: self.apply_colors(target_colors, weights)),
+            ("load image", self.load_image),
+            ("remove background", self.remove_background),
+            ("apply colors", lambda: self.apply_colors(target_colors, weights)),
         ]
-        
-        for step_num, description, action in steps:
-            print_step(step_num, description)
+
+        for description, action in steps:
             if not action():
+                logger.error("recoloring failed", extra={"stage": description})
                 return None
-            print_success(description.lower())
-        
-        print_header("✓ Recoloring complete!")
+
+        logger.info("recoloring complete")
         return self.recolored_image

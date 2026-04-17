@@ -1,70 +1,53 @@
-"""
-ChromaKnit - Main Execution Script
-Demonstrates yarn color extraction and garment recoloring.
+"""ChromaKnit CLI demo — extract yarn colors and recolor a sample garment."""
 
-Author: Joyce Chong
-Date: 2025-11-07
-"""
+import logging
 
+from core.log_config import setup_logging
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
-from core.utils import print_header, print_step, print_success
 
 
-def main():
-    """
-    Main execution function demonstrating the full ChromaKnit workflow:
-    1. Extract colors from yarn photo
-    2. Recolor a garment with those colors
-    """
-    print_header("CHROMAKNIT - FULL WORKFLOW DEMO")
-    
-    # ========== STEP 1: Extract colors from yarn ==========
-    print_step(1, "Extracting colors from yarn photo")
-    
+def banner(title: str) -> None:
+    print(f"\n{'=' * 60}\n{title}\n{'=' * 60}")
+
+
+def main() -> None:
+    setup_logging()
+    logging.getLogger().setLevel(logging.WARNING)  # CLI stays quiet unless something breaks
+
+    banner("CHROMAKNIT - FULL WORKFLOW DEMO")
+
     YARN_IMAGE_PATH = "examples/yarn/sample-yarn.jpg"
-    N_COLORS = 5
+    GARMENT_IMAGE_PATH = "examples/garment/sample-garment.jpg"
     YARN_OUTPUT_PATH = "results/yarn_colors.png"
-    
+    RECOLORED_OUTPUT_PATH = "results/recolored_garment.png"
+    N_COLORS = 5
+
+    print(f"\n[1/2] Extracting {N_COLORS} colors from {YARN_IMAGE_PATH}")
     extractor = ColorExtractor(image_path=YARN_IMAGE_PATH, n_colors=N_COLORS)
     yarn_colors = extractor.extract_dominant_colors()
-    
-    if not yarn_colors:
-        print("\n❌ Color extraction failed. Please check the yarn image path.")
-        return
-    
-    extractor.visualize_colors(output_path=YARN_OUTPUT_PATH)
-    print_success(f"Yarn colors saved to: {YARN_OUTPUT_PATH}")
-    
-    
-    # ========== STEP 2: Recolor garment with extracted colors ==========
-    print_step(2, "Recoloring garment with yarn colors")
-    
-    GARMENT_IMAGE_PATH = "examples/garment/sample-garment.jpg"
-    RECOLORED_OUTPUT_PATH = "results/recolored_garment.png"
 
+    if not yarn_colors:
+        print(f"\nColor extraction failed. Check that {YARN_IMAGE_PATH} exists.")
+        return
+
+    extractor.visualize_colors(output_path=YARN_OUTPUT_PATH)
+    print(f"    Yarn palette saved to {YARN_OUTPUT_PATH}")
+
+    print(f"\n[2/2] Recoloring {GARMENT_IMAGE_PATH}")
     recolorer = GarmentRecolorer(garment_image_path=GARMENT_IMAGE_PATH)
     recolored_image = recolorer.recolor_garment(target_colors=yarn_colors)
-    
+
     if recolored_image is None:
-        print("\n❌ Garment recoloring failed. Please check the garment image path.")
+        print(f"\nRecoloring failed. Check that {GARMENT_IMAGE_PATH} exists.")
         return
-    
+
     recolorer.save_result(output_path=RECOLORED_OUTPUT_PATH)
-    
-    
-    # ========== SUMMARY ==========
-    print_header("✓ CHROMAKNIT WORKFLOW COMPLETE!")
-    
-    print_success(f"Yarn colors: {YARN_OUTPUT_PATH}")
-    print_success(f"Recolored garment: {RECOLORED_OUTPUT_PATH}")
-    print_success(f"Applied color: {yarn_colors[0]}")
-    
-    print("\n💡 To use your own images:")
-    print("   1. Add yarn photo to examples/ folder")
-    print("   2. Add garment photo to examples/ folder")
-    print("   3. Update paths in this script")
-    print("   4. Run: python main.py\n")
+
+    banner("DONE")
+    print(f"  palette:  {YARN_OUTPUT_PATH}")
+    print(f"  garment:  {RECOLORED_OUTPUT_PATH}")
+    print(f"  applied:  {', '.join(yarn_colors)}\n")
 
 
 if __name__ == "__main__":
