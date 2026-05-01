@@ -47,9 +47,14 @@ results/*
 !photos/.gitkeep
 !results/.gitkeep
 
-# Example images (test data, don't commit)
-examples/garment/
-examples/yarn/
+# Example images: ignore everything except the canonical samples.
+# Lets users (and forks) drop their own test images locally without polluting
+# the repo, while keeping the demo images the README references in version
+# control.
+examples/garment/*
+examples/yarn/*
+!examples/garment/sample-garment.jpg
+!examples/yarn/sample-yarn.jpg
 
 # DO commit documentation images
 !docs/images/*.jpg
@@ -68,3 +73,10 @@ chromaknit-frontend/node_modules/
 chromaknit-frontend/dist/
 chromaknit-frontend/.vite/
 chromaknit-frontend/*.local
+
+# Local tooling
+.claude/
+
+# Personal interview prep (not for public repo)
+chromaknit-interview-reference.py
+chromaknit-interview-reference.pdf
