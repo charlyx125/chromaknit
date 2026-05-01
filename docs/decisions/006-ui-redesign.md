@@ -1,4 +1,4 @@
-# ADR 006: UI Redesign — Frosted Glass Header and Step-Based Workflow
+# ADR 006: UI Redesign with Frosted Glass Header and Step-Based Workflow
 
 **Date:** April 2026
 **Status:** Accepted and Implemented
@@ -21,9 +21,9 @@ The initial React frontend (ADR 004) was functional but visually generic. It use
 
 ### Design Inspiration
 
-The whole project started because I love the colours of yarn, especially in spring. I have always been drawn to bright colours, but that is exactly what makes garment planning hard — a bright green might not always go with a bright blue or pink, and you cannot tell until you see it on the garment. That frustration is what triggered ChromaKnit in the first place, and it shaped the redesign too.
+The whole project started because I love the colours of yarn, especially in spring. I have always been drawn to bright colours, but that is exactly what makes garment planning hard: a bright green might not always go with a bright blue or pink, and you cannot tell until you see it on the garment. That frustration is what triggered ChromaKnit in the first place, and it shaped the redesign too.
 
-I wanted the UI to feel like the yarn itself: warm, textured, colourful. The background image is a real yarn photo with no filters or overlays darkening it, because the whole point of the app is colour and I did not want to mute that. The frosted glass panel over the top was the solution to keeping the text readable without killing the vibrancy — it took a few iterations to get the opacity right, but the final version lets the yarn colours show through while the blur keeps the white text sharp.
+I wanted the UI to feel like the yarn itself: warm, textured, colourful. The background image is a real yarn photo with no filters or overlays darkening it, because the whole point of the app is colour and I did not want to mute that. The frosted glass panel over the top was the solution to keeping the text readable without killing the vibrancy. It took a few iterations to get the opacity right, but the final version lets the yarn colours show through while the blur keeps the white text sharp.
 
 The cat and yarn ball loading animation was inspired by the offline browser games (the Chrome dinosaur, Safari's surfing game). I have spent time in a room with a cat that loves to play with yarn, and it felt like the perfect personality touch for a knitting app. It turns a wait state into something that makes you smile.
 
@@ -32,7 +32,7 @@ The cat and yarn ball loading animation was inspired by the offline browser game
 1. Distinctive visual identity that appeals to knitters and crafters
 2. Progressive step-based workflow that guides users through the process
 3. Keep all existing API logic unchanged (color extraction + garment recolour)
-4. No new dependencies — pure CSS + React components
+4. No new dependencies: pure CSS + React components
 5. Responsive and accessible
 
 ---
@@ -42,8 +42,8 @@ The cat and yarn ball loading animation was inspired by the offline browser game
 ### Design System
 
 **Typography:**
-- Headings: Cormorant Garamond (serif, italic accents) — elegant, craft-appropriate
-- Body: DM Sans (sans-serif) — clean, readable
+- Headings: Cormorant Garamond (serif, italic accents); elegant and craft-appropriate
+- Body: DM Sans (sans-serif); clean and readable
 
 **Colour Palette:**
 | Token | Hex | Usage |
@@ -80,15 +80,15 @@ The cat and yarn ball loading animation was inspired by the offline browser game
 
 ```
 App.tsx (state + API logic)
-├── PetalBackground.tsx    — fixed bg + overlay + 24 floating petals
-├── Header.tsx             — headline, tagline, dots, CTA, builder notes
-│   └── BuilderNotes.tsx   — collapsible tech stack / benchmarks panel
-├── StepSection.tsx        — reusable wrapper (number, label, title, children)
-├── InfoPanel.tsx          — short text + (i) button + collapsible detail
-├── UploadZone.tsx         — styled file input (dashed border, done state)
-├── ColorPalette.tsx       — swatches + distribution bar
-├── LoadingCat.tsx         — configurable loading (simple or cat animation)
-└── BeforeAfter.tsx        — drag/touch slider comparing two images
+├── PetalBackground.tsx    : fixed bg + overlay + 24 floating petals
+├── Header.tsx             : headline, tagline, dots, CTA, builder notes
+│   └── BuilderNotes.tsx   : collapsible tech stack / benchmarks panel
+├── StepSection.tsx        : reusable wrapper (number, label, title, children)
+├── InfoPanel.tsx          : short text + (i) button + collapsible detail
+├── UploadZone.tsx         : styled file input (dashed border, done state)
+├── ColorPalette.tsx       : swatches + distribution bar
+├── LoadingCat.tsx         : configurable loading (simple or cat animation)
+└── BeforeAfter.tsx        : drag/touch slider comparing two images
 ```
 
 **Key decision:** All state remains in App.tsx. Components are purely presentational with props and callbacks. No Context, no Redux, no state management library.
@@ -103,7 +103,7 @@ App.tsx (state + API logic)
 
 **Cons:** Adds dependency, harder to achieve the specific frosted glass aesthetic, class name bloat for custom designs
 
-**Verdict:** Rejected — the design is too custom for utility-first CSS to be a net win. Pure CSS gives full control with zero overhead.
+**Verdict:** Rejected, since the design is too custom for utility-first CSS to be a net win. Pure CSS gives full control with zero overhead.
 
 ### Option 2: Keep Flat Layout, Just Restyle
 
@@ -111,7 +111,7 @@ App.tsx (state + API logic)
 
 **Cons:** Doesn't solve the workflow UX problem. Steps 1 and 2 showing simultaneously is confusing.
 
-**Verdict:** Rejected — progressive disclosure (showing steps one at a time) is a better UX for a guided workflow.
+**Verdict:** Rejected, since progressive disclosure (showing steps one at a time) is a better UX for a guided workflow.
 
 ### Option 3: Full Redesign with Component Breakdown (Selected)
 
@@ -119,7 +119,7 @@ App.tsx (state + API logic)
 
 **Cons:** More files to maintain, larger CSS surface area
 
-**Verdict:** Selected — the component count (9 new files) is justified by the UX improvement and each component is small and focused.
+**Verdict:** Selected. The component count (9 new files) is justified by the UX improvement, and each component is small and focused.
 
 ---
 
@@ -138,7 +138,7 @@ The header panel uses a combination of techniques to achieve readable text over 
 }
 ```
 
-The background overlay on the page itself is `none` — the yarn photo shows with original colours. Only the glass panel adds opacity.
+The background overlay on the page itself is `none`; the yarn photo shows with original colours. Only the glass panel adds opacity.
 
 ### Progressive Step Reveal
 
@@ -210,18 +210,18 @@ All petals use `pointer-events: none` and `z-index: 2` so they never block inter
 |------|--------|
 | `index.html` | Added Google Fonts link, updated title |
 | `src/index.css` | Replaced Vite defaults with design system variables and keyframes |
-| `src/App.css` | Complete rewrite — all component styles (~500 lines) |
+| `src/App.css` | Complete rewrite covering all component styles (~500 lines) |
 | `src/App.tsx` | Rewritten to compose new components, all API logic preserved |
-| `src/components/Header.tsx` | New — header section with frosted glass panel |
-| `src/components/PetalBackground.tsx` | New — fixed background + overlay + petals |
-| `src/components/BuilderNotes.tsx` | New — collapsible dev panel |
-| `src/components/StepSection.tsx` | New — reusable step wrapper |
-| `src/components/InfoPanel.tsx` | New — short text + expandable detail |
-| `src/components/UploadZone.tsx` | New — replaces ImageUpload.tsx |
-| `src/components/ColorPalette.tsx` | New — swatches + distribution bar |
-| `src/components/LoadingCat.tsx` | New — configurable loading animation |
-| `src/components/BeforeAfter.tsx` | New — draggable comparison slider |
-| `public/header-yarn-background.jpg` | New — header background image |
+| `src/components/Header.tsx` | New header section with frosted glass panel |
+| `src/components/PetalBackground.tsx` | New fixed background, overlay, and petals |
+| `src/components/BuilderNotes.tsx` | New collapsible dev panel |
+| `src/components/StepSection.tsx` | New reusable step wrapper |
+| `src/components/InfoPanel.tsx` | New short text with expandable detail |
+| `src/components/UploadZone.tsx` | New, replaces ImageUpload.tsx |
+| `src/components/ColorPalette.tsx` | New swatches and distribution bar |
+| `src/components/LoadingCat.tsx` | New configurable loading animation |
+| `src/components/BeforeAfter.tsx` | New draggable comparison slider |
+| `public/header-yarn-background.jpg` | New header background image |
 
 **14 files changed, 1106 insertions, 325 deletions**
 
@@ -238,7 +238,7 @@ The redesign preserves all existing functionality while giving ChromaKnit a visu
 
 ## Lessons Learned
 
-**Having a colour palette in mind from the start makes everything cohesive.** The nine-token palette (rose, blush, lavender, sage, sky, peach, mustard, cream, dark) was defined before any components were built. Every button, border, loading bar, and accent pulls from the same set. This meant I never had to make ad-hoc colour decisions mid-build — the system answered those questions for me.
+**Having a colour palette in mind from the start makes everything cohesive.** The nine-token palette (rose, blush, lavender, sage, sky, peach, mustard, cream, dark) was defined before any components were built. Every button, border, loading bar, and accent pulls from the same set. This meant I never had to make ad-hoc colour decisions mid-build; the system answered those questions for me.
 
 **Frosted glass is harder than it looks.** The `backdrop-filter` blur picks up whatever colours are behind it, so a busy yarn photo turns the panel into a muddy mix. The fix was a darker background tint (`rgba(30,15,25,0.45)`) combined with a strong blur (`28px`) and saturation boost. Getting the balance between "frosted" and "readable" took several rounds of tuning.
 
@@ -248,7 +248,7 @@ The redesign preserves all existing functionality while giving ChromaKnit a visu
 
 ## Future Enhancements
 
-- Adding more whimsical interactive elements — small React animations, hover effects on yarn swatches, micro-interactions that make the app feel playful
+- Adding more whimsical interactive elements such as small React animations, hover effects on yarn swatches, and micro-interactions that make the app feel playful
 - Potential dark mode variant for evening knitters (would need a separate colour system)
 - Drag-and-drop file upload (currently click-to-upload styled as a dropzone)
 - Mobile-first responsive pass for smaller screens

@@ -186,7 +186,7 @@ def extract_colors_optimized(image_path, n_colors=5, max_size=400):
 | Memory | ✅ Lower memory usage |
 | Implementation | ✅ Simple (5 lines of code) |
 
-**Status:** ✅ Implemented (April 2026) — frontend resizes yarn to 400x400, garment to 800x800 before upload. Server-side downscaling added as safety net.
+**Status:** ✅ Implemented (April 2026). Frontend resizes yarn to 400x400, garment to 800x800 before upload. Server-side downscaling added as safety net.
 
 ---
 
@@ -220,7 +220,7 @@ kmeans = MiniBatchKMeans(n_clusters=5, batch_size=1024, random_state=42)
 | Memory | ✅ Much lower (processes batches) |
 | Implementation | ✅ Drop-in replacement |
 
-**Status:** ✅ Implemented (April 2026) — `MiniBatchKMeans(n_clusters=5, n_init=3, batch_size=1000)` replaces `KMeans`. Combined with n_init reduction (Strategy 3).
+**Status:** ✅ Implemented (April 2026). `MiniBatchKMeans(n_clusters=5, n_init=3, batch_size=1000)` replaces `KMeans`, combined with n_init reduction (Strategy 3).
 
 ---
 
@@ -246,7 +246,7 @@ kmeans = KMeans(n_clusters=5, n_init=3, max_iter=100, random_state=42)
 | Memory | → No change |
 | Implementation | ✅ Parameter change only |
 
-**Status:** ✅ Implemented (April 2026) — n_init reduced to 3, combined with MiniBatchKMeans (Strategy 2).
+**Status:** ✅ Implemented (April 2026). n_init reduced to 3, combined with MiniBatchKMeans (Strategy 2).
 
 ---
 
