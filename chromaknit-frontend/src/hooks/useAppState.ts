@@ -1,4 +1,4 @@
-import { useReducer } from "react";
+import { useEffect, useReducer, useRef, type Dispatch } from "react";
 
 /**
  * Reducer-based state for ChromaKnit's main UI.
@@ -246,6 +246,57 @@ export function appReducer(state: AppState, action: Action): AppState {
   }
 }
 
+// --- localStorage persistence ---
+// Yarn palettes are user-owned data (not server-derived), so they live in
+// localStorage. The schema is versioned so future shape changes can be
+// detected and discarded cleanly rather than crashing the UI.
+
+const STORAGE_KEY = "chromaknit:state";
+const STORAGE_VERSION = 1;
+
+function tryHydrateFromLocalStorage(dispatch: Dispatch<Action>): void {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== STORAGE_VERSION) return;
+    if (!Array.isArray(parsed.yarns)) return;
+    dispatch({ type: "HYDRATE_YARNS", yarns: parsed.yarns });
+  } catch {
+    // Malformed JSON or storage unavailable; start fresh.
+  }
+}
+
+function persistYarnsToLocalStorage(yarns: Yarn[]): void {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: STORAGE_VERSION, yarns }),
+    );
+  } catch {
+    // Quota exceeded, private browsing, or storage unavailable. Best-effort.
+  }
+}
+
 export function useAppState() {
-  return useReducer(appReducer, initialState);
+  const [state, dispatch] = useReducer(appReducer, initialState);
+  const skipFirstPersistRef = useRef(true);
+
+  // Hydrate on mount: read localStorage, validate version, dispatch HYDRATE_YARNS.
+  useEffect(() => {
+    tryHydrateFromLocalStorage(dispatch);
+  }, []);
+
+  // Persist whenever yarns change, except on the very first render — that
+  // call fires before the hydrate effect's dispatch can update state, and
+  // would otherwise overwrite saved yarns with the empty initial state.
+  useEffect(() => {
+    if (skipFirstPersistRef.current) {
+      skipFirstPersistRef.current = false;
+      return;
+    }
+    persistYarnsToLocalStorage(state.yarns);
+  }, [state.yarns]);
+
+  return [state, dispatch] as const;
 }
