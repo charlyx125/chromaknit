@@ -1,14 +1,37 @@
 import { useReducer } from "react";
 
+// --- Yarn entity ---
+export type YarnStatus = "pending" | "ready" | "error";
+
+export interface Yarn {
+  id: string;
+  label: string;
+  previewUrl: string;       // data URL for uploads, static path for samples
+  palette: string[];        // hex codes; [] while pending
+  percentages: number[];    // [] while pending
+  status: YarnStatus;
+  errorMessage?: string;    // populated when status === "error"
+}
+
 // --- State shape ---
+// Transitional: new yarns[] / activeYarnId coexist with the legacy single-yarn
+// fields. Step 3 of slice 1.A removes the legacy fields and rewrites the
+// reducer to drive the multi-yarn shape end-to-end.
 export interface AppState {
   resetKey: number;
   activeTab: number;
   showSampleStrip: boolean;
-  // Yarn
+  // Yarn (new, multi)
+  yarns: Yarn[];
+  activeYarnId: string | null;
+  // Yarn (legacy, single — to be removed in step 3 of slice 1.A)
+  /** @deprecated use `yarns[]` — removed in step 3 of slice 1.A */
   yarnImage: File | null;
+  /** @deprecated derive from `yarns.some(y => y.status === "pending")` — removed in step 3 of slice 1.A */
   isExtractingColors: boolean;
+  /** @deprecated use `yarns.find(y => y.id === activeYarnId)?.palette` — removed in step 3 of slice 1.A */
   extractedColors: string[];
+  /** @deprecated use `yarns.find(y => y.id === activeYarnId)?.percentages` — removed in step 3 of slice 1.A */
   colorPercentages: number[];
   // Garment
   garmentImage: File | null;
@@ -23,6 +46,8 @@ const initialState: AppState = {
   resetKey: 0,
   activeTab: 0,
   showSampleStrip: false,
+  yarns: [],
+  activeYarnId: null,
   yarnImage: null,
   isExtractingColors: false,
   extractedColors: [],
