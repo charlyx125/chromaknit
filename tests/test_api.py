@@ -108,15 +108,66 @@ def test_extract_colors_rejects_oversized_file(client):
 
 
 # ============================================================================
-# POST /api/garments/recolor
+# POST /api/garments/session
+# ============================================================================
+# v2 splits the legacy "upload + recolour in one shot" endpoint into two
+# stages. Tests below exercise both halves and the cache between them.
+
+
+def _create_session(client, image_bytes):
+    """Helper: upload a garment and return the parsed session response body."""
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("garment.png", image_bytes, "image/png")},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_create_session_happy_path(client, garment_image_bytes, mock_rembg):
+    """Valid garment upload returns 200 with a session_id and image dimensions."""
+    body = _create_session(client, garment_image_bytes)
+
+    assert isinstance(body["session_id"], str) and body["session_id"]
+    assert body["width"] > 0
+    assert body["height"] > 0
+
+
+def test_create_session_rejects_non_image_content_type(client, mock_rembg):
+    """Non-image content type returns 400 before any processing."""
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("notes.txt", b"hello", "text/plain")},
+    )
+    assert response.status_code == 400
+    assert "text/plain" in response.json()["detail"]
+
+
+def test_create_session_rejects_oversized_file(client):
+    """A garment file larger than MAX_FILE_SIZE (5MB) returns 413."""
+    oversized_payload = b"\x00" * (6 * 1024 * 1024)
+
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("huge.png", oversized_payload, "image/png")},
+    )
+    assert response.status_code == 413
+
+
+# ============================================================================
+# POST /api/garments/recolor (session-keyed)
 # ============================================================================
 
 def test_recolor_garment_happy_path(client, garment_image_bytes, mock_rembg):
-    """Valid garment + colors returns 200 with a PNG body."""
+    """Session + colors returns 200 with a PNG body."""
+    session = _create_session(client, garment_image_bytes)
+
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": '["#FF0000", "#00FF00", "#0000FF"]'},
+        data={
+            "session_id": session["session_id"],
+            "colors": '["#FF0000", "#00FF00", "#0000FF"]',
+        },
     )
 
     assert response.status_code == 200
@@ -125,61 +176,81 @@ def test_recolor_garment_happy_path(client, garment_image_bytes, mock_rembg):
     assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
 
 
-def test_recolor_garment_rejects_malformed_json_colors(client, garment_image_bytes, mock_rembg):
-    """A colors value shaped like a JSON array but not parseable returns 400 from the JSON branch."""
+def test_recolor_garment_returns_404_for_unknown_session(client, mock_rembg):
+    """A session_id that was never created (or has been evicted) returns 404."""
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": "[not valid json]"},
+        data={
+            "session_id": "definitely-not-a-real-session-id",
+            "colors": '["#FF0000"]',
+        },
+    )
+
+    assert response.status_code == 404
+    assert "session" in response.json()["detail"].lower()
+
+
+def test_recolor_garment_caches_identical_inputs(client, garment_image_bytes, mock_rembg):
+    """Same session + same colours returns identical bytes from the cache."""
+    session = _create_session(client, garment_image_bytes)
+    payload = {
+        "session_id": session["session_id"],
+        "colors": '["#FF0000", "#00FF00", "#0000FF"]',
+    }
+
+    first = client.post("/api/garments/recolor", data=payload)
+    second = client.post("/api/garments/recolor", data=payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.content == second.content
+
+
+def test_recolor_garment_rejects_malformed_json_colors(
+    client, garment_image_bytes, mock_rembg
+):
+    """A colors value shaped like a JSON array but not parseable returns 400."""
+    session = _create_session(client, garment_image_bytes)
+    response = client.post(
+        "/api/garments/recolor",
+        data={
+            "session_id": session["session_id"],
+            "colors": "[not valid json]",
+        },
     )
 
     assert response.status_code == 400
     assert "invalid color format" in response.json()["detail"].lower()
 
 
-def test_recolor_garment_rejects_invalid_hex_colors(client, garment_image_bytes, mock_rembg):
-    """A parseable colors value with non-hex strings returns 400 from the hex-validation branch."""
+def test_recolor_garment_rejects_invalid_hex_colors(
+    client, garment_image_bytes, mock_rembg
+):
+    """A parseable colors value with non-hex strings returns 400."""
+    session = _create_session(client, garment_image_bytes)
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": '["not-a-hex", "also-not-hex"]'},
+        data={
+            "session_id": session["session_id"],
+            "colors": '["not-a-hex", "also-not-hex"]',
+        },
     )
 
     assert response.status_code == 400
     assert "invalid hex color format" in response.json()["detail"].lower()
 
 
-def test_recolor_garment_rejects_non_image_content_type(client, mock_rembg):
-    """Uploading a non-image content type to recolor returns 400."""
-    response = client.post(
-        "/api/garments/recolor",
-        files={"file": ("notes.txt", b"hello", "text/plain")},
-        data={"colors": '["#FF0000"]'},
-    )
-
-    assert response.status_code == 400
-    assert "text/plain" in response.json()["detail"]
-
-
-def test_recolor_garment_rejects_oversized_file(client):
-    """A garment file larger than MAX_FILE_SIZE (5MB) returns 413."""
-    oversized_payload = b"\x00" * (6 * 1024 * 1024)
-
-    response = client.post(
-        "/api/garments/recolor",
-        files={"file": ("huge.png", oversized_payload, "image/png")},
-        data={"colors": '["#FF0000"]'},
-    )
-
-    assert response.status_code == 413
-
-
-def test_recolor_garment_rejects_empty_color_list(client, garment_image_bytes, mock_rembg):
+def test_recolor_garment_rejects_empty_color_list(
+    client, garment_image_bytes, mock_rembg
+):
     """An empty JSON color array returns 400."""
+    session = _create_session(client, garment_image_bytes)
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": "[]"},
+        data={
+            "session_id": session["session_id"],
+            "colors": "[]",
+        },
     )
 
     assert response.status_code == 400
