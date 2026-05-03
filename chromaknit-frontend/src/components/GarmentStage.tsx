@@ -2,6 +2,19 @@ import { useRef, useState } from "react";
 import type { GarmentSession } from "../hooks/useAppState";
 import "./GarmentStage.css";
 
+interface GarmentSample {
+  src: string;
+  label: string;
+}
+
+const GARMENT_SAMPLES: GarmentSample[] = [
+  { src: "/samples/garment-cardigan.jpg", label: "cardigan" },
+  { src: "/samples/garment-green-beanie.jpg", label: "beanie" },
+  { src: "/samples/garment-red-socks.jpg", label: "socks" },
+  { src: "/samples/garment-black-blanket.jpg", label: "blanket" },
+  { src: "/samples/garment-baby.jpg", label: "baby knit" },
+];
+
 interface GarmentStageProps {
   session: GarmentSession | null;
   isRecoloring: boolean;
@@ -43,19 +56,52 @@ function GarmentStage({
     e.target.value = "";
   };
 
+  const handleSampleClick = async (sample: GarmentSample) => {
+    try {
+      const response = await fetch(sample.src);
+      const blob = await response.blob();
+      const file = new File([blob], `${sample.label}.jpg`, { type: "image/jpeg" });
+      onUpload(file);
+    } catch {
+      // Sample fetch failed (network or 404). The upload tile is still
+      // available; no surfaced error.
+    }
+  };
+
   if (!session) {
     return (
       <section className="garment-stage" aria-label="Garment workspace">
-        <button
-          type="button"
-          className="garment-upload-tile"
-          onClick={() => inputRef.current?.click()}
-          aria-label="Upload a garment image"
-        >
-          <span className="garment-upload-plus" aria-hidden="true">+</span>
-          <span className="garment-upload-title">upload a garment</span>
-          <span className="garment-upload-hint">flat-lay or worn, jpg or png, up to 5MB</span>
-        </button>
+        <div className="garment-empty-card">
+          <button
+            type="button"
+            className="garment-upload-tile"
+            onClick={() => inputRef.current?.click()}
+            aria-label="Upload a garment image"
+          >
+            <span className="garment-upload-plus" aria-hidden="true">+</span>
+            <span className="garment-upload-title">upload a garment</span>
+            <span className="garment-upload-hint">flat-lay or worn, jpg or png, up to 5MB</span>
+          </button>
+          <p className="garment-samples-label">or try a sample</p>
+          <div
+            className="garment-samples-grid"
+            role="group"
+            aria-label="Garment samples"
+          >
+            {GARMENT_SAMPLES.map((sample) => (
+              <button
+                key={sample.label}
+                type="button"
+                className="garment-sample-card"
+                onClick={() => handleSampleClick(sample)}
+                aria-label={`Use ${sample.label} sample`}
+              >
+                <img src={sample.src} alt="" />
+                <span className="garment-sample-label">{sample.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <input
           ref={inputRef}
           type="file"
