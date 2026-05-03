@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { appReducer, initialState } from "./useAppState";
+import { renderHook } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
+import { appReducer, initialState, useAppState } from "./useAppState";
+
+const STORAGE_KEY = "chromaknit:state";
 
 /**
  * Reducer tests are pure: dispatch an action against a known state and assert
@@ -237,5 +240,86 @@ describe("appReducer", () => {
       expect(result.yarns).toEqual(hydratedYarns);
       expect(result.yarns).toHaveLength(2);
     });
+  });
+});
+
+/**
+ * Hook tests exercise mount lifecycle: useEffect runs, localStorage gets read,
+ * HYDRATE_YARNS gets dispatched if the saved data validates. These tests use
+ * `renderHook` from React Testing Library, which mounts the hook in a
+ * test renderer and flushes effects before returning.
+ *
+ * localStorage state persists between tests in the same test run, so each
+ * test clears it in `beforeEach` to start from a known empty slate.
+ */
+describe("useAppState localStorage hydration", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("hydrates yarns from a valid v1 payload on mount", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        yarns: [
+          {
+            id: "saved-1",
+            label: "saved plum",
+            previewUrl: "/samples/plum.jpg",
+            palette: ["#440022"],
+            percentages: [1.0],
+            status: "ready",
+          },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() => useAppState());
+    const [state] = result.current;
+
+    expect(state.yarns).toHaveLength(1);
+    expect(state.yarns[0].id).toBe("saved-1");
+    expect(state.yarns[0].label).toBe("saved plum");
+  });
+
+  it("starts with empty yarns when localStorage has no entry", () => {
+    const { result } = renderHook(() => useAppState());
+    const [state] = result.current;
+
+    expect(state.yarns).toEqual([]);
+  });
+
+  it("starts with empty yarns when localStorage contains malformed JSON", () => {
+    localStorage.setItem(STORAGE_KEY, "not valid json {{{");
+
+    const { result } = renderHook(() => useAppState());
+    const [state] = result.current;
+
+    expect(state.yarns).toEqual([]);
+  });
+
+  it("starts with empty yarns when the stored version doesn't match", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 999,
+        yarns: [
+          {
+            id: "from-the-future",
+            label: "v999 schema",
+            previewUrl: "/x",
+            palette: [],
+            percentages: [],
+            status: "ready",
+          },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() => useAppState());
+    const [state] = result.current;
+
+    expect(state.yarns).toEqual([]);
   });
 });
