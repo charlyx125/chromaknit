@@ -1,5 +1,30 @@
 import { useReducer } from "react";
 
+/**
+ * Reducer-based state for ChromaKnit's main UI.
+ *
+ * The `appReducer` below is a pure function: given the current state and an
+ * action, it returns the next state. 
+ * 
+ * It never fetches, reads files, generates UUIDs, or runs any other side effects. 
+ * All of that lives in the components that dispatch the actions (primarily `src/App.tsx`).
+ *
+ * Flow:
+ *   1. A component does some work (e.g. POST /api/colors/extract).
+ *   2. The component dispatches an action describing what happened
+ *      (e.g. ADD_YARN_SUCCESS with the extracted palette as payload).
+ *   3. The switch statement below maps that action to a new state object.
+ *   4. React re-renders any component that reads the changed fields.
+ *
+ * This separation makes the reducer trivially testable (no mocks needed) and
+ * keeps every state transition discoverable in one switch statement.
+ *
+ * Action naming convention: actions describe what *already happened*, not
+ * what *to do*. So `ADD_YARN_SUCCESS` (component finished an extraction and
+ * is reporting the result) rather than `FETCH_YARN` (would imply the reducer
+ * itself does the fetching, which it does not).
+ */
+
 // --- Yarn entity ---
 export type YarnStatus = "pending" | "ready" | "error";
 
@@ -74,6 +99,13 @@ type Action =
   | { type: "RECOLOR_ERROR"; error: string }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_FOR_NEW_YARN" }
+  // Multi-yarn actions (new in slice 1.A)
+  | { type: "ADD_YARN_PENDING"; id: string; label: string; previewUrl: string }
+  | { type: "ADD_YARN_SUCCESS"; id: string; palette: string[]; percentages: number[] }
+  | { type: "ADD_YARN_ERROR"; id: string; errorMessage: string }
+  | { type: "REMOVE_YARN"; id: string }
+  | { type: "SET_ACTIVE_YARN"; id: string | null }
+  | { type: "HYDRATE_YARNS"; yarns: Yarn[] }
   | { type: "RESET" };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -151,6 +183,56 @@ function appReducer(state: AppState, action: Action): AppState {
         error: null,
         activeTab: 0,
       };
+
+    // --- Multi-yarn cases (new in slice 1.A) ---
+    case "ADD_YARN_PENDING":
+      return {
+        ...state,
+        yarns: [
+          ...state.yarns,
+          {
+            id: action.id,
+            label: action.label,
+            previewUrl: action.previewUrl,
+            palette: [],
+            percentages: [],
+            status: "pending",
+          },
+        ],
+      };
+
+    case "ADD_YARN_SUCCESS":
+      return {
+        ...state,
+        yarns: state.yarns.map(yarn =>
+          yarn.id === action.id
+            ? { ...yarn, status: "ready", palette: action.palette, percentages: action.percentages }
+            : yarn
+        ),
+      };
+
+    case "ADD_YARN_ERROR":
+      return {
+        ...state,
+        yarns: state.yarns.map(yarn =>
+          yarn.id === action.id
+            ? { ...yarn, status: "error", errorMessage: action.errorMessage }
+            : yarn
+        ),
+      };
+
+    case "REMOVE_YARN":
+      return {
+        ...state,
+        yarns: state.yarns.filter(yarn => yarn.id !== action.id),
+        activeYarnId: state.activeYarnId === action.id ? null : state.activeYarnId,
+      };
+
+    case "SET_ACTIVE_YARN":
+      return { ...state, activeYarnId: action.id };
+
+    case "HYDRATE_YARNS":
+      return { ...state, yarns: action.yarns };
 
     case "RESET":
       return {
