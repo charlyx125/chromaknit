@@ -59,6 +59,11 @@ function App() {
   const [state, dispatch] = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  // Ref on the palette-stage <main> so handleStart can scroll it into view
+  // after the reveal. The header is min-height: 100vh, so the new content
+  // is below the fold otherwise and the click looks like a no-op.
+  const stageRef = useRef<HTMLElement>(null);
+
   // Per-yarn extraction abort controllers. Refs because they are not
   // render-driving state.
   const extractAbortersRef = useRef<Map<string, AbortController>>(new Map());
@@ -76,10 +81,15 @@ function App() {
   // Abort controller for the in-flight garment session upload, if any.
   const garmentUploadAbortRef = useRef<AbortController | null>(null);
 
-  // First-run helper: reveal the palette stage AND open the picker.
+  // First-run helper: reveal the palette stage, open the picker, and scroll
+  // the stage into view. The header occupies a full viewport, so without the
+  // scroll the new content is hidden below the fold and the click feels dead.
   const handleStart = () => {
     dispatch({ type: "SHOW_STRIP" });
     setPickerOpen(true);
+    setTimeout(() => {
+      stageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   };
 
   const handleYarnAdd = async (
@@ -288,7 +298,7 @@ function App() {
       <PetalBackground />
       <Header onStart={handleStart} />
       {state.showSampleStrip && (
-        <main id="main-content" className="palette-stage">
+        <main id="main-content" className="palette-stage" ref={stageRef}>
           <YarnPalette
             yarns={state.yarns}
             activeYarnId={state.activeYarnId}
