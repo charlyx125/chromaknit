@@ -17,6 +17,7 @@ import cv2
 from core.log_config import setup_logging
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
+from api.sessions import session_store, make_recolor_cache_key
 from fastapi.middleware.cors import CORSMiddleware
 
 setup_logging()
@@ -215,139 +216,180 @@ async def extract_colors(
 
 
 # ============================================================================
-# GARMENT RECOLORING ENDPOINT
+# GARMENT RECOLORING (session-keyed)
 # ============================================================================
-@app.post("/api/garments/recolor")
-async def recolor_garment(
-    file: UploadFile = File(..., description="Garment image file (JPG, PNG)"),
-    colors: str = Form(..., description='Hex colors as JSON array ["#FF0000"] or comma-separated #FF0000,#00FF00'),
-    percentages: str = Form(default="", description='Color percentages as JSON array [0.30, 0.22, 0.21]')
-):
+#
+# v2 splits the old "upload + recolour in one shot" endpoint into two:
+#
+#   POST /api/garments/session  uploads the file once, runs rembg, returns a
+#                               session_id. The image and mask stay in memory
+#                               on the server for 30 minutes of idle time.
+#
+#   POST /api/garments/recolor  takes a session_id plus a colour palette and
+#                               returns the recoloured PNG. Result is cached
+#                               per (session, colours) so flipping yarns in
+#                               the frontend palette is instant after the
+#                               first compute.
+#
+# See docs/decisions/010-session-storage.md for the architectural rationale.
+
+def _parse_color_list(colors: str) -> list[str]:
+    """Parse a JSON array or comma-separated list of hex colours.
+
+    Validates that the result is a non-empty list of #RRGGBB strings and
+    raises HTTPException(400) on any failure mode.
     """
-    Recolor garment image with provided color palette while preserving texture and lighting.
-    
-    **Process:**
-    1. Validates file type, size, and color format
-    2. Removes background automatically
-    3. Recolors garment in HSV color space
-    4. Preserves shadows, highlights, and texture
-    
-    **Parameters:**
-    - **file**: Garment image file (JPG, PNG format)
-    - **colors**: Hex colors in either format:
-        - JSON array: `["#142a68", "#23438d", "#0c153b"]`
-        - Comma-separated: `#142a68,#23438d,#0c153b`
-    
-    **Returns:**
-    - Recolored garment image (PNG format)
-    
-    **Usage Flow:**
-    1. POST to /api/colors/extract with yarn image
-    2. Copy the returned colors array
-    3. POST to /api/garments/recolor with garment image + colors
-    """
-    
-    # Parse colors - handle both JSON array and comma-separated string
     try:
         colors_trimmed = colors.strip()
-        
-        # Check if it's a JSON array
-        if colors_trimmed.startswith('[') and colors_trimmed.endswith(']'):
-            # Parse as JSON
+        if colors_trimmed.startswith("[") and colors_trimmed.endswith("]"):
             color_list = json.loads(colors_trimmed)
         else:
-            # Parse as comma-separated string
-            color_list = [c.strip() for c in colors_trimmed.split(',') if c.strip()]
-        
-        logger.debug("parsed colors", extra={"count": len(color_list), "colors": color_list})
+            color_list = [c.strip() for c in colors_trimmed.split(",") if c.strip()]
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                'Invalid color format. Use either:\n'
+                '- JSON array: ["#FF0000", "#00FF00"]\n'
+                '- Comma-separated: #FF0000,#00FF00\n'
+                f'Error: {exc}'
+            ),
+        )
 
-    except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f'Invalid color format. Use either:\n- JSON array: ["#FF0000", "#00FF00"]\n- Comma-separated: #FF0000,#00FF00\nError: {str(e)}'
-        )
-    
-    # Validation 1: Color list not empty
     if not color_list or not isinstance(color_list, list):
+        raise HTTPException(status_code=400, detail="Color list cannot be empty.")
+
+    invalid = [c for c in color_list if not HEX_COLOR_RE.match(c)]
+    if invalid:
         raise HTTPException(
             status_code=400,
-            detail="Color list cannot be empty."
+            detail=f"Invalid hex color format: {invalid}. Expected format: #RRGGBB (e.g. #FF0000)",
         )
-    
-    # Validation 2: Check all colors are valid hex format
-    invalid_colors = [c for c in color_list if not HEX_COLOR_RE.match(c)]
-    if invalid_colors:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid hex color format: {invalid_colors}. Expected format: #RRGGBB (e.g. #FF0000)"
-        )
-    
-    # Validation 3: File type
+
+    return color_list
+
+
+def _parse_percentages(percentages: str) -> list[float] | None:
+    """Parse the optional percentages JSON array. Returns None on any failure."""
+    if not percentages.strip():
+        return None
+    try:
+        parsed = json.loads(percentages.strip())
+        if isinstance(parsed, list):
+            return parsed
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return None
+
+
+def _validate_garment_upload(file: UploadFile) -> None:
+    """Reject uploads that fail content-type or advertised size checks.
+
+    The streaming cap inside save_upload_capped is the authoritative size
+    check; this is the fast-reject pass for clients that send a truthful
+    Content-Length.
+    """
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type: {file.content_type}. Please upload an image (JPG, PNG)."
+            detail=f"Invalid file type: {file.content_type}. Please upload an image (JPG, PNG).",
         )
-    
-    # Validation 4: File size — fast reject when Content-Length is advertised.
-    # Streaming cap below is the authoritative check.
     if file.size and file.size > MAX_FILE_SIZE:
         size_mb = file.size / (1024 * 1024)
         raise HTTPException(
             status_code=413,
-            detail=f"File too large: {size_mb:.2f}MB. Maximum allowed: 5MB."
+            detail=f"File too large: {size_mb:.2f}MB. Maximum allowed: 5MB.",
         )
 
-    temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
 
-    output_path: str | None = None
+@app.post("/api/garments/session")
+async def create_garment_session(
+    file: UploadFile = File(..., description="Garment image file (JPG, PNG)"),
+):
+    """Upload a garment, run rembg once, return a session_id.
+
+    Subsequent calls to /api/garments/recolor reference this session_id
+    instead of re-uploading and re-running background removal. The session
+    is stored in memory with a sliding 30-minute TTL.
+    """
+    _validate_garment_upload(file)
+
+    temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
     try:
         downscale_image(temp_path)
 
-        # Parse percentages if provided
-        weight_list = None
-        if percentages.strip():
-            try:
-                weight_list = json.loads(percentages.strip())
-            except (json.JSONDecodeError, ValueError):
-                weight_list = None
-
         recolorer = GarmentRecolorer(garment_image_path=temp_path)
-        recolored_image = recolorer.recolor_garment(color_list, weights=weight_list)
-
-        # Check if recoloring succeeded
-        if recolored_image is None or recolored_image.size == 0:
+        if not recolorer.prepare():
             raise HTTPException(
                 status_code=400,
-                detail="Could not recolor garment. The image may be corrupted or invalid."
+                detail="Could not prepare garment. The image may be corrupted or background removal failed.",
             )
 
-        # Save result to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as output_file:
-            output_path = output_file.name
-
-        recolorer.save_result(output_path)
-
-        # Read the recolored image into memory
-        with open(output_path, 'rb') as f:
-            image_data = f.read()
-
-        # Return the recolored image
-        return Response(
-            content=image_data,
-            media_type="image/png",
-            headers={
-                "Content-Disposition": f'attachment; filename="recolored_{file.filename}"'
-            }
+        session = session_store.create(image=recolorer.image, mask=recolorer.mask)
+        logger.info(
+            "garment session created",
+            extra={
+                "session_id": session.session_id,
+                "width": session.width,
+                "height": session.height,
+            },
         )
-
+        return {
+            "session_id": session.session_id,
+            "width": session.width,
+            "height": session.height,
+        }
     finally:
-        # Clean up input and output temporary files. Both are covered here so a
-        # crash in save_result / open / read doesn't leak the output PNG.
         if os.path.exists(temp_path):
             os.unlink(temp_path)
-        if output_path and os.path.exists(output_path):
-            os.unlink(output_path)
+
+
+@app.post("/api/garments/recolor")
+async def recolor_garment(
+    session_id: str = Form(..., description="Session id returned from /api/garments/session"),
+    colors: str = Form(..., description='Hex colors as JSON array ["#FF0000"] or comma-separated #FF0000,#00FF00'),
+    percentages: str = Form(default="", description='Color percentages as JSON array [0.30, 0.22, 0.21]'),
+):
+    """Recolour the garment associated with `session_id` using the given palette.
+
+    Result is cached per (session, colours, percentages) so identical inputs
+    return immediately without re-running the HSV remap. Cache lives inside
+    the session and expires with it.
+    """
+    color_list = _parse_color_list(colors)
+    weight_list = _parse_percentages(percentages)
+
+    session = session_store.get(session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found or expired. Re-upload the garment to /api/garments/session.",
+        )
+
+    cache_key = make_recolor_cache_key(color_list, weight_list)
+    cached = session.recolor_cache.get(cache_key)
+    if cached is not None:
+        logger.debug("recolor cache hit", extra={"session_id": session_id, "key": cache_key})
+        return Response(content=cached, media_type="image/png")
+
+    recolorer = GarmentRecolorer.from_prepared(image=session.image, mask=session.mask)
+    if not recolorer.apply_colors(color_list, weights=weight_list):
+        raise HTTPException(
+            status_code=500,
+            detail="Could not apply colours to the garment.",
+        )
+
+    success, buffer = cv2.imencode(".png", recolorer.recolored_image)
+    if not success:
+        raise HTTPException(status_code=500, detail="Could not encode recoloured image.")
+
+    png_bytes = buffer.tobytes()
+    session.recolor_cache[cache_key] = png_bytes
+    logger.info(
+        "recolor computed and cached",
+        extra={"session_id": session_id, "key": cache_key, "bytes": len(png_bytes)},
+    )
+    return Response(content=png_bytes, media_type="image/png")
 
 # ============================================================================
 # ERROR HANDLERS (Optional but professional)
@@ -355,11 +397,23 @@ async def recolor_garment(
 
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
-    """Custom 404 handler"""
+    """Custom 404 handler.
+
+    Two distinct cases land here:
+      1. Route not found (Starlette raises HTTPException with detail="Not Found"
+         and the request did not match any registered path).
+      2. A handler raised HTTPException(404) on purpose, e.g. session expired.
+
+    Case 2 should preserve its own detail. Case 1 returns the friendlier
+    "endpoint not found" body that points at /docs.
+    """
+    detail = getattr(exc, "detail", None)
+    if detail and detail != "Not Found":
+        return JSONResponse(status_code=404, content={"detail": detail})
     return JSONResponse(
         status_code=404,
         content={
             "error": "Endpoint not found",
-            "message": "The requested endpoint does not exist. Check /docs for available endpoints."
-        }
+            "message": "The requested endpoint does not exist. Check /docs for available endpoints.",
+        },
     )
