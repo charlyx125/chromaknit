@@ -1,12 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import { API_BASE_URL } from "./config";
 import { useAppState } from "./hooks/useAppState";
-import { useFetchWithAbort } from "./hooks/useFetchWithAbort";
 import "./App.css";
 
 import PetalBackground from "./components/PetalBackground";
 import Header from "./components/Header";
-import SampleStrip from "./components/SampleStrip";
+import YarnPalette from "./components/YarnPalette";
+import YarnPicker from "./components/YarnPicker";
 import ReportIssue from "./components/ReportIssue";
 
 function resizeImage(file: File, maxSize: number): Promise<File> {
@@ -34,220 +34,120 @@ function resizeImage(file: File, maxSize: number): Promise<File> {
           resolve(new File([blob], file.name, { type: "image/jpeg" }));
         },
         "image/jpeg",
-        0.9
+        0.9,
       );
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("Could not decode image — the file may be corrupted or not a supported format"));
+      reject(new Error("Could not decode image. The file may be corrupted or not a supported format."));
     };
     img.src = objectUrl;
   });
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read file as data URL"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function App() {
   const [state, dispatch] = useAppState();
-  const { fetchWithAbort: extractFetch, abortCurrent: abortExtract } = useFetchWithAbort();
-  const { fetchWithAbort: recolorFetch, abortCurrent: abortRecolor } = useFetchWithAbort();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const abortersRef = useRef<Map<string, AbortController>>(new Map());
 
-  const sampleStripRef = useRef<HTMLDivElement>(null);
-
-  // --- "Try it now" handler ---
+  // First-run helper: reveal the palette stage AND open the picker so the
+  // user lands directly on something actionable. Subsequent picker opens
+  // come from the YarnPalette "+" tile.
   const handleStart = () => {
     dispatch({ type: "SHOW_STRIP" });
-    setTimeout(() => {
-      sampleStripRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    setPickerOpen(true);
   };
 
-  // --- Sample selected from strip ---
-  const handleSampleSelect = async (file: File) => {
-    abortExtract();
-    dispatch({ type: "CLEAR_FOR_NEW_YARN" });
-    await handleYarnUpload(file);
-  };
+  const handleYarnAdd = async (
+    file: File,
+    label: string,
+    source: "sample" | "upload",
+    originalSrc?: string,
+  ) => {
+    const id = crypto.randomUUID();
+    const controller = new AbortController();
+    abortersRef.current.set(id, controller);
 
-  // --- Change yarn (go back to swatch selection) ---
-  const handleChangeYarn = () => {
-    abortExtract();
-    dispatch({ type: "CLEAR_FOR_NEW_YARN" });
-  };
-
-  // --- Yarn upload ---
-  const handleYarnUpload = async (file: File) => {
     try {
       const resized = await resizeImage(file, 400);
-      dispatch({ type: "SET_YARN_IMAGE", file: resized });
-    } catch (err) {
-      console.error("Yarn resize failed:", err);
-      dispatch({
-        type: "SET_ERROR",
-        error: err instanceof Error ? err.message : "Could not process yarn image",
-      });
-    }
-  };
+      const previewUrl =
+        source === "sample" && originalSrc
+          ? originalSrc
+          : await fileToDataUrl(resized);
 
-  // --- Garment upload ---
-  const handleGarmentUpload = async (file: File, previewUrl: string) => {
-    try {
-      const resized = await resizeImage(file, 500);
-      dispatch({ type: "SET_GARMENT", file: resized, previewUrl });
-    } catch (err) {
-      console.error("Garment resize failed:", err);
-      dispatch({
-        type: "SET_ERROR",
-        error: err instanceof Error ? err.message : "Could not process garment image",
-      });
-    }
-  };
+      dispatch({ type: "ADD_YARN_PENDING", id, label, previewUrl });
 
-  // --- Extract colors (auto-triggers on yarn upload) ---
-  useEffect(() => {
-    if (!state.yarnImage) return;
-
-    let cancelled = false;
-
-    const extractColors = async () => {
-      dispatch({ type: "START_EXTRACTION" });
-
-      try {
-        const formData = new FormData();
-        formData.append("file", state.yarnImage!);
-        formData.append("n_colors", "10");
-
-        const response = await extractFetch(`${API_BASE_URL}/api/colors/extract`, {
-          method: "POST",
-          body: formData,
-        });
-
-        const data = await response.json();
-        if (!cancelled) {
-          dispatch({
-            type: "EXTRACTION_SUCCESS",
-            colors: data.colors,
-            percentages: data.percentages || [],
-          });
-        }
-      } catch (err) {
-        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
-        dispatch({
-          type: "EXTRACTION_ERROR",
-          error: err instanceof Error ? err.message : "Failed to extract colors",
-        });
-      }
-    };
-
-    extractColors();
-
-    return () => {
-      cancelled = true;
-      abortExtract();
-    };
-  }, [state.yarnImage, extractFetch, abortExtract, dispatch]);
-
-  // Revoke blob URLs when replaced or on unmount. Data URLs (from FileReader)
-  // are ignored by revokeObjectURL so the guard is safety, not correctness.
-  useEffect(() => {
-    const url = state.recoloredImageUrl;
-    if (!url) return;
-    return () => { URL.revokeObjectURL(url); };
-  }, [state.recoloredImageUrl]);
-
-  useEffect(() => {
-    const url = state.garmentPreviewUrl;
-    if (!url?.startsWith("blob:")) return;
-    return () => { URL.revokeObjectURL(url); };
-  }, [state.garmentPreviewUrl]);
-
-  // --- Recolor garment ---
-  const handleRecolor = async () => {
-    if (!state.garmentImage) {
-      dispatch({ type: "SET_ERROR", error: "Please upload a garment image" });
-      return;
-    }
-    if (state.extractedColors.length === 0) {
-      dispatch({ type: "SET_ERROR", error: "Please upload yarn first to extract colors" });
-      return;
-    }
-
-    dispatch({ type: "START_RECOLOR" });
-
-    try {
       const formData = new FormData();
-      formData.append("file", state.garmentImage);
-      formData.append("colors", JSON.stringify(state.extractedColors));
-      if (state.colorPercentages.length > 0) {
-        formData.append("percentages", JSON.stringify(state.colorPercentages));
-      }
+      formData.append("file", resized);
+      formData.append("n_colors", "10");
 
-      const response = await recolorFetch(`${API_BASE_URL}/api/garments/recolor`, {
+      const response = await fetch(`${API_BASE_URL}/api/colors/extract`, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
-      const blob = await response.blob();
-      dispatch({ type: "RECOLOR_SUCCESS", imageUrl: URL.createObjectURL(blob) });
+      if (!response.ok) {
+        throw new Error(`Extraction failed (HTTP ${response.status})`);
+      }
+
+      const data = await response.json();
+      dispatch({
+        type: "ADD_YARN_SUCCESS",
+        id,
+        palette: data.colors,
+        percentages: data.percentages || [],
+      });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      dispatch({
-        type: "RECOLOR_ERROR",
-        error: err instanceof Error ? err.message : "Failed to recolor garment. Please try again.",
-      });
-      console.error("Recolor error:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to extract colours";
+      dispatch({ type: "ADD_YARN_ERROR", id, errorMessage });
+    } finally {
+      abortersRef.current.delete(id);
     }
   };
 
-  // --- Download recolored image ---
-  const handleDownload = () => {
-    if (!state.recoloredImageUrl) return;
-    const a = document.createElement("a");
-    a.href = state.recoloredImageUrl;
-    a.download = "chromaknit-recoloured.png";
-    a.click();
-  };
-
-  // --- Reset ---
-  const handleReset = () => {
-    abortExtract();
-    abortRecolor();
-    dispatch({ type: "RESET" });
+  const handleYarnRemove = (id: string) => {
+    const controller = abortersRef.current.get(id);
+    controller?.abort();
+    abortersRef.current.delete(id);
+    dispatch({ type: "REMOVE_YARN", id });
   };
 
   return (
     <>
-      <a href="#main-content" className="sr-only focus-visible-only">Skip to main content</a>
+      <a href="#main-content" className="sr-only focus-visible-only">
+        Skip to main content
+      </a>
       <PetalBackground />
-
       <Header onStart={handleStart} />
-
-      {/* ---- SAMPLE STRIP (tabbed workspace) ---- */}
       {state.showSampleStrip && (
-        <main id="main-content" ref={sampleStripRef}>
-          <SampleStrip
-            onSelectSample={handleSampleSelect}
-            onChangeYarn={handleChangeYarn}
-            isExtracting={state.isExtractingColors}
-            extractedColors={state.extractedColors}
-            activeTab={state.activeTab}
-            onTabChange={(tab) => dispatch({ type: "SET_TAB", tab })}
-            resetKey={state.resetKey}
-            onGarmentUpload={handleGarmentUpload}
-            onGarmentClear={() => {
-              abortRecolor();
-              dispatch({ type: "CLEAR_GARMENT" });
-            }}
-            garmentImage={state.garmentImage}
-            isRecoloring={state.isRecoloring}
-            recoloredImageUrl={state.recoloredImageUrl}
-            garmentPreviewUrl={state.garmentPreviewUrl}
-            error={state.error}
-            onRecolor={handleRecolor}
-            onDownload={handleDownload}
-            onReset={handleReset}
+        <main id="main-content" className="palette-stage">
+          <YarnPalette
+            yarns={state.yarns}
+            activeYarnId={state.activeYarnId}
+            onSelect={(id) => dispatch({ type: "SET_ACTIVE_YARN", id })}
+            onRemove={handleYarnRemove}
+            onAdd={() => setPickerOpen(true)}
           />
+          {pickerOpen && (
+            <YarnPicker
+              onYarnAdd={handleYarnAdd}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
         </main>
       )}
-
       <ReportIssue />
     </>
   );

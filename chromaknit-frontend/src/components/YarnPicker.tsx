@@ -23,7 +23,12 @@ const YARN_SAMPLES: Sample[] = [
 ];
 
 interface YarnPickerProps {
-  onYarnAdd: (file: File, label: string, source: "sample" | "upload") => void;
+  onYarnAdd: (
+    file: File,
+    label: string,
+    source: "sample" | "upload",
+    originalSrc?: string,
+  ) => void;
   onClose?: () => void;
 }
 
@@ -37,7 +42,9 @@ function YarnPicker({ onYarnAdd, onClose }: YarnPickerProps) {
       const file = new File([blob], `${sample.label}.jpg`, {
         type: "image/jpeg",
       });
-      onYarnAdd(file, sample.label, "sample");
+      // Pass sample.src so the persisted previewUrl can be the stable static
+      // path. Uploads fall through to a data URL constructed in the parent.
+      onYarnAdd(file, sample.label, "sample", sample.src);
       onClose?.();
     } catch {
       // Sample fetch failed (network or 404). Picker stays open so the user
