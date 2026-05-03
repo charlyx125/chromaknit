@@ -241,6 +241,80 @@ describe("appReducer", () => {
       expect(result.yarns).toHaveLength(2);
     });
   });
+
+  describe("garment workflow (slice 1.C)", () => {
+    const session = {
+      sessionId: "srv-session-1",
+      previewUrl: "blob:fake-preview",
+      width: 800,
+      height: 600,
+    };
+
+    it("SET_GARMENT_SESSION stores the session and clears any prior recolour", () => {
+      const state = {
+        ...initialState,
+        currentRecolorUrl: "blob:stale-recolour",
+        error: "stale error",
+      };
+
+      const result = appReducer(state, {
+        type: "SET_GARMENT_SESSION",
+        session,
+      });
+
+      expect(result.garmentSession).toEqual(session);
+      expect(result.currentRecolorUrl).toBeNull();
+      expect(result.error).toBeNull();
+    });
+
+    it("CLEAR_GARMENT wipes session, current recolour, and recolouring flag", () => {
+      const state = {
+        ...initialState,
+        garmentSession: session,
+        currentRecolorUrl: "blob:current",
+        isRecoloring: true,
+      };
+
+      const result = appReducer(state, { type: "CLEAR_GARMENT" });
+
+      expect(result.garmentSession).toBeNull();
+      expect(result.currentRecolorUrl).toBeNull();
+      expect(result.isRecoloring).toBe(false);
+    });
+
+    it("START_RECOLOR sets isRecoloring true and clears prior errors", () => {
+      const state = { ...initialState, error: "prior failure" };
+
+      const result = appReducer(state, { type: "START_RECOLOR" });
+
+      expect(result.isRecoloring).toBe(true);
+      expect(result.error).toBeNull();
+    });
+
+    it("RECOLOR_SUCCESS replaces currentRecolorUrl and clears isRecoloring", () => {
+      const state = { ...initialState, isRecoloring: true };
+
+      const result = appReducer(state, {
+        type: "RECOLOR_SUCCESS",
+        url: "blob:fresh",
+      });
+
+      expect(result.currentRecolorUrl).toBe("blob:fresh");
+      expect(result.isRecoloring).toBe(false);
+    });
+
+    it("RECOLOR_ERROR sets the error and clears isRecoloring", () => {
+      const state = { ...initialState, isRecoloring: true };
+
+      const result = appReducer(state, {
+        type: "RECOLOR_ERROR",
+        error: "Server returned 500",
+      });
+
+      expect(result.error).toBe("Server returned 500");
+      expect(result.isRecoloring).toBe(false);
+    });
+  });
 });
 
 /**
