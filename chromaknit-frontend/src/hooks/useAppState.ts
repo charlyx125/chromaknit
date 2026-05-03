@@ -38,12 +38,27 @@ export interface Yarn {
   errorMessage?: string;    // populated when status === "error"
 }
 
+// --- Garment session ---
+export interface GarmentSession {
+  sessionId: string;        // server-side session id from POST /api/garments/session
+  previewUrl: string;       // local blob URL of the original garment for the BeforeAfter slider
+  width: number;
+  height: number;
+}
+
 // --- State shape ---
 export interface AppState {
   resetKey: number;
   showSampleStrip: boolean;
   yarns: Yarn[];
   activeYarnId: string | null;
+  // Garment workflow (slice 1.C)
+  garmentSession: GarmentSession | null;
+  isRecoloring: boolean;
+  // currentRecolorUrl is the blob URL currently displayed in the BeforeAfter
+  // slider. It is set from the per-yarn cache on cache hits and from the
+  // /api/garments/recolor response on cache misses.
+  currentRecolorUrl: string | null;
   error: string | null;
 }
 
@@ -52,6 +67,9 @@ export const initialState: AppState = {
   showSampleStrip: false,
   yarns: [],
   activeYarnId: null,
+  garmentSession: null,
+  isRecoloring: false,
+  currentRecolorUrl: null,
   error: null,
 };
 
@@ -65,6 +83,12 @@ export type Action =
   | { type: "REMOVE_YARN"; id: string }
   | { type: "SET_ACTIVE_YARN"; id: string | null }
   | { type: "HYDRATE_YARNS"; yarns: Yarn[] }
+  // Garment workflow (slice 1.C)
+  | { type: "SET_GARMENT_SESSION"; session: GarmentSession }
+  | { type: "CLEAR_GARMENT" }
+  | { type: "START_RECOLOR" }
+  | { type: "RECOLOR_SUCCESS"; url: string }
+  | { type: "RECOLOR_ERROR"; error: string }
   | { type: "RESET" };
 
 export function appReducer(state: AppState, action: Action): AppState {
@@ -123,6 +147,37 @@ export function appReducer(state: AppState, action: Action): AppState {
 
     case "HYDRATE_YARNS":
       return { ...state, yarns: action.yarns };
+
+    // --- Garment workflow (slice 1.C) ---
+    case "SET_GARMENT_SESSION":
+      return {
+        ...state,
+        garmentSession: action.session,
+        currentRecolorUrl: null,
+        error: null,
+      };
+
+    case "CLEAR_GARMENT":
+      return {
+        ...state,
+        garmentSession: null,
+        currentRecolorUrl: null,
+        isRecoloring: false,
+        error: null,
+      };
+
+    case "START_RECOLOR":
+      return { ...state, isRecoloring: true, error: null };
+
+    case "RECOLOR_SUCCESS":
+      return {
+        ...state,
+        isRecoloring: false,
+        currentRecolorUrl: action.url,
+      };
+
+    case "RECOLOR_ERROR":
+      return { ...state, isRecoloring: false, error: action.error };
 
     case "RESET":
       return {

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "./config";
 import { useAppState } from "./hooks/useAppState";
 import "./App.css";
@@ -7,6 +7,7 @@ import PetalBackground from "./components/PetalBackground";
 import Header from "./components/Header";
 import YarnPalette from "./components/YarnPalette";
 import YarnPicker from "./components/YarnPicker";
+import GarmentStage from "./components/GarmentStage";
 import ReportIssue from "./components/ReportIssue";
 
 function resizeImage(file: File, maxSize: number): Promise<File> {
@@ -57,11 +58,25 @@ function fileToDataUrl(file: File): Promise<string> {
 function App() {
   const [state, dispatch] = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const abortersRef = useRef<Map<string, AbortController>>(new Map());
 
-  // First-run helper: reveal the palette stage AND open the picker so the
-  // user lands directly on something actionable. Subsequent picker opens
-  // come from the YarnPalette "+" tile.
+  // Per-yarn extraction abort controllers. Refs because they are not
+  // render-driving state.
+  const extractAbortersRef = useRef<Map<string, AbortController>>(new Map());
+
+  // Per-yarn recolour blob URL cache. Key: yarn id, value: blob URL.
+  // Refs because Map mutations would not trigger re-renders even with state;
+  // the user-visible "current recolour" lives in state.currentRecolorUrl,
+  // which we update from this cache on hits and from the API on misses.
+  const recolorCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Abort controller for the in-flight recolour fetch. Refs for the same
+  // reason as above.
+  const recolorAbortRef = useRef<AbortController | null>(null);
+
+  // Abort controller for the in-flight garment session upload, if any.
+  const garmentUploadAbortRef = useRef<AbortController | null>(null);
+
+  // First-run helper: reveal the palette stage AND open the picker.
   const handleStart = () => {
     dispatch({ type: "SHOW_STRIP" });
     setPickerOpen(true);
@@ -75,7 +90,7 @@ function App() {
   ) => {
     const id = crypto.randomUUID();
     const controller = new AbortController();
-    abortersRef.current.set(id, controller);
+    extractAbortersRef.current.set(id, controller);
 
     try {
       const resized = await resizeImage(file, 400);
@@ -113,16 +128,157 @@ function App() {
         err instanceof Error ? err.message : "Failed to extract colours";
       dispatch({ type: "ADD_YARN_ERROR", id, errorMessage });
     } finally {
-      abortersRef.current.delete(id);
+      extractAbortersRef.current.delete(id);
     }
   };
 
   const handleYarnRemove = (id: string) => {
-    const controller = abortersRef.current.get(id);
+    const controller = extractAbortersRef.current.get(id);
     controller?.abort();
-    abortersRef.current.delete(id);
+    extractAbortersRef.current.delete(id);
+
+    // Evict and revoke this yarn's cached recolour blob URL, if any.
+    const cachedUrl = recolorCacheRef.current.get(id);
+    if (cachedUrl) {
+      URL.revokeObjectURL(cachedUrl);
+      recolorCacheRef.current.delete(id);
+    }
+
     dispatch({ type: "REMOVE_YARN", id });
   };
+
+  const handleGarmentUpload = async (file: File) => {
+    // Cancel any in-flight upload from a previous click before starting.
+    garmentUploadAbortRef.current?.abort();
+    const controller = new AbortController();
+    garmentUploadAbortRef.current = controller;
+
+    const previewUrl = URL.createObjectURL(file);
+
+    try {
+      const resized = await resizeImage(file, 800);
+      const formData = new FormData();
+      formData.append("file", resized);
+
+      const response = await fetch(`${API_BASE_URL}/api/garments/session`, {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Garment session failed (HTTP ${response.status})`);
+      }
+
+      const data = await response.json();
+
+      // Wipe the recolour cache from any prior session: each session has
+      // its own mask, so cached blobs from the previous garment are stale.
+      revokeAllCachedRecolours();
+
+      dispatch({
+        type: "SET_GARMENT_SESSION",
+        session: {
+          sessionId: data.session_id,
+          previewUrl,
+          width: data.width,
+          height: data.height,
+        },
+      });
+    } catch (err) {
+      URL.revokeObjectURL(previewUrl);
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to upload garment";
+      dispatch({ type: "SET_ERROR", error: errorMessage });
+    } finally {
+      if (garmentUploadAbortRef.current === controller) {
+        garmentUploadAbortRef.current = null;
+      }
+    }
+  };
+
+  const handleClearGarment = () => {
+    if (state.garmentSession) {
+      URL.revokeObjectURL(state.garmentSession.previewUrl);
+    }
+    revokeAllCachedRecolours();
+    recolorAbortRef.current?.abort();
+    recolorAbortRef.current = null;
+    garmentUploadAbortRef.current?.abort();
+    garmentUploadAbortRef.current = null;
+    dispatch({ type: "CLEAR_GARMENT" });
+  };
+
+  function revokeAllCachedRecolours() {
+    for (const url of recolorCacheRef.current.values()) {
+      URL.revokeObjectURL(url);
+    }
+    recolorCacheRef.current.clear();
+  }
+
+  // Effect: when the active yarn changes (or a session arrives) and we have
+  // both a session and a yarn ready to apply, fulfill the recolour either
+  // from the cache or via the API.
+  useEffect(() => {
+    const session = state.garmentSession;
+    const yarnId = state.activeYarnId;
+    if (!session || !yarnId) return;
+
+    const yarn = state.yarns.find((y) => y.id === yarnId);
+    if (!yarn || yarn.status !== "ready" || yarn.palette.length === 0) return;
+
+    // Cache hit: short-circuit straight to the slider.
+    const cached = recolorCacheRef.current.get(yarnId);
+    if (cached) {
+      dispatch({ type: "RECOLOR_SUCCESS", url: cached });
+      return;
+    }
+
+    // Cancel any in-flight recolour from a prior yarn switch before starting
+    // a new one. The user clicked something newer; abandon the older request.
+    recolorAbortRef.current?.abort();
+    const controller = new AbortController();
+    recolorAbortRef.current = controller;
+
+    const run = async () => {
+      dispatch({ type: "START_RECOLOR" });
+      try {
+        const formData = new FormData();
+        formData.append("session_id", session.sessionId);
+        formData.append("colors", JSON.stringify(yarn.palette));
+        if (yarn.percentages.length > 0) {
+          formData.append("percentages", JSON.stringify(yarn.percentages));
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/garments/recolor`, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Recolour failed (HTTP ${response.status})`);
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        recolorCacheRef.current.set(yarnId, url);
+        dispatch({ type: "RECOLOR_SUCCESS", url });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to recolour garment";
+        dispatch({ type: "RECOLOR_ERROR", error: errorMessage });
+      }
+    };
+
+    run();
+    // We intentionally depend on the yarn id and the session id, not the
+    // whole state.yarns array. Adding new yarns or editing other yarns
+    // should NOT re-fire the recolour for the active yarn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.activeYarnId, state.garmentSession?.sessionId]);
 
   return (
     <>
@@ -146,6 +302,14 @@ function App() {
               onClose={() => setPickerOpen(false)}
             />
           )}
+          <GarmentStage
+            session={state.garmentSession}
+            isRecoloring={state.isRecoloring}
+            currentRecolorUrl={state.currentRecolorUrl}
+            error={state.error}
+            onUpload={handleGarmentUpload}
+            onClear={handleClearGarment}
+          />
         </main>
       )}
       <ReportIssue />
