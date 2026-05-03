@@ -67,7 +67,7 @@ export interface AppState {
   error: string | null;
 }
 
-const initialState: AppState = {
+export const initialState: AppState = {
   resetKey: 0,
   activeTab: 0,
   showSampleStrip: false,
@@ -85,7 +85,7 @@ const initialState: AppState = {
 };
 
 // --- Actions ---
-type Action =
+export type Action =
   | { type: "SET_TAB"; tab: number }
   | { type: "SHOW_STRIP" }
   | { type: "SET_YARN_IMAGE"; file: File }
@@ -108,7 +108,7 @@ type Action =
   | { type: "HYDRATE_YARNS"; yarns: Yarn[] }
   | { type: "RESET" };
 
-function appReducer(state: AppState, action: Action): AppState {
+export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "SET_TAB":
       return { ...state, activeTab: action.tab };
