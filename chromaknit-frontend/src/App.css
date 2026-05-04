@@ -48,6 +48,30 @@
   width: 100%;
 }
 
+/* Phase 2 mockup: ModeToolbar sits to the left of the GarmentStage when a
+   garment is loaded. On narrow viewports the row stacks vertically so the
+   toolbar lives above the garment instead of squeezing the canvas.
+*/
+.garment-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  width: 100%;
+  justify-content: center;
+}
+
+.garment-row > .garment-stage {
+  flex: 1;
+  max-width: 720px;
+}
+
+@media (max-width: 720px) {
+  .garment-row {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
 /* Remove outline for mouse clicks */
 :focus:not(:focus-visible) {
   outline: none;

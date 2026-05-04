@@ -1,0 +1,66 @@
+.mode-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  border: 1.5px solid rgba(232, 200, 206, 0.35);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+  width: fit-content;
+  align-self: flex-start;
+}
+
+.mode-toolbar-btn {
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  background: rgba(245, 237, 232, 0.4);
+  color: #6a4a52;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 110px;
+  text-align: left;
+}
+
+.mode-toolbar-btn:hover:not(:disabled) {
+  background: rgba(232, 123, 139, 0.08);
+  color: var(--rose);
+  border-color: rgba(232, 123, 139, 0.3);
+}
+
+.mode-toolbar-btn--active {
+  background: var(--rose);
+  color: #fff;
+  border-color: var(--rose);
+  box-shadow: 0 2px 8px rgba(232, 123, 139, 0.3);
+}
+
+.mode-toolbar-btn--active:hover:not(:disabled) {
+  background: var(--rose);
+  color: #fff;
+}
+
+.mode-toolbar-btn--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mode-toolbar-pending {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #8a6870;
+  background: rgba(138, 104, 112, 0.12);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
