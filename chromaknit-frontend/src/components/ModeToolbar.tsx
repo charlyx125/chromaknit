@@ -26,8 +26,8 @@ const MODES: ModeOption[] = [
   {
     mode: "paint",
     label: "Paint",
-    description: "Paint specific regions with the active yarn (coming next)",
-    ready: false,
+    description: "Drag on the garment to paint a region with the active yarn",
+    ready: true,
   },
   {
     mode: "select",

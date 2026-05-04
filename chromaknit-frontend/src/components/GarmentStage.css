@@ -198,6 +198,11 @@
   display: block;
   width: 100%;
   height: auto;
+  touch-action: none; /* allow pointermove during drag without scrolling */
+}
+
+.garment-canvas--paint {
+  cursor: crosshair;
 }
 
 .garment-recoloring-overlay {
@@ -226,6 +231,43 @@
 
 @keyframes garment-spin {
   to { transform: rotate(360deg); }
+}
+
+/* === Brush controls (paint mode only) === */
+.garment-brush {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.garment-brush-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #6a4a52;
+}
+
+.garment-brush-label input[type="range"] {
+  flex: 1;
+  max-width: 200px;
+  accent-color: var(--rose);
+  cursor: pointer;
+}
+
+.garment-brush-preview {
+  display: inline-block;
+  border-radius: 50%;
+  border: 1.5px solid rgba(232, 200, 206, 0.6);
+  background-clip: padding-box;
+  flex-shrink: 0;
+  /* Cap so a max brush doesn't dominate the row visually. */
+  max-width: 36px;
+  max-height: 36px;
+  transform-origin: center;
 }
 
 /* === Show-original toggle (replaces the legacy compare slider) === */
