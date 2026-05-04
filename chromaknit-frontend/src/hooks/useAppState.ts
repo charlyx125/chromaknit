@@ -46,6 +46,25 @@ export interface GarmentSession {
   height: number;
 }
 
+// --- Modes and regions (Phase 2) ---
+// Auto: current Phase 1 behaviour. The whole foreground gets recoloured with
+// the active yarn.
+// Paint: user drags strokes to paint specific regions with the active yarn.
+//        Each commit produces a Region with a stroke-derived mask.
+// Select: user clicks a click-similar region to fill it (Phase 3, stubbed for now).
+export type Mode = "auto" | "paint" | "select";
+
+export interface Region {
+  id: string;
+  yarnId: string;
+  source: "auto" | "paint" | "select";
+  // mask is base64-encoded PNG bytes for serialization. The canvas builds the
+  // mask as ImageData; we encode on commit so the region is portable across
+  // network and storage boundaries.
+  maskPngBase64: string;
+  createdAt: number;
+}
+
 // --- State shape ---
 export interface AppState {
   resetKey: number;
@@ -59,6 +78,11 @@ export interface AppState {
   // slider. It is set from the per-yarn cache on cache hits and from the
   // /api/garments/recolor response on cache misses.
   currentRecolorUrl: string | null;
+  // Modes and regions (Phase 2). Auto mode keeps Phase 1 behaviour; regions
+  // is unused in auto mode and grows as the user commits paint or select
+  // strokes.
+  activeMode: Mode;
+  regions: Region[];
   error: string | null;
 }
 
@@ -70,6 +94,8 @@ export const initialState: AppState = {
   garmentSession: null,
   isRecoloring: false,
   currentRecolorUrl: null,
+  activeMode: "auto",
+  regions: [],
   error: null,
 };
 
@@ -89,6 +115,11 @@ export type Action =
   | { type: "START_RECOLOR" }
   | { type: "RECOLOR_SUCCESS"; url: string }
   | { type: "RECOLOR_ERROR"; error: string }
+  // Modes and regions (Phase 2)
+  | { type: "SET_MODE"; mode: Mode }
+  | { type: "COMMIT_REGION"; region: Region }
+  | { type: "REMOVE_REGION"; id: string }
+  | { type: "CLEAR_REGIONS" }
   | { type: "RESET" };
 
 export function appReducer(state: AppState, action: Action): AppState {
@@ -163,6 +194,10 @@ export function appReducer(state: AppState, action: Action): AppState {
         garmentSession: null,
         currentRecolorUrl: null,
         isRecoloring: false,
+        // Regions are tied to the garment's mask coordinate space; a new
+        // garment invalidates them.
+        regions: [],
+        activeMode: "auto",
         error: null,
       };
 
@@ -178,6 +213,22 @@ export function appReducer(state: AppState, action: Action): AppState {
 
     case "RECOLOR_ERROR":
       return { ...state, isRecoloring: false, error: action.error };
+
+    // --- Modes and regions (Phase 2) ---
+    case "SET_MODE":
+      return { ...state, activeMode: action.mode };
+
+    case "COMMIT_REGION":
+      return { ...state, regions: [...state.regions, action.region] };
+
+    case "REMOVE_REGION":
+      return {
+        ...state,
+        regions: state.regions.filter((r) => r.id !== action.id),
+      };
+
+    case "CLEAR_REGIONS":
+      return { ...state, regions: [] };
 
     case "RESET":
       return {

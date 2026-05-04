@@ -314,6 +314,79 @@ describe("appReducer", () => {
       expect(result.error).toBe("Server returned 500");
       expect(result.isRecoloring).toBe(false);
     });
+
+    it("CLEAR_GARMENT also clears regions and resets mode to auto", () => {
+      const state = {
+        ...initialState,
+        garmentSession: {
+          sessionId: "s",
+          previewUrl: "blob:p",
+          width: 800,
+          height: 600,
+        },
+        activeMode: "paint" as const,
+        regions: [
+          {
+            id: "r1",
+            yarnId: "y1",
+            source: "paint" as const,
+            maskPngBase64: "fake",
+            createdAt: 100,
+          },
+        ],
+      };
+
+      const result = appReducer(state, { type: "CLEAR_GARMENT" });
+
+      expect(result.regions).toEqual([]);
+      expect(result.activeMode).toBe("auto");
+      expect(result.garmentSession).toBeNull();
+    });
+  });
+
+  describe("modes and regions (Phase 2)", () => {
+    const sampleRegion = {
+      id: "region-1",
+      yarnId: "yarn-a",
+      source: "paint" as const,
+      maskPngBase64: "fake-base64",
+      createdAt: 1714000000000,
+    };
+
+    it("SET_MODE switches the active mode", () => {
+      const result = appReducer(initialState, { type: "SET_MODE", mode: "paint" });
+      expect(result.activeMode).toBe("paint");
+    });
+
+    it("COMMIT_REGION appends a region to the regions array", () => {
+      const result = appReducer(initialState, {
+        type: "COMMIT_REGION",
+        region: sampleRegion,
+      });
+      expect(result.regions).toHaveLength(1);
+      expect(result.regions[0]).toEqual(sampleRegion);
+    });
+
+    it("REMOVE_REGION drops the region with the matching id", () => {
+      const state = {
+        ...initialState,
+        regions: [
+          sampleRegion,
+          { ...sampleRegion, id: "region-2" },
+        ],
+      };
+
+      const result = appReducer(state, { type: "REMOVE_REGION", id: "region-1" });
+
+      expect(result.regions).toHaveLength(1);
+      expect(result.regions[0].id).toBe("region-2");
+    });
+
+    it("CLEAR_REGIONS empties the regions array", () => {
+      const state = { ...initialState, regions: [sampleRegion] };
+      const result = appReducer(state, { type: "CLEAR_REGIONS" });
+      expect(result.regions).toEqual([]);
+    });
   });
 });
 

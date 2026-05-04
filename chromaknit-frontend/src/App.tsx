@@ -8,6 +8,7 @@ import Header from "./components/Header";
 import YarnPalette from "./components/YarnPalette";
 import YarnPicker from "./components/YarnPicker";
 import GarmentStage from "./components/GarmentStage";
+import ModeToolbar from "./components/ModeToolbar";
 import ReportIssue from "./components/ReportIssue";
 
 function resizeImage(file: File, maxSize: number): Promise<File> {
@@ -312,14 +313,21 @@ function App() {
               onClose={() => setPickerOpen(false)}
             />
           )}
-          <GarmentStage
-            session={state.garmentSession}
-            isRecoloring={state.isRecoloring}
-            currentRecolorUrl={state.currentRecolorUrl}
-            error={state.error}
-            onUpload={handleGarmentUpload}
-            onClear={handleClearGarment}
-          />
+          <div className="garment-row">
+            <ModeToolbar
+              activeMode={state.activeMode}
+              onChange={(mode) => dispatch({ type: "SET_MODE", mode })}
+              visible={state.garmentSession !== null}
+            />
+            <GarmentStage
+              session={state.garmentSession}
+              isRecoloring={state.isRecoloring}
+              currentRecolorUrl={state.currentRecolorUrl}
+              error={state.error}
+              onUpload={handleGarmentUpload}
+              onClear={handleClearGarment}
+            />
+          </div>
         </main>
       )}
       <ReportIssue />
