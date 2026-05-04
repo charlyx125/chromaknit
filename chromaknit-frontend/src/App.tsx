@@ -229,26 +229,42 @@ function App() {
   }
 
   // Ctrl+Z (Cmd+Z on macOS) removes the most recently committed region.
-  // This is the minimum-viable undo; full undo/redo with a redo stack is
-  // Phase 2.F. We listen at window level so the shortcut works regardless
-  // of focus, and skip when a text input is focused so we don't hijack
-  // typing in the future yarn label or filename fields.
+  // Minimum-viable undo; full undo/redo with redo lands in Phase 2.F.
+  //
+  // Detection uses e.code === "KeyZ" first so non-QWERTY layouts work, with
+  // e.key as a fallback. We only block the shortcut for text-shaped inputs
+  // and contentEditable so the brush-size range slider does not swallow it
+  // when focused after a drag.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z";
-      if (!isUndo) return;
+      const isModifier = e.ctrlKey || e.metaKey;
+      if (!isModifier || e.shiftKey) return;
+      const matchesZ = e.code === "KeyZ" || e.key.toLowerCase() === "z";
+      if (!matchesZ) return;
+
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-        return;
+      if (target?.isContentEditable) return;
+      if (target?.tagName === "TEXTAREA") return;
+      if (target instanceof HTMLInputElement) {
+        const textShapedTypes = new Set([
+          "text", "search", "email", "password", "url", "tel", "number", "",
+        ]);
+        if (textShapedTypes.has(target.type)) return;
       }
-      const lastRegion = state.regions[state.regions.length - 1];
-      if (!lastRegion) return;
+
       e.preventDefault();
-      dispatch({ type: "REMOVE_REGION", id: lastRegion.id });
+      handleUndoLastRegion();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.regions]);
+
+  const handleUndoLastRegion = () => {
+    const lastRegion = state.regions[state.regions.length - 1];
+    if (!lastRegion) return;
+    dispatch({ type: "REMOVE_REGION", id: lastRegion.id });
+  };
 
   // Effect: when the active yarn changes (or a session arrives) and Auto
   // mode is active, fulfill the recolour either from the cache or via the
@@ -361,6 +377,7 @@ function App() {
               onCommitRegion={(region) =>
                 dispatch({ type: "COMMIT_REGION", region })
               }
+              onUndoLastRegion={handleUndoLastRegion}
             />
           </div>
         </main>

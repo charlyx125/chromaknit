@@ -270,6 +270,31 @@
   transform-origin: center;
 }
 
+.garment-brush-undo {
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(232, 200, 206, 0.5);
+  background: rgba(255, 255, 255, 0.6);
+  color: #6a4a52;
+  cursor: pointer;
+  margin-left: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.garment-brush-undo:hover:not(:disabled) {
+  background: rgba(232, 123, 139, 0.08);
+  border-color: var(--rose);
+  color: var(--rose);
+}
+
+.garment-brush-undo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* === Show-original toggle (replaces the legacy compare slider) === */
 .garment-toggle {
   font-family: "DM Sans", sans-serif;

@@ -93,6 +93,9 @@ interface GarmentStageProps {
   yarns: Yarn[];
   regions: Region[];
   onCommitRegion: (region: Region) => void;
+  // Undo affordance. Removes the most recently committed region. Mirrors
+  // the Ctrl+Z keyboard shortcut wired in App.tsx.
+  onUndoLastRegion: () => void;
 }
 
 /**
@@ -117,6 +120,7 @@ function GarmentStage({
   yarns,
   regions,
   onCommitRegion,
+  onUndoLastRegion,
 }: GarmentStageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -258,6 +262,11 @@ function GarmentStage({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+
+    // "Hold to see original" reveals the unmodified upload. Skip persisted
+    // regions and the in-flight stroke so the user sees the true source
+    // photo, not the source plus paint composited.
+    if (showOriginal) return;
 
     // We're going to apply HSV remaps in-place on a single ImageData buffer.
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -506,9 +515,18 @@ function GarmentStage({
                 aria-hidden="true"
               />
             </label>
+            <button
+              type="button"
+              className="garment-brush-undo"
+              onClick={onUndoLastRegion}
+              disabled={regions.length === 0}
+              title="Remove last paint stroke (Ctrl+Z)"
+            >
+              undo
+            </button>
           </div>
         )}
-        {currentRecolorUrl && (
+        {(currentRecolorUrl || regions.length > 0) && (
           <button
             type="button"
             className="garment-toggle"
