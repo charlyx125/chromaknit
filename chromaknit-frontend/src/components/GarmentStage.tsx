@@ -20,7 +20,10 @@ interface GarmentStageProps {
   isRecoloring: boolean;
   currentRecolorUrl: string | null;
   error: string | null;
-  onUpload: (file: File) => void;
+  // Returns a promise so the stage can show its own loading state on the
+  // clicked sample tile / upload button while the parent's handler is in
+  // flight (rembg can take a couple of seconds, so visible feedback matters).
+  onUpload: (file: File) => Promise<void> | void;
   onClear: () => void;
 }
 
@@ -46,27 +49,52 @@ function GarmentStage({
   const [position, setPosition] = useState(50);
   const draggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  // Tracks which sample is currently uploading so we can show a per-tile
+  // spinner. The whole sample grid disables while one is in flight to
+  // prevent confused multi-click states.
+  const [uploadingSampleLabel, setUploadingSampleLabel] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-    if (file.size > 5 * 1024 * 1024) return;
-    onUpload(file);
     e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setLocalError("That file is not an image. Pick a JPG or PNG.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      setLocalError(`That image is ${mb}MB. The upload limit is 5MB. Try resizing first.`);
+      return;
+    }
+    setLocalError(null);
+    setIsUploadingFile(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   const handleSampleClick = async (sample: GarmentSample) => {
+    setUploadingSampleLabel(sample.label);
     try {
       const response = await fetch(sample.src);
       const blob = await response.blob();
       const file = new File([blob], `${sample.label}.jpg`, { type: "image/jpeg" });
-      onUpload(file);
-    } catch {
-      // Sample fetch failed (network or 404). The upload tile is still
-      // available; no surfaced error.
+      await onUpload(file);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Could not load that sample.";
+      setLocalError(errorMessage);
+    } finally {
+      setUploadingSampleLabel(null);
     }
   };
+
+  const anyUploadInFlight = isUploadingFile || uploadingSampleLabel !== null;
 
   if (!session) {
     return (
@@ -74,13 +102,23 @@ function GarmentStage({
         <div className="garment-empty-card">
           <button
             type="button"
-            className="garment-upload-tile"
+            className={`garment-upload-tile${isUploadingFile ? " garment-upload-tile--loading" : ""}`}
             onClick={() => inputRef.current?.click()}
             aria-label="Upload a garment image"
+            disabled={anyUploadInFlight}
           >
-            <span className="garment-upload-plus" aria-hidden="true">+</span>
-            <span className="garment-upload-title">upload a garment</span>
-            <span className="garment-upload-hint">flat-lay or worn, jpg or png, up to 5MB</span>
+            {isUploadingFile ? (
+              <>
+                <span className="garment-upload-spinner" aria-hidden="true" />
+                <span className="garment-upload-title">uploading...</span>
+              </>
+            ) : (
+              <>
+                <span className="garment-upload-plus" aria-hidden="true">+</span>
+                <span className="garment-upload-title">upload a garment</span>
+                <span className="garment-upload-hint">flat-lay or worn, jpg or png, up to 5MB</span>
+              </>
+            )}
           </button>
           <p className="garment-samples-label">or try a sample</p>
           <div
@@ -88,18 +126,25 @@ function GarmentStage({
             role="group"
             aria-label="Garment samples"
           >
-            {GARMENT_SAMPLES.map((sample) => (
-              <button
-                key={sample.label}
-                type="button"
-                className="garment-sample-card"
-                onClick={() => handleSampleClick(sample)}
-                aria-label={`Use ${sample.label} sample`}
-              >
-                <img src={sample.src} alt="" />
-                <span className="garment-sample-label">{sample.label}</span>
-              </button>
-            ))}
+            {GARMENT_SAMPLES.map((sample) => {
+              const isThisLoading = uploadingSampleLabel === sample.label;
+              return (
+                <button
+                  key={sample.label}
+                  type="button"
+                  className={`garment-sample-card${isThisLoading ? " garment-sample-card--loading" : ""}`}
+                  onClick={() => handleSampleClick(sample)}
+                  aria-label={`Use ${sample.label} sample`}
+                  disabled={anyUploadInFlight}
+                >
+                  <img src={sample.src} alt="" />
+                  <span className="garment-sample-label">{sample.label}</span>
+                  {isThisLoading && (
+                    <span className="garment-sample-spinner" role="status" aria-label="Uploading" />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
         <input
@@ -110,8 +155,8 @@ function GarmentStage({
           onChange={handleFileChange}
           style={{ display: "none" }}
         />
-        {error && (
-          <p className="garment-stage-error" role="alert">{error}</p>
+        {(localError || error) && (
+          <p className="garment-stage-error" role="alert">{localError || error}</p>
         )}
       </section>
     );

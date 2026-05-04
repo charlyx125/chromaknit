@@ -38,11 +38,31 @@
   font-family: "DM Sans", sans-serif;
 }
 
-.garment-upload-tile:hover {
+.garment-upload-tile:hover:not(:disabled) {
   background: rgba(232, 123, 139, 0.06);
   border-color: var(--rose);
   color: var(--rose);
   transform: translateY(-2px);
+}
+
+.garment-upload-tile:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.garment-upload-tile--loading {
+  border-style: solid;
+  border-color: var(--rose);
+  color: var(--rose);
+}
+
+.garment-upload-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(232, 123, 139, 0.25);
+  border-top-color: var(--rose);
+  border-radius: 50%;
+  animation: garment-spin 0.9s linear infinite;
 }
 
 .garment-samples-label {
@@ -73,10 +93,35 @@
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.garment-sample-card:hover {
+.garment-sample-card:hover:not(:disabled) {
   transform: translateY(-2px);
   border-color: var(--rose);
   box-shadow: 0 6px 18px rgba(232, 123, 139, 0.18);
+}
+
+.garment-sample-card:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
+.garment-sample-card--loading {
+  opacity: 1;
+  border-color: var(--rose);
+  box-shadow: 0 0 0 2px var(--rose);
+}
+
+.garment-sample-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 3px solid rgba(250, 246, 240, 0.6);
+  border-top-color: var(--rose);
+  border-radius: 50%;
+  animation: garment-spin 0.9s linear infinite;
+  background: rgba(42, 31, 40, 0.35);
 }
 
 .garment-sample-card img {
