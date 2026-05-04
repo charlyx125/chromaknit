@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HSV remap port spike</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1280px;
+      margin: 32px auto;
+      padding: 0 24px;
+      color: #2a1f28;
+      background: #faf6f0;
+    }
+    h1 { font-weight: 500; font-size: 20px; }
+    p { color: #6a4a52; font-size: 14px; line-height: 1.5; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .panel {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+    }
+    .panel-label {
+      padding: 8px 12px;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: #f5ede8;
+      color: #6a4a52;
+      border-bottom: 1px solid #ddd;
+    }
+    .panel canvas, .panel img {
+      width: 100%;
+      display: block;
+    }
+    .meta {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #6a4a52;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .meta dl { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; margin: 0; }
+    .meta dt { color: #8a6870; }
+    .meta code { font-family: ui-monospace, monospace; font-size: 11px; }
+    .swatch {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 4px;
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+    .stats {
+      margin-top: 16px;
+      font-size: 13px;
+    }
+    .stat { display: inline-block; margin-right: 24px; }
+    .stat strong { color: #2a1f28; }
+  </style>
+</head>
+<body>
+  <h1>HSV remap: server (Python) vs client (JS port)</h1>
+  <p>
+    The point of this spike: decide whether the JS port matches the server output
+    closely enough that paint mode can show a live preview without committed
+    strokes "snapping" when the server confirms. Eyeball the three panels below;
+    if the rightmost (diff) panel is mostly black with only minor speckle, the
+    port is good enough for live preview.
+  </p>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="panel-label">Server reference (Python)</div>
+      <img id="reference-img" alt="Server reference" />
+    </div>
+    <div class="panel">
+      <div class="panel-label">JS port (client)</div>
+      <canvas id="js-output"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Per-pixel diff (8x amplified)</div>
+      <canvas id="diff-output"></canvas>
+    </div>
+  </div>
+
+  <div class="meta">
+    <dl>
+      <dt>Input image</dt><dd id="meta-input">loading...</dd>
+      <dt>Mask</dt><dd id="meta-mask"></dd>
+      <dt>Palette</dt><dd id="meta-palette"></dd>
+      <dt>Weights</dt><dd id="meta-weights"></dd>
+      <dt>Dimensions</dt><dd id="meta-dims"></dd>
+    </dl>
+    <div class="stats">
+      <span class="stat"><strong>Mean abs RGB diff:</strong> <span id="stat-mean">-</span></span>
+      <span class="stat"><strong>Max abs RGB diff:</strong> <span id="stat-max">-</span></span>
+      <span class="stat"><strong>Pixels w/ diff &gt; 8:</strong> <span id="stat-over">-</span></span>
+    </div>
+  </div>
+
+  <script src="recolour.js"></script>
+  <script>
+    async function main() {
+      const meta = await fetch("refs/metadata.json").then(r => r.json());
+
+      // Populate meta panel.
+      document.getElementById("meta-input").textContent = meta.input;
+      document.getElementById("meta-mask").textContent = meta.mask;
+      document.getElementById("meta-dims").textContent = `${meta.width} x ${meta.height}`;
+      document.getElementById("meta-weights").textContent = meta.weights ? JSON.stringify(meta.weights) : "(equal-band)";
+      document.getElementById("meta-palette").innerHTML = meta.palette.map(
+        (c) => `<span class="swatch" style="background:${c}"></span><code>${c}</code>`
+      ).join(" ");
+
+      // Show the server reference.
+      const refImg = document.getElementById("reference-img");
+      refImg.src = "refs/" + meta.reference;
+
+      // Wait for input + mask to load.
+      const [inputImg, maskImg] = await Promise.all([
+        loadImage("refs/" + meta.input),
+        loadImage("refs/" + meta.mask),
+      ]);
+
+      // Read input pixels into RGBA.
+      const w = meta.width;
+      const h = meta.height;
+      const inputCanvas = document.createElement("canvas");
+      inputCanvas.width = w;
+      inputCanvas.height = h;
+      const ictx = inputCanvas.getContext("2d");
+      ictx.drawImage(inputImg, 0, 0);
+      const inputData = ictx.getImageData(0, 0, w, h);
+
+      // Read mask: extract single channel from RGB.
+      const maskCanvas = document.createElement("canvas");
+      maskCanvas.width = w;
+      maskCanvas.height = h;
+      const mctx = maskCanvas.getContext("2d");
+      mctx.drawImage(maskImg, 0, 0);
+      const maskData = mctx.getImageData(0, 0, w, h);
+      const mask = new Uint8Array(w * h);
+      for (let i = 0; i < mask.length; i++) {
+        // mask was saved as grayscale-in-RGB; pick R channel.
+        mask[i] = maskData.data[i * 4];
+      }
+
+      // Run JS port.
+      const t0 = performance.now();
+      const portedRgba = window.recolourLocal(
+        inputData.data, mask, w, h, meta.palette, meta.weights,
+      );
+      const t1 = performance.now();
+      console.log(`JS port took ${(t1 - t0).toFixed(1)}ms for ${w}x${h}`);
+
+      // Render JS port to canvas.
+      const jsCanvas = document.getElementById("js-output");
+      jsCanvas.width = w;
+      jsCanvas.height = h;
+      const jctx = jsCanvas.getContext("2d");
+      const jsImageData = new ImageData(portedRgba, w, h);
+      jctx.putImageData(jsImageData, 0, 0);
+
+      // Wait for the reference <img> to load, then compute diff.
+      await new Promise((resolve) => {
+        if (refImg.complete) resolve();
+        else refImg.onload = resolve;
+      });
+
+      const refCanvas = document.createElement("canvas");
+      refCanvas.width = w;
+      refCanvas.height = h;
+      const rctx = refCanvas.getContext("2d");
+      rctx.drawImage(refImg, 0, 0);
+      const refData = rctx.getImageData(0, 0, w, h).data;
+
+      // Build amplified diff + stats.
+      const diffData = new Uint8ClampedArray(w * h * 4);
+      let totalAbs = 0;
+      let maxAbs = 0;
+      let overEight = 0;
+      let countedPixels = 0;
+      for (let i = 0; i < w * h; i++) {
+        const px = i * 4;
+        if (mask[i] < 128) {
+          // background: render dark grey, do not count in stats.
+          diffData[px] = 24;
+          diffData[px + 1] = 24;
+          diffData[px + 2] = 24;
+          diffData[px + 3] = 255;
+          continue;
+        }
+        const dr = Math.abs(portedRgba[px] - refData[px]);
+        const dg = Math.abs(portedRgba[px + 1] - refData[px + 1]);
+        const db = Math.abs(portedRgba[px + 2] - refData[px + 2]);
+        const avg = (dr + dg + db) / 3;
+        totalAbs += avg;
+        if (avg > maxAbs) maxAbs = avg;
+        if (avg > 8) overEight++;
+        countedPixels++;
+        // Amplify by 8x for visibility, clamp at 255.
+        diffData[px] = Math.min(255, dr * 8);
+        diffData[px + 1] = Math.min(255, dg * 8);
+        diffData[px + 2] = Math.min(255, db * 8);
+        diffData[px + 3] = 255;
+      }
+
+      const diffCanvas = document.getElementById("diff-output");
+      diffCanvas.width = w;
+      diffCanvas.height = h;
+      const dctx = diffCanvas.getContext("2d");
+      dctx.putImageData(new ImageData(diffData, w, h), 0, 0);
+
+      const meanAbs = countedPixels > 0 ? (totalAbs / countedPixels).toFixed(2) : "-";
+      const overPct = countedPixels > 0 ? ((overEight / countedPixels) * 100).toFixed(1) : "-";
+      document.getElementById("stat-mean").textContent = meanAbs + " / 255";
+      document.getElementById("stat-max").textContent = maxAbs.toFixed(0) + " / 255";
+      document.getElementById("stat-over").textContent = overEight + " (" + overPct + "%)";
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    main().catch((err) => {
+      console.error(err);
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<pre style="color:#b34556;background:#fdecee;padding:12px;border-radius:8px;margin-top:16px">${err.message}</pre>`,
+      );
+    });
+  </script>
+</body>
+</html>
