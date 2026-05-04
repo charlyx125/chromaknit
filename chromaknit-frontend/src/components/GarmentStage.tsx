@@ -272,6 +272,11 @@ function GarmentStage({
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let dirty = false;
 
+    // The garment-wide brightness range was computed once when the session
+    // loaded. Pass it to every recolourLocal call so adjacent strokes share
+    // the same shadow-to-highlight normalisation and don't show seams.
+    const range = session?.brightnessRange ?? null;
+
     // Persisted regions, in commit order. Each region carries the yarn id it
     // was painted with; we look that yarn up in the full yarns prop. If the
     // yarn was removed since (or its extraction never finished), skip.
@@ -288,6 +293,7 @@ function GarmentStage({
         canvas.height,
         yarn.palette,
         yarn.percentages.length === yarn.palette.length ? yarn.percentages : null,
+        range,
       );
       dirty = true;
     }
@@ -304,6 +310,7 @@ function GarmentStage({
         activeYarn.percentages.length === activeYarn.palette.length
           ? activeYarn.percentages
           : null,
+        range,
       );
       dirty = true;
     }

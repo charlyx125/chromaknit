@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "./config";
 import { useAppState } from "./hooks/useAppState";
+import { computeGarmentBrightnessRange } from "./lib/recolourLocal";
 import "./App.css";
 
 import PetalBackground from "./components/PetalBackground";
@@ -74,6 +75,26 @@ async function decodeMaskPngBase64(base64: string): Promise<Uint8Array> {
   const out = new Uint8Array(img.width * img.height);
   for (let i = 0; i < out.length; i++) out[i] = data[i * 4];
   return out;
+}
+
+// Read the original garment image into an RGBA pixel buffer at the given
+// canvas dimensions. Used to compute the foreground brightness range once
+// per session so paint mode strokes share the same normalisation window.
+async function readGarmentImageRgba(
+  blobUrl: string,
+  width: number,
+  height: number,
+): Promise<Uint8ClampedArray> {
+  const img = new Image();
+  img.src = blobUrl;
+  await img.decode();
+  const off = document.createElement("canvas");
+  off.width = width;
+  off.height = height;
+  const ctx = off.getContext("2d");
+  if (!ctx) throw new Error("Could not get 2D context for image read");
+  ctx.drawImage(img, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height).data;
 }
 
 function App() {
@@ -212,6 +233,18 @@ function App() {
         ? await decodeMaskPngBase64(data.mask_png_b64)
         : new Uint8Array(data.width * data.height).fill(255);
 
+      // Compute the garment-wide brightness range from the original image
+      // pixels so every paint stroke shares the same normalisation window.
+      // Without this, adjacent strokes show seams because each stroke's
+      // recolour computes its own range from its own masked pixels.
+      const originalRgba = await readGarmentImageRgba(previewUrl, data.width, data.height);
+      const brightnessRange = computeGarmentBrightnessRange(
+        originalRgba,
+        foregroundMask,
+        data.width,
+        data.height,
+      );
+
       // Wipe the recolour cache from any prior session: each session has
       // its own mask, so cached blobs from the previous garment are stale.
       revokeAllCachedRecolours();
@@ -224,6 +257,7 @@ function App() {
           width: data.width,
           height: data.height,
           foregroundMask,
+          brightnessRange,
         },
       });
     } catch (err) {
