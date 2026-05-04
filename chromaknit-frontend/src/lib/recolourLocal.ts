@@ -74,6 +74,44 @@ function percentile(sorted: Float32Array, p: number): number {
   return sorted[lo] * (1 - frac) + sorted[hi] * frac;
 }
 
+/**
+ * Compute the 2nd / 98th percentile brightness (V) range over the foreground
+ * pixels of an RGBA buffer.
+ *
+ * Used by paint mode so every stroke maps brightness against the same
+ * garment-wide range. Without this, each stroke computes its own range from
+ * its own masked pixels, and adjacent strokes show visible seams where the
+ * normalisation disagrees.
+ */
+export function computeGarmentBrightnessRange(
+  rgba: Uint8ClampedArray,
+  foregroundMask: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+): { minV: number; maxV: number } {
+  const total = width * height;
+  let fgCount = 0;
+  for (let i = 0; i < total; i++) if (foregroundMask[i] >= 128) fgCount++;
+  if (fgCount === 0) return { minV: 0, maxV: 255 };
+
+  const values = new Float32Array(fgCount);
+  let j = 0;
+  for (let i = 0; i < total; i++) {
+    if (foregroundMask[i] >= 128) {
+      const px = i * 4;
+      const r = rgba[px];
+      const g = rgba[px + 1];
+      const b = rgba[px + 2];
+      let v = r;
+      if (g > v) v = g;
+      if (b > v) v = b;
+      values[j++] = v;
+    }
+  }
+  values.sort();
+  return { minV: percentile(values, 2), maxV: percentile(values, 98) };
+}
+
 // === Pixel-to-band assignment ===
 
 function getColorMapping(
@@ -135,6 +173,12 @@ function getColorMapping(
  * @param height
  * @param hexPalette  e.g. ["#440022", "#aa3344"]
  * @param weights     optional, parallel to hexPalette, sums to ~1.
+ * @param precomputedRange  optional foreground brightness range to use
+ *                instead of computing one from this call's masked pixels.
+ *                Paint mode passes a garment-wide range so adjacent strokes
+ *                normalise consistently and don't show seams. When null,
+ *                the function falls back to per-call percentile of the
+ *                masked pixels (original whole-garment Auto-mode behaviour).
  */
 export function recolourLocal(
   rgba: Uint8ClampedArray,
@@ -143,6 +187,7 @@ export function recolourLocal(
   height: number,
   hexPalette: string[],
   weights: number[] | null = null,
+  precomputedRange: { minV: number; maxV: number } | null = null,
 ): void {
   // 1. Palette in HSV, sorted by V (brightness), with weights aligned.
   const paletteHsv = hexPalette.map((h) => {
@@ -184,30 +229,37 @@ export function recolourLocal(
     }
   }
 
-  // 3. Garment brightness range. Compute from fully-in pixels only (mask
-  //    >= 128) so soft-edge pixels at the brush boundary do not skew the
-  //    percentile. Falls back to the full set if the stroke has no fully-in
-  //    region (very small or all-feather stroke).
-  let fullyInValues: Float32Array;
-  let fullyInCount = 0;
-  for (let k = 0; k < count; k++) {
-    if (mask[indices[k]] >= 128) fullyInCount++;
-  }
-  if (fullyInCount === 0) {
-    fullyInValues = brightness;
+  // 3. Garment brightness range. If the caller passed a precomputed range
+  //    (paint mode does this so all strokes normalise consistently), use
+  //    that. Otherwise fall back to per-call percentile from the fully-in
+  //    pixels (the legacy whole-garment Auto path).
+  let garmentMinV: number;
+  let garmentMaxV: number;
+  if (precomputedRange) {
+    garmentMinV = precomputedRange.minV;
+    garmentMaxV = precomputedRange.maxV;
   } else {
-    fullyInValues = new Float32Array(fullyInCount);
-    let f = 0;
+    let fullyInCount = 0;
     for (let k = 0; k < count; k++) {
-      if (mask[indices[k]] >= 128) {
-        fullyInValues[f++] = brightness[k];
+      if (mask[indices[k]] >= 128) fullyInCount++;
+    }
+    let fullyInValues: Float32Array;
+    if (fullyInCount === 0) {
+      fullyInValues = brightness;
+    } else {
+      fullyInValues = new Float32Array(fullyInCount);
+      let f = 0;
+      for (let k = 0; k < count; k++) {
+        if (mask[indices[k]] >= 128) {
+          fullyInValues[f++] = brightness[k];
+        }
       }
     }
+    const sorted = Float32Array.from(fullyInValues);
+    sorted.sort();
+    garmentMinV = percentile(sorted, 2);
+    garmentMaxV = percentile(sorted, 98);
   }
-  const sorted = Float32Array.from(fullyInValues);
-  sorted.sort();
-  const garmentMinV = percentile(sorted, 2);
-  const garmentMaxV = percentile(sorted, 98);
   let garmentRange = garmentMaxV - garmentMinV;
   if (garmentRange < 1) garmentRange = 1;
 

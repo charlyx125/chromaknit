@@ -48,6 +48,11 @@ export interface GarmentSession {
   // mode to clip strokes to the garment outline so brushes cannot bleed onto
   // the background. 1-channel uint8; values >= 128 are foreground.
   foregroundMask: Uint8Array;
+  // Garment-wide brightness range (2nd / 98th percentile of V over the
+  // foreground). Computed once when the session is created and reused for
+  // every paint stroke, so adjacent strokes normalise against the same
+  // shadow-to-highlight span and don't produce visible seams.
+  brightnessRange: { minV: number; maxV: number };
 }
 
 // --- Modes and regions (Phase 2) ---
