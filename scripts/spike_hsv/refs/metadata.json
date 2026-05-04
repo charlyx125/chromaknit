@@ -1,0 +1,22 @@
+{
+  "input": "input.png",
+  "mask": "mask.png",
+  "reference": "reference.png",
+  "palette": [
+    "#a9cdc0",
+    "#bce0d4",
+    "#8bb5a4",
+    "#d3f1e9",
+    "#5d8979"
+  ],
+  "weights": [
+    0.3192,
+    0.3007,
+    0.1658,
+    0.153,
+    0.0614
+  ],
+  "width": 800,
+  "height": 509,
+  "notes": "input.png is BGR-encoded by cv2.imwrite; the JS harness must decode it via the browser <img> tag (which auto-converts to RGB) and convert RGB->HSV using the OpenCV convention (H in [0,179], S in [0,255], V in [0,255])."
+}
