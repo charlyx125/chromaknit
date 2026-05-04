@@ -335,7 +335,15 @@ function GarmentStage({
     strokeMaskRef.current = new Uint8Array(canvas.width * canvas.height);
     isStrokingRef.current = true;
     lastPointRef.current = pt;
-    stampCircle(strokeMaskRef.current, canvas.width, canvas.height, pt.x, pt.y, brushRadius);
+    stampCircle(
+      strokeMaskRef.current,
+      canvas.width,
+      canvas.height,
+      pt.x,
+      pt.y,
+      brushRadius,
+      session?.foregroundMask,
+    );
     setStrokeTick((t) => t + 1);
   }
 
@@ -354,6 +362,7 @@ function GarmentStage({
       pt.x,
       pt.y,
       brushRadius,
+      session?.foregroundMask,
     );
     lastPointRef.current = pt;
     setStrokeTick((t) => t + 1);

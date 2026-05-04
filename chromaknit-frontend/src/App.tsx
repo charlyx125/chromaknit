@@ -56,6 +56,26 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// Decode a base64-encoded PNG mask into a 1-channel Uint8Array. The PNG is
+// drawn to an off-screen canvas, then the red channel is extracted (the
+// server encodes a single-channel grayscale PNG, which the browser surfaces
+// with R = G = B).
+async function decodeMaskPngBase64(base64: string): Promise<Uint8Array> {
+  const img = new Image();
+  img.src = `data:image/png;base64,${base64}`;
+  await img.decode();
+  const off = document.createElement("canvas");
+  off.width = img.width;
+  off.height = img.height;
+  const ctx = off.getContext("2d");
+  if (!ctx) throw new Error("Could not get 2D context for mask decode");
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, img.width, img.height).data;
+  const out = new Uint8Array(img.width * img.height);
+  for (let i = 0; i < out.length; i++) out[i] = data[i * 4];
+  return out;
+}
+
 function App() {
   const [state, dispatch] = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -183,6 +203,15 @@ function App() {
 
       const data = await response.json();
 
+      // Decode the foreground mask before dispatching so paint mode can use
+      // it from the moment the session lands. Server is meant to always
+      // include this; if it's somehow missing, fall back to an all-foreground
+      // mask (paint behaves as if there is no clipping, which is the pre-fix
+      // behaviour and matches what the user got before this change).
+      const foregroundMask = data.mask_png_b64
+        ? await decodeMaskPngBase64(data.mask_png_b64)
+        : new Uint8Array(data.width * data.height).fill(255);
+
       // Wipe the recolour cache from any prior session: each session has
       // its own mask, so cached blobs from the previous garment are stale.
       revokeAllCachedRecolours();
@@ -194,6 +223,7 @@ function App() {
           previewUrl,
           width: data.width,
           height: data.height,
+          foregroundMask,
         },
       });
     } catch (err) {

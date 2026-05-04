@@ -44,6 +44,10 @@ export interface GarmentSession {
   previewUrl: string;       // local blob URL of the original garment for the BeforeAfter slider
   width: number;
   height: number;
+  // rembg foreground mask, decoded from the session response. Used by paint
+  // mode to clip strokes to the garment outline so brushes cannot bleed onto
+  // the background. 1-channel uint8; values >= 128 are foreground.
+  foregroundMask: Uint8Array;
 }
 
 // --- Modes and regions (Phase 2) ---

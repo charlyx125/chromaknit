@@ -306,12 +306,18 @@ def _validate_garment_upload(file: UploadFile) -> None:
 async def create_garment_session(
     file: UploadFile = File(..., description="Garment image file (JPG, PNG)"),
 ):
-    """Upload a garment, run rembg once, return a session_id.
+    """Upload a garment, run rembg once, return a session_id plus mask.
 
     Subsequent calls to /api/garments/recolor reference this session_id
     instead of re-uploading and re-running background removal. The session
     is stored in memory with a sliding 30-minute TTL.
+
+    The foreground mask is also returned as a base64-encoded PNG so the
+    frontend can clip paint strokes to the garment outline. The mask is
+    a 1-channel image where 255 = foreground, 0 = background.
     """
+    import base64
+
     _validate_garment_upload(file)
 
     temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
@@ -326,6 +332,19 @@ async def create_garment_session(
             )
 
         session = session_store.create(image=recolorer.image, mask=recolorer.mask)
+
+        # Encode the rembg mask as a base64 PNG for the frontend's paint-mode
+        # clipping. Mask is 2D uint8; cv2.imencode gives us a single-channel
+        # PNG that the browser decodes into the same byte values via the
+        # red channel.
+        success, buffer = cv2.imencode(".png", session.mask)
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Could not encode foreground mask.",
+            )
+        mask_b64 = base64.b64encode(buffer.tobytes()).decode("ascii")
+
         logger.info(
             "garment session created",
             extra={
@@ -338,6 +357,7 @@ async def create_garment_session(
             "session_id": session.session_id,
             "width": session.width,
             "height": session.height,
+            "mask_png_b64": mask_b64,
         }
     finally:
         if os.path.exists(temp_path):

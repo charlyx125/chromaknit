@@ -158,18 +158,20 @@ export function recolourLocal(
     ? order.map((i) => weights[i])
     : null;
 
-  // 2. Walk the foreground pixels: gather indices and brightness (V channel).
+  // 2. Walk in-region pixels (any mask > 0). Soft-edge stamps produce
+  //    fractional alpha at the brush boundary; we colour those pixels too
+  //    but blend proportionally with the original at write time.
   const total = width * height;
-  let fgCount = 0;
-  for (let i = 0; i < total; i++) if (mask[i] >= 128) fgCount++;
-  if (fgCount === 0) return;
+  let count = 0;
+  for (let i = 0; i < total; i++) if (mask[i] > 0) count++;
+  if (count === 0) return;
 
-  const fgIndices = new Int32Array(fgCount);
-  const fgBrightness = new Float32Array(fgCount);
+  const indices = new Int32Array(count);
+  const brightness = new Float32Array(count);
   let j = 0;
   for (let i = 0; i < total; i++) {
-    if (mask[i] >= 128) {
-      fgIndices[j] = i;
+    if (mask[i] > 0) {
+      indices[j] = i;
       const px = i * 4;
       const r = rgba[px];
       const g = rgba[px + 1];
@@ -177,13 +179,32 @@ export function recolourLocal(
       let v = r;
       if (g > v) v = g;
       if (b > v) v = b;
-      fgBrightness[j] = v;
+      brightness[j] = v;
       j++;
     }
   }
 
-  // 3. Garment brightness range (2nd / 98th percentile, like the Python).
-  const sorted = Float32Array.from(fgBrightness);
+  // 3. Garment brightness range. Compute from fully-in pixels only (mask
+  //    >= 128) so soft-edge pixels at the brush boundary do not skew the
+  //    percentile. Falls back to the full set if the stroke has no fully-in
+  //    region (very small or all-feather stroke).
+  let fullyInValues: Float32Array;
+  let fullyInCount = 0;
+  for (let k = 0; k < count; k++) {
+    if (mask[indices[k]] >= 128) fullyInCount++;
+  }
+  if (fullyInCount === 0) {
+    fullyInValues = brightness;
+  } else {
+    fullyInValues = new Float32Array(fullyInCount);
+    let f = 0;
+    for (let k = 0; k < count; k++) {
+      if (mask[indices[k]] >= 128) {
+        fullyInValues[f++] = brightness[k];
+      }
+    }
+  }
+  const sorted = Float32Array.from(fullyInValues);
   sorted.sort();
   const garmentMinV = percentile(sorted, 2);
   const garmentMaxV = percentile(sorted, 98);
@@ -198,15 +219,15 @@ export function recolourLocal(
     if (c[2] > yarnMaxV) yarnMaxV = c[2];
   }
 
-  // 5. Assign each foreground pixel to a colour band.
-  const colorIndices = getColorMapping(fgBrightness, sortedPalette.length, sortedWeights);
+  // 5. Assign each in-region pixel to a colour band.
+  const colorIndices = getColorMapping(brightness, sortedPalette.length, sortedWeights);
 
-  // 6. Per-pixel: replace H/S, remap V to ±15% of yarn range around target V.
-  for (let k = 0; k < fgCount; k++) {
-    const pxIdx = fgIndices[k];
+  // 6. Per-pixel: replace H/S, remap V, blend with original by mask alpha.
+  for (let k = 0; k < count; k++) {
+    const pxIdx = indices[k];
     const px = pxIdx * 4;
     const targetHsv = sortedPalette[colorIndices[k]];
-    const originalV = fgBrightness[k];
+    const originalV = brightness[k];
 
     let normalized = (originalV - garmentMinV) / garmentRange;
     if (normalized < 0) normalized = 0;
@@ -218,17 +239,32 @@ export function recolourLocal(
     const highV = Math.min(255, targetV + spread);
     const remappedV = lowV + normalized * (highV - lowV);
 
-    const [r2, g2, b2] = hsvToRgb(targetHsv[0], targetHsv[1], remappedV);
-    rgba[px] = r2;
-    rgba[px + 1] = g2;
-    rgba[px + 2] = b2;
+    const [newR, newG, newB] = hsvToRgb(targetHsv[0], targetHsv[1], remappedV);
+    const alpha = mask[pxIdx] / 255;
+    const inv = 1 - alpha;
+    rgba[px] = rgba[px] * inv + newR * alpha;
+    rgba[px + 1] = rgba[px + 1] * inv + newG * alpha;
+    rgba[px + 2] = rgba[px + 2] * inv + newB * alpha;
     // alpha unchanged
   }
 }
 
 // === Brush mask helpers (used by paint mode) ===
 
-/** Stamp a filled circle of `radius` at (cx, cy) into a 1-channel mask. */
+// Soft brush hardness: fraction of the radius that's fully opaque before the
+// linear fade to 0. 0.7 = 70% solid core with a 30% feathered edge. Lower
+// values produce softer brushes; 1.0 reproduces the previous hard-edge stamp.
+const BRUSH_HARDNESS = 0.7;
+
+/**
+ * Stamp a soft circle of `radius` at (cx, cy) into a 1-channel mask. The
+ * circle has a fully opaque core (proportion controlled by BRUSH_HARDNESS)
+ * and a linear falloff to 0 at the edge, so painted strokes blend cleanly
+ * with the underlying image instead of producing hard binary boundaries.
+ *
+ * Optional `clip` mask: if provided, pixels where clip[i] < 128 are skipped.
+ * Used by paint mode to constrain strokes to the rembg foreground.
+ */
 export function stampCircle(
   mask: Uint8Array,
   width: number,
@@ -236,7 +272,10 @@ export function stampCircle(
   cx: number,
   cy: number,
   radius: number,
+  clip?: Uint8Array,
 ): void {
+  const innerRadius = radius * BRUSH_HARDNESS;
+  const featherRange = radius - innerRadius;
   const r2 = radius * radius;
   const yMin = Math.max(0, Math.floor(cy - radius));
   const yMax = Math.min(height - 1, Math.ceil(cy + radius));
@@ -247,9 +286,20 @@ export function stampCircle(
     const dy2 = dy * dy;
     for (let x = xMin; x <= xMax; x++) {
       const dx = x - cx;
-      if (dx * dx + dy2 <= r2) {
-        mask[y * width + x] = 255;
+      const distSq = dx * dx + dy2;
+      if (distSq > r2) continue;
+      const idx = y * width + x;
+      if (clip && clip[idx] < 128) continue;
+      const dist = Math.sqrt(distSq);
+      let alpha: number;
+      if (dist <= innerRadius || featherRange <= 0) {
+        alpha = 255;
+      } else {
+        alpha = Math.round(255 * (1 - (dist - innerRadius) / featherRange));
       }
+      // Max compositing: overlapping stamps preserve the highest opacity so
+      // a slow drag doesn't accumulate beyond fully opaque.
+      if (alpha > mask[idx]) mask[idx] = alpha;
     }
   }
 }
@@ -267,6 +317,7 @@ export function stampLine(
   x1: number,
   y1: number,
   radius: number,
+  clip?: Uint8Array,
 ): void {
   const dx = x1 - x0;
   const dy = y1 - y0;
@@ -276,6 +327,6 @@ export function stampLine(
   const steps = Math.max(1, Math.ceil(dist / step));
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
-    stampCircle(mask, width, height, x0 + dx * t, y0 + dy * t, radius);
+    stampCircle(mask, width, height, x0 + dx * t, y0 + dy * t, radius, clip);
   }
 }

@@ -248,6 +248,7 @@ describe("appReducer", () => {
       previewUrl: "blob:fake-preview",
       width: 800,
       height: 600,
+      foregroundMask: new Uint8Array(800 * 600),
     };
 
     it("SET_GARMENT_SESSION stores the session and clears any prior recolour", () => {
@@ -323,6 +324,7 @@ describe("appReducer", () => {
           previewUrl: "blob:p",
           width: 800,
           height: 600,
+          foregroundMask: new Uint8Array(800 * 600),
         },
         activeMode: "paint" as const,
         regions: [
