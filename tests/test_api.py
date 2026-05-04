@@ -125,12 +125,16 @@ def _create_session(client, image_bytes):
 
 
 def test_create_session_happy_path(client, garment_image_bytes, mock_rembg):
-    """Valid garment upload returns 200 with a session_id and image dimensions."""
+    """Valid garment upload returns 200 with a session_id, dimensions, and mask."""
     body = _create_session(client, garment_image_bytes)
 
     assert isinstance(body["session_id"], str) and body["session_id"]
     assert body["width"] > 0
     assert body["height"] > 0
+    # Foreground mask is a base64 string; the frontend uses it to clip paint
+    # strokes to the garment outline.
+    assert isinstance(body["mask_png_b64"], str)
+    assert len(body["mask_png_b64"]) > 0
 
 
 def test_create_session_rejects_non_image_content_type(client, mock_rembg):
