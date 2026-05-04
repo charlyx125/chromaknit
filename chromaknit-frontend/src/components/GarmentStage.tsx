@@ -1,6 +1,66 @@
 import { useEffect, useRef, useState } from "react";
-import type { GarmentSession } from "../hooks/useAppState";
+import type { GarmentSession, Mode, Region, Yarn } from "../hooks/useAppState";
+import { recolourLocal, stampCircle, stampLine } from "../lib/recolourLocal";
 import "./GarmentStage.css";
+
+// Brush radius bounds (canvas pixels). The slider in the UI maps to this
+// range. Default sits in the middle, suitable for most flat-lay garments.
+const BRUSH_MIN = 4;
+const BRUSH_MAX = 60;
+const BRUSH_DEFAULT = 18;
+
+// Decode a base64-encoded PNG mask back to a 1-channel Uint8Array (R channel).
+async function decodeMaskPng(base64: string): Promise<Uint8Array> {
+  const img = new Image();
+  img.src = `data:image/png;base64,${base64}`;
+  await img.decode();
+  const off = document.createElement("canvas");
+  off.width = img.width;
+  off.height = img.height;
+  const offCtx = off.getContext("2d");
+  if (!offCtx) throw new Error("Could not get 2D context for mask decode");
+  offCtx.drawImage(img, 0, 0);
+  const data = offCtx.getImageData(0, 0, img.width, img.height).data;
+  const out = new Uint8Array(img.width * img.height);
+  for (let i = 0; i < out.length; i++) out[i] = data[i * 4]; // R channel
+  return out;
+}
+
+// Encode a 1-channel mask as base64 PNG bytes (without the data: prefix).
+async function encodeMaskAsBase64Png(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+): Promise<string> {
+  const off = document.createElement("canvas");
+  off.width = width;
+  off.height = height;
+  const ctx = off.getContext("2d");
+  if (!ctx) throw new Error("Could not get 2D context for mask encode");
+  const imageData = ctx.createImageData(width, height);
+  for (let i = 0; i < mask.length; i++) {
+    const px = i * 4;
+    const v = mask[i];
+    imageData.data[px] = v;
+    imageData.data[px + 1] = v;
+    imageData.data[px + 2] = v;
+    imageData.data[px + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    off.toBlob(resolve, "image/png"),
+  );
+  if (!blob) throw new Error("Could not encode mask as PNG");
+  const buffer = await blob.arrayBuffer();
+  // Convert ArrayBuffer to base64. btoa handles binary strings.
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
 
 interface GarmentSample {
   src: string;
@@ -25,6 +85,14 @@ interface GarmentStageProps {
   // flight (rembg can take a couple of seconds, so visible feedback matters).
   onUpload: (file: File) => Promise<void> | void;
   onClear: () => void;
+  // Phase 2 paint mode plumbing.
+  activeMode: Mode;
+  activeYarn: Yarn | null;
+  // All yarns, so the canvas can look up each region's yarn by id when
+  // compositing the persisted regions on top of the base.
+  yarns: Yarn[];
+  regions: Region[];
+  onCommitRegion: (region: Region) => void;
 }
 
 /**
@@ -44,11 +112,34 @@ function GarmentStage({
   error,
   onUpload,
   onClear,
+  activeMode,
+  activeYarn,
+  yarns,
+  regions,
+  onCommitRegion,
 }: GarmentStageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  // Paint brush radius in canvas pixels. Slider visible only when paint
+  // mode is active; persists across mode switches in the same session.
+  const [brushRadius, setBrushRadius] = useState(BRUSH_DEFAULT);
+  // Cached decoded base image (whichever URL we're showing right now). We
+  // hold onto the HTMLImageElement so the paint redraw can blit it
+  // synchronously instead of re-decoding the URL per stroke move.
+  const baseImageRef = useRef<HTMLImageElement | null>(null);
+  // Decoded foreground masks for each persisted region, keyed by region id.
+  // Populated lazily from region.maskPngBase64 in the regions effect.
+  const regionMasksRef = useRef<Map<string, Uint8Array>>(new Map());
+  // The mask currently being painted by an active stroke, plus tracking refs
+  // for the pointer-down state and last stamped point.
+  const strokeMaskRef = useRef<Uint8Array | null>(null);
+  const isStrokingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  // strokeTick bumps on every pointermove to force a re-render so the draw
+  // effect runs. Mutating refs alone wouldn't trigger React.
+  const [strokeTick, setStrokeTick] = useState(0);
   // Tracks which sample is currently uploading so we can show a per-tile
   // spinner. The whole sample grid disables while one is in flight to
   // prevent confused multi-click states.
@@ -95,9 +186,35 @@ function GarmentStage({
 
   const anyUploadInFlight = isUploadingFile || uploadingSampleLabel !== null;
 
-  // Draw the appropriate image to the canvas whenever the session, the
-  // current recolour, or the show-original toggle changes. Phase 2.D will
-  // extend this to also composite paint regions on top of the base layer.
+  // Decode region masks lazily as new regions arrive. We cache decoded
+  // Uint8Array masks so paint redraws don't re-parse base64 every frame.
+  useEffect(() => {
+    let cancelled = false;
+    const cache = regionMasksRef.current;
+    // Drop cached masks for regions that no longer exist.
+    const currentIds = new Set(regions.map((r) => r.id));
+    for (const id of cache.keys()) {
+      if (!currentIds.has(id)) cache.delete(id);
+    }
+
+    const decode = async () => {
+      for (const region of regions) {
+        if (cache.has(region.id)) continue;
+        const mask = await decodeMaskPng(region.maskPngBase64);
+        if (cancelled) return;
+        cache.set(region.id, mask);
+      }
+      // Trigger a redraw once any new mask lands.
+      setStrokeTick((t) => t + 1);
+    };
+    decode();
+    return () => {
+      cancelled = true;
+    };
+  }, [regions]);
+
+  // Composite the canvas: base image, then each persisted region recoloured,
+  // then the active paint stroke (if any). Runs whenever an input changes.
   useEffect(() => {
     if (!session) return;
     const canvas = canvasRef.current;
@@ -113,15 +230,159 @@ function GarmentStage({
     const img = new Image();
     img.onload = () => {
       if (cancelled) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      baseImageRef.current = img;
+      drawComposite();
     };
     img.src = targetUrl;
-
     return () => {
       cancelled = true;
     };
+    // drawComposite is referenced lexically; we want to redraw on these inputs
+    // changing. The function itself reads refs that hold the latest stroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, currentRecolorUrl, showOriginal]);
+
+  // Re-composite (without re-loading the base image) when regions or the
+  // stroke tick change. The base image is already cached in baseImageRef.
+  useEffect(() => {
+    drawComposite();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regions, strokeTick]);
+
+  function drawComposite() {
+    const canvas = canvasRef.current;
+    const baseImg = baseImageRef.current;
+    if (!canvas || !baseImg) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+
+    // We're going to apply HSV remaps in-place on a single ImageData buffer.
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let dirty = false;
+
+    // Persisted regions, in commit order. Each region carries the yarn id it
+    // was painted with; we look that yarn up in the full yarns prop. If the
+    // yarn was removed since (or its extraction never finished), skip.
+    const yarnsById = new Map(yarns.map((y) => [y.id, y]));
+    for (const region of regions) {
+      const mask = regionMasksRef.current.get(region.id);
+      if (!mask) continue;
+      const yarn = yarnsById.get(region.yarnId);
+      if (!yarn || yarn.status !== "ready" || yarn.palette.length === 0) continue;
+      recolourLocal(
+        imageData.data,
+        mask,
+        canvas.width,
+        canvas.height,
+        yarn.palette,
+        yarn.percentages.length === yarn.palette.length ? yarn.percentages : null,
+      );
+      dirty = true;
+    }
+
+    // Active in-flight stroke.
+    const stroke = strokeMaskRef.current;
+    if (stroke && activeYarn && activeYarn.palette.length > 0) {
+      recolourLocal(
+        imageData.data,
+        stroke,
+        canvas.width,
+        canvas.height,
+        activeYarn.palette,
+        activeYarn.percentages.length === activeYarn.palette.length
+          ? activeYarn.percentages
+          : null,
+      );
+      dirty = true;
+    }
+
+    if (dirty) ctx.putImageData(imageData, 0, 0);
+  }
+
+  // === Paint mode pointer handlers ===
+  const paintEnabled =
+    activeMode === "paint" && session !== null && activeYarn !== null && activeYarn.status === "ready";
+
+  function pointerToCanvas(clientX: number, clientY: number): { x: number; y: number } | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((clientY - rect.top) / rect.height) * canvas.height;
+    return { x, y };
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!paintEnabled) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const pt = pointerToCanvas(e.clientX, e.clientY);
+    if (!pt) return;
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    strokeMaskRef.current = new Uint8Array(canvas.width * canvas.height);
+    isStrokingRef.current = true;
+    lastPointRef.current = pt;
+    stampCircle(strokeMaskRef.current, canvas.width, canvas.height, pt.x, pt.y, brushRadius);
+    setStrokeTick((t) => t + 1);
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!paintEnabled || !isStrokingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas || !strokeMaskRef.current || !lastPointRef.current) return;
+    const pt = pointerToCanvas(e.clientX, e.clientY);
+    if (!pt) return;
+    stampLine(
+      strokeMaskRef.current,
+      canvas.width,
+      canvas.height,
+      lastPointRef.current.x,
+      lastPointRef.current.y,
+      pt.x,
+      pt.y,
+      brushRadius,
+    );
+    lastPointRef.current = pt;
+    setStrokeTick((t) => t + 1);
+  }
+
+  function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!paintEnabled || !isStrokingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas || !strokeMaskRef.current || !activeYarn) return;
+    canvas.releasePointerCapture(e.pointerId);
+    isStrokingRef.current = false;
+    lastPointRef.current = null;
+
+    // Commit: encode the mask as a base64 PNG and dispatch to the parent.
+    encodeMaskAsBase64Png(strokeMaskRef.current, canvas.width, canvas.height)
+      .then((maskPngBase64) => {
+        onCommitRegion({
+          id: crypto.randomUUID(),
+          yarnId: activeYarn.id,
+          source: "paint",
+          maskPngBase64,
+          createdAt: Date.now(),
+        });
+        // Drop the in-flight stroke now that it's committed; the redraw
+        // effect that fires on the new region picks up the persisted version.
+        strokeMaskRef.current = null;
+        setStrokeTick((t) => t + 1);
+      })
+      .catch((err) => {
+        // Encoding shouldn't fail under normal circumstances. If it does,
+        // surface as a local error so the user knows the stroke was lost.
+        setLocalError(
+          err instanceof Error ? err.message : "Could not save the paint stroke.",
+        );
+        strokeMaskRef.current = null;
+        setStrokeTick((t) => t + 1);
+      });
+  }
 
   if (!session) {
     return (
@@ -199,7 +460,7 @@ function GarmentStage({
         <div className="garment-canvas-wrap">
           <canvas
             ref={canvasRef}
-            className="garment-canvas"
+            className={`garment-canvas${paintEnabled ? " garment-canvas--paint" : ""}`}
             width={session.width}
             height={session.height}
             aria-label={
@@ -209,6 +470,10 @@ function GarmentStage({
                   ? "Recoloured garment"
                   : "Garment"
             }
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
           />
           {isRecoloring && (
             <div className="garment-recoloring-overlay" role="status">
@@ -217,6 +482,32 @@ function GarmentStage({
             </div>
           )}
         </div>
+        {paintEnabled && (
+          <div className="garment-brush" role="group" aria-label="Brush controls">
+            <label className="garment-brush-label">
+              <span>brush size</span>
+              <input
+                type="range"
+                min={BRUSH_MIN}
+                max={BRUSH_MAX}
+                value={brushRadius}
+                onChange={(e) => setBrushRadius(Number(e.target.value))}
+                aria-valuemin={BRUSH_MIN}
+                aria-valuemax={BRUSH_MAX}
+                aria-valuenow={brushRadius}
+              />
+              <span
+                className="garment-brush-preview"
+                style={{
+                  width: brushRadius * 2,
+                  height: brushRadius * 2,
+                  background: activeYarn?.palette[0] ?? "rgba(138, 104, 112, 0.5)",
+                }}
+                aria-hidden="true"
+              />
+            </label>
+          </div>
+        )}
         {currentRecolorUrl && (
           <button
             type="button"

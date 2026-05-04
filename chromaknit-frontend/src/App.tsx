@@ -228,10 +228,35 @@ function App() {
     recolorCacheRef.current.clear();
   }
 
-  // Effect: when the active yarn changes (or a session arrives) and we have
-  // both a session and a yarn ready to apply, fulfill the recolour either
-  // from the cache or via the API.
+  // Ctrl+Z (Cmd+Z on macOS) removes the most recently committed region.
+  // This is the minimum-viable undo; full undo/redo with a redo stack is
+  // Phase 2.F. We listen at window level so the shortcut works regardless
+  // of focus, and skip when a text input is focused so we don't hijack
+  // typing in the future yarn label or filename fields.
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z";
+      if (!isUndo) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      const lastRegion = state.regions[state.regions.length - 1];
+      if (!lastRegion) return;
+      e.preventDefault();
+      dispatch({ type: "REMOVE_REGION", id: lastRegion.id });
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [state.regions]);
+
+  // Effect: when the active yarn changes (or a session arrives) and Auto
+  // mode is active, fulfill the recolour either from the cache or via the
+  // API. In Paint or Select mode the active yarn is a "loaded brush" rather
+  // than a whole-garment selector; switching yarns there should not retrigger
+  // the auto recolour.
+  useEffect(() => {
+    if (state.activeMode !== "auto") return;
     const session = state.garmentSession;
     const yarnId = state.activeYarnId;
     if (!session || !yarnId) return;
@@ -285,11 +310,12 @@ function App() {
     };
 
     run();
-    // We intentionally depend on the yarn id and the session id, not the
-    // whole state.yarns array. Adding new yarns or editing other yarns
-    // should NOT re-fire the recolour for the active yarn.
+    // We intentionally depend on yarn id, session id, and mode. Adding
+    // new yarns or editing other yarns should NOT re-fire the recolour
+    // for the active yarn. We DO want to re-fire when the user switches
+    // back to Auto from Paint, so activeMode is included.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.activeYarnId, state.garmentSession?.sessionId]);
+  }, [state.activeYarnId, state.garmentSession?.sessionId, state.activeMode]);
 
   return (
     <>
@@ -326,6 +352,15 @@ function App() {
               error={state.error}
               onUpload={handleGarmentUpload}
               onClear={handleClearGarment}
+              activeMode={state.activeMode}
+              activeYarn={
+                state.yarns.find((y) => y.id === state.activeYarnId) ?? null
+              }
+              yarns={state.yarns}
+              regions={state.regions}
+              onCommitRegion={(region) =>
+                dispatch({ type: "COMMIT_REGION", region })
+              }
             />
           </div>
         </main>
