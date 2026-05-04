@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GarmentSession } from "../hooks/useAppState";
 import "./GarmentStage.css";
 
@@ -46,9 +46,8 @@ function GarmentStage({
   onClear,
 }: GarmentStageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [position, setPosition] = useState(50);
-  const draggingRef = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   // Tracks which sample is currently uploading so we can show a per-tile
   // spinner. The whole sample grid disables while one is in flight to
@@ -95,6 +94,34 @@ function GarmentStage({
   };
 
   const anyUploadInFlight = isUploadingFile || uploadingSampleLabel !== null;
+
+  // Draw the appropriate image to the canvas whenever the session, the
+  // current recolour, or the show-original toggle changes. Phase 2.D will
+  // extend this to also composite paint regions on top of the base layer.
+  useEffect(() => {
+    if (!session) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const targetUrl = showOriginal || !currentRecolorUrl
+      ? session.previewUrl
+      : currentRecolorUrl;
+
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = targetUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, currentRecolorUrl, showOriginal]);
 
   if (!session) {
     return (
@@ -162,61 +189,27 @@ function GarmentStage({
     );
   }
 
-  // Session present. Show slider when we have a result, otherwise the
-  // original with a recolouring overlay.
-  const updatePosition = (clientX: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    setPosition(pct);
-  };
-
+  // Session present. Render onto a real <canvas> so paint mode (Phase 2.D)
+  // has a writeable surface. The canvas always shows either the original or
+  // the recoloured composite based on showOriginal; the toggle replaces the
+  // before/after slider that lived here in slice 1.C.
   return (
     <section className="garment-stage" aria-label="Garment workspace">
       <div className="garment-card">
-        <div
-          ref={containerRef}
-          className="garment-compare"
-          onMouseDown={() => { draggingRef.current = true; }}
-          onMouseUp={() => { draggingRef.current = false; }}
-          onMouseLeave={() => { draggingRef.current = false; }}
-          onMouseMove={(e) => { if (draggingRef.current) updatePosition(e.clientX); }}
-          onTouchMove={(e) => updatePosition(e.touches[0].clientX)}
-        >
-          <img
-            src={session.previewUrl}
-            alt="Original garment"
-            className="garment-img garment-img-base"
+        <div className="garment-canvas-wrap">
+          <canvas
+            ref={canvasRef}
+            className="garment-canvas"
+            width={session.width}
+            height={session.height}
+            aria-label={
+              showOriginal
+                ? "Original garment"
+                : currentRecolorUrl
+                  ? "Recoloured garment"
+                  : "Garment"
+            }
           />
-          {currentRecolorUrl && (
-            <div
-              className="garment-img-overlay"
-              style={{ clipPath: `inset(0 0 0 ${position}%)` }}
-            >
-              <img
-                src={currentRecolorUrl}
-                alt="Recoloured garment"
-                className="garment-img"
-              />
-            </div>
-          )}
-          {currentRecolorUrl && (
-            <>
-              <div
-                className="garment-divider"
-                style={{ left: `${position}%` }}
-                aria-hidden="true"
-              />
-              <div
-                className="garment-handle"
-                style={{ left: `${position}%` }}
-                aria-hidden="true"
-              >
-                {String.fromCharCode(0x25C0)}{String.fromCharCode(0x25B6)}
-              </div>
-            </>
-          )}
           {isRecoloring && (
             <div className="garment-recoloring-overlay" role="status">
               <span className="garment-recoloring-spinner" aria-hidden="true" />
@@ -225,15 +218,18 @@ function GarmentStage({
           )}
         </div>
         {currentRecolorUrl && (
-          <input
-            type="range"
-            className="garment-range"
-            min="0"
-            max="100"
-            value={position}
-            aria-label="Drag to compare original and recoloured garment"
-            onChange={(e) => setPosition(Number(e.target.value))}
-          />
+          <button
+            type="button"
+            className="garment-toggle"
+            onMouseDown={() => setShowOriginal(true)}
+            onMouseUp={() => setShowOriginal(false)}
+            onMouseLeave={() => setShowOriginal(false)}
+            onTouchStart={() => setShowOriginal(true)}
+            onTouchEnd={() => setShowOriginal(false)}
+            aria-pressed={showOriginal}
+          >
+            {showOriginal ? "showing original" : "hold to see original"}
+          </button>
         )}
         <div className="garment-actions">
           {currentRecolorUrl && (
