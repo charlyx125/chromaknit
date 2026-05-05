@@ -1,0 +1,45 @@
+# Render Blueprint for ChromaKnit's FastAPI backend.
+#
+# Why Render: free tier auto-sleeps after 15 minutes of inactivity, which
+# is the right shape for a portfolio piece with light traffic. Wake on
+# first request takes ~30 seconds. Memory and CPU billing both stop while
+# the service is asleep.
+#
+# To deploy:
+#   1. Push this file to the multi-yarn (or main) branch.
+#   2. In Render dashboard: New > Blueprint > select this repo.
+#   3. Render reads this file and creates the service.
+#   4. After first deploy, copy the service URL.
+#   5. Set Vercel's VITE_API_URL to the Render URL.
+#   6. Update CORS allowlist in api/main.py to include the new origin.
+#
+# Free-tier specifics (as of 2026):
+#   - 512 MB RAM, 0.1 CPU (shared)
+#   - Spins down after 15 min idle; wake on first request (~30s cold start)
+#   - 750 instance hours/month (covers 24/7 of one service)
+#   - Disk persists across spin-down/spin-up; wiped on redeploy
+#
+# Region: chosen frankfurt for European audience. If your audience is
+# elsewhere, adjust to oregon (US west), virginia (US east), singapore,
+# or ohio.
+
+services:
+  - type: web
+    name: chromaknit-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    rootDir: .
+    buildCommand: |
+      pip install -r requirements-api.txt && \
+      python -c "from rembg import new_session; new_session('u2netp')"
+    # The model download in the build command pre-fetches U²-Net so
+    # cold-start wakes don't pay the ~170 MB download tax. The model is
+    # then cached on the persistent disk across spin-down/spin-up.
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      # Add other env vars (API keys, etc.) here when needed.

@@ -71,6 +71,9 @@ origins = [
     "https://chromaknit.vercel.app",
     "https://chromaknit-git-main-charlyx125.vercel.app",
     "https://chromaknit-charlyx125.vercel.app",
+    # Vercel preview deploys for the multi-yarn branch (and any future branch)
+    # share the same shape; add a regex if more branches need previewing.
+    "https://chromaknit-git-multi-yarn-charlyx125.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
