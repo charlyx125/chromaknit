@@ -1,0 +1,10 @@
+{
+  "label": "blanket",
+  "width": 940,
+  "height": 1200,
+  "brightnessRange": {
+    "minV": 6.0,
+    "maxV": 49.0
+  },
+  "maskPath": "/samples/precomputed/garments/blanket-mask.png"
+}
