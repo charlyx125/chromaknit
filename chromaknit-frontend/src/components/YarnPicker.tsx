@@ -23,34 +23,21 @@ const YARN_SAMPLES: Sample[] = [
 ];
 
 interface YarnPickerProps {
-  onYarnAdd: (
-    file: File,
-    label: string,
-    source: "sample" | "upload",
-    originalSrc?: string,
-  ) => void;
+  // Upload path: hands a user-supplied File to the parent for /api/colors/extract.
+  onYarnUpload: (file: File, label: string) => void;
+  // Sample path: hands the label + static image src to the parent so it can
+  // load the precomputed palette JSON instead of round-tripping the image
+  // through the backend extractor.
+  onYarnSampleSelect: (label: string, src: string) => void;
   onClose?: () => void;
 }
 
-function YarnPicker({ onYarnAdd, onClose }: YarnPickerProps) {
+function YarnPicker({ onYarnUpload, onYarnSampleSelect, onClose }: YarnPickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSampleClick = async (sample: Sample) => {
-    try {
-      const response = await fetch(sample.src);
-      const blob = await response.blob();
-      const file = new File([blob], `${sample.label}.jpg`, {
-        type: "image/jpeg",
-      });
-      // Pass sample.src so the persisted previewUrl can be the stable static
-      // path. Uploads fall through to a data URL constructed in the parent.
-      onYarnAdd(file, sample.label, "sample", sample.src);
-      onClose?.();
-    } catch {
-      // Sample fetch failed (network or 404). Picker stays open so the user
-      // can pick something else; no surfaced error since the alternatives
-      // are right there.
-    }
+  const handleSampleClick = (sample: Sample) => {
+    onYarnSampleSelect(sample.label, sample.src);
+    onClose?.();
   };
 
   const handleUploadClick = () => {
@@ -61,7 +48,7 @@ function YarnPicker({ onYarnAdd, onClose }: YarnPickerProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     const label = file.name.replace(/\.[^.]+$/, "");
-    onYarnAdd(file, label, "upload");
+    onYarnUpload(file, label);
     onClose?.();
     e.target.value = "";
   };
