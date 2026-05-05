@@ -1,0 +1,10 @@
+{
+  "label": "socks",
+  "width": 640,
+  "height": 817,
+  "brightnessRange": {
+    "minV": 96.0,
+    "maxV": 220.0
+  },
+  "maskPath": "/samples/precomputed/garments/socks-mask.png"
+}
