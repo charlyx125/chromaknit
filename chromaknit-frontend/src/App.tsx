@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "./config";
-import { useAppState } from "./hooks/useAppState";
-import { computeGarmentBrightnessRange } from "./lib/recolourLocal";
+import { useAppState, type GarmentSession, type Yarn } from "./hooks/useAppState";
+import { computeGarmentBrightnessRange, recolourLocal } from "./lib/recolourLocal";
 import "./App.css";
 
 import PetalBackground from "./components/PetalBackground";
@@ -11,6 +11,18 @@ import YarnPicker from "./components/YarnPicker";
 import GarmentStage from "./components/GarmentStage";
 import ModeToolbar from "./components/ModeToolbar";
 import ReportIssue from "./components/ReportIssue";
+
+// Mirror of scripts/precompute_samples.py:slugify. Used to build the path to
+// the precomputed JSON / mask for a sample yarn or garment.
+function slugify(label: string): string {
+  return label.toLowerCase().replace(/ /g, "-");
+}
+
+// Sentinel prefix marking a GarmentSession that lives entirely client-side.
+// The auto-recolour effect detects this and runs the HSV remap locally
+// instead of POSTing to /api/garments/recolor (cost discipline: sample flows
+// must not hit the backend).
+const STATIC_SESSION_PREFIX = "static-";
 
 function resizeImage(file: File, maxSize: number): Promise<File> {
   return new Promise((resolve, reject) => {
@@ -57,13 +69,13 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-// Decode a base64-encoded PNG mask into a 1-channel Uint8Array. The PNG is
-// drawn to an off-screen canvas, then the red channel is extracted (the
-// server encodes a single-channel grayscale PNG, which the browser surfaces
-// with R = G = B).
-async function decodeMaskPngBase64(base64: string): Promise<Uint8Array> {
+// Decode a single-channel grayscale PNG (the browser surfaces it with
+// R = G = B) into a 1-channel Uint8Array by reading the red channel of an
+// off-screen canvas. Shared between the base64 path (server response) and
+// the URL path (precomputed static asset).
+async function decodeMaskPngFromImageSrc(src: string): Promise<Uint8Array> {
   const img = new Image();
-  img.src = `data:image/png;base64,${base64}`;
+  img.src = src;
   await img.decode();
   const off = document.createElement("canvas");
   off.width = img.width;
@@ -75,6 +87,14 @@ async function decodeMaskPngBase64(base64: string): Promise<Uint8Array> {
   const out = new Uint8Array(img.width * img.height);
   for (let i = 0; i < out.length; i++) out[i] = data[i * 4];
   return out;
+}
+
+function decodeMaskPngBase64(base64: string): Promise<Uint8Array> {
+  return decodeMaskPngFromImageSrc(`data:image/png;base64,${base64}`);
+}
+
+function decodeMaskPngFromUrl(url: string): Promise<Uint8Array> {
+  return decodeMaskPngFromImageSrc(url);
 }
 
 // Read the original garment image into an RGBA pixel buffer at the given
@@ -95,6 +115,46 @@ async function readGarmentImageRgba(
   if (!ctx) throw new Error("Could not get 2D context for image read");
   ctx.drawImage(img, 0, 0, width, height);
   return ctx.getImageData(0, 0, width, height).data;
+}
+
+// Recolour the garment entirely client-side. Reads the original sample
+// image, runs the JS port of the HSV pipeline against the precomputed
+// foreground mask, and returns a blob URL of the result. Used by the
+// sample/static path (sentinel session id starting with "static-") so the
+// demo flow stays free regardless of backend availability.
+//
+// Validated against the Python reference via the parity test in
+// chromaknit-frontend/src/lib/recolourLocal.parity.test.ts.
+async function runClientSideRecolour(
+  session: GarmentSession,
+  yarn: Yarn,
+): Promise<string> {
+  const rgba = await readGarmentImageRgba(
+    session.previewUrl,
+    session.width,
+    session.height,
+  );
+  recolourLocal(
+    rgba,
+    session.foregroundMask,
+    session.width,
+    session.height,
+    yarn.palette,
+    yarn.percentages.length === yarn.palette.length ? yarn.percentages : null,
+    session.brightnessRange,
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = session.width;
+  canvas.height = session.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get 2D context for recolour output");
+  const imageData = new ImageData(rgba, session.width, session.height);
+  ctx.putImageData(imageData, 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/png"),
+  );
+  if (!blob) throw new Error("Could not encode recolour as PNG");
+  return URL.createObjectURL(blob);
 }
 
 function App() {
@@ -134,22 +194,17 @@ function App() {
     }, 80);
   };
 
-  const handleYarnAdd = async (
-    file: File,
-    label: string,
-    source: "sample" | "upload",
-    originalSrc?: string,
-  ) => {
+  // Upload path: user-supplied yarn file. Hits /api/colors/extract because
+  // the palette is unique to this image. Cost is bounded by upload size and
+  // by Phase C rate limits.
+  const handleYarnUpload = async (file: File, label: string) => {
     const id = crypto.randomUUID();
     const controller = new AbortController();
     extractAbortersRef.current.set(id, controller);
 
     try {
       const resized = await resizeImage(file, 400);
-      const previewUrl =
-        source === "sample" && originalSrc
-          ? originalSrc
-          : await fileToDataUrl(resized);
+      const previewUrl = await fileToDataUrl(resized);
 
       dispatch({ type: "ADD_YARN_PENDING", id, label, previewUrl });
 
@@ -181,6 +236,47 @@ function App() {
       dispatch({ type: "ADD_YARN_ERROR", id, errorMessage });
     } finally {
       extractAbortersRef.current.delete(id);
+    }
+  };
+
+  // Sample path: load the precomputed palette JSON shipped under
+  // /samples/precomputed/yarns/. No backend call. The JSON is generated by
+  // scripts/precompute_samples.py and committed alongside the sample image.
+  // If the JSON is missing (e.g. a new sample was added without re-running
+  // the script), the yarn surfaces an error rather than silently falling
+  // back to the API: a fallback would defeat the cost-protection guarantee.
+  const handleYarnSampleSelect = async (label: string, src: string) => {
+    // Same sample already in the palette? Treat the click as a re-select
+    // rather than a duplicate add. Sample previewUrls are stable static
+    // paths (e.g. /samples/yarn-mint.jpg), so they're a reliable identity
+    // key for samples. Uploaded yarns use unique data URLs, so this never
+    // collides with an upload.
+    const existing = state.yarns.find((y) => y.previewUrl === src);
+    if (existing) {
+      dispatch({ type: "SET_ACTIVE_YARN", id: existing.id });
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    dispatch({ type: "ADD_YARN_PENDING", id, label, previewUrl: src });
+
+    try {
+      const slug = slugify(label);
+      const response = await fetch(`/samples/precomputed/yarns/${slug}.json`);
+      if (!response.ok) {
+        throw new Error(`Sample palette not found (HTTP ${response.status})`);
+      }
+      const data = await response.json();
+      dispatch({
+        type: "ADD_YARN_SUCCESS",
+        id,
+        palette: data.palette,
+        percentages: data.percentages || [],
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load sample yarn";
+      dispatch({ type: "ADD_YARN_ERROR", id, errorMessage });
     }
   };
 
@@ -273,6 +369,59 @@ function App() {
     }
   };
 
+  // Sample path: load the precomputed garment metadata + foreground mask
+  // shipped under /samples/precomputed/garments/. Builds a sentinel session
+  // (sessionId starts with "static-") so the auto-recolour effect knows to
+  // run client-side. No backend call.
+  const handleGarmentSampleSelect = async (label: string, src: string) => {
+    // Cancel any in-flight upload or sample load. Reuses the upload abort ref
+    // because both paths produce the same kind of state transition (a new
+    // session) and a newer click should win over an older in-flight load.
+    garmentUploadAbortRef.current?.abort();
+    const controller = new AbortController();
+    garmentUploadAbortRef.current = controller;
+
+    try {
+      const slug = slugify(label);
+      const metaResponse = await fetch(
+        `/samples/precomputed/garments/${slug}.json`,
+        { signal: controller.signal },
+      );
+      if (!metaResponse.ok) {
+        throw new Error(`Sample garment not found (HTTP ${metaResponse.status})`);
+      }
+      const data = await metaResponse.json();
+
+      const foregroundMask = await decodeMaskPngFromUrl(data.maskPath);
+      if (controller.signal.aborted) return;
+
+      // A new session invalidates the per-yarn recolour cache (the cached
+      // blobs were rendered against the previous garment's mask).
+      revokeAllCachedRecolours();
+
+      dispatch({
+        type: "SET_GARMENT_SESSION",
+        session: {
+          sessionId: `${STATIC_SESSION_PREFIX}${slug}`,
+          previewUrl: src,
+          width: data.width,
+          height: data.height,
+          foregroundMask,
+          brightnessRange: data.brightnessRange,
+        },
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load sample garment";
+      dispatch({ type: "SET_ERROR", error: errorMessage });
+    } finally {
+      if (garmentUploadAbortRef.current === controller) {
+        garmentUploadAbortRef.current = null;
+      }
+    }
+  };
+
   const handleClearGarment = () => {
     if (state.garmentSession) {
       URL.revokeObjectURL(state.garmentSession.previewUrl);
@@ -353,9 +502,38 @@ function App() {
 
     // Cancel any in-flight recolour from a prior yarn switch before starting
     // a new one. The user clicked something newer; abandon the older request.
+    // The same controller doubles as a cancellation token for the static
+    // path (which has no fetch to abort but still needs to skip its dispatch
+    // if a newer recolour has started while it was running).
     recolorAbortRef.current?.abort();
     const controller = new AbortController();
     recolorAbortRef.current = controller;
+
+    // Static session: run the JS port of the HSV pipeline locally instead of
+    // POSTing to /api/garments/recolor. Cost-discipline guarantee: clicking
+    // through every sample yarn against a sample garment must never hit the
+    // backend.
+    if (session.sessionId.startsWith(STATIC_SESSION_PREFIX)) {
+      const run = async () => {
+        dispatch({ type: "START_RECOLOR" });
+        try {
+          const url = await runClientSideRecolour(session, yarn);
+          if (controller.signal.aborted) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          recolorCacheRef.current.set(yarnId, url);
+          dispatch({ type: "RECOLOR_SUCCESS", url });
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          const errorMessage =
+            err instanceof Error ? err.message : "Failed to recolour garment";
+          dispatch({ type: "RECOLOR_ERROR", error: errorMessage });
+        }
+      };
+      run();
+      return;
+    }
 
     const run = async () => {
       dispatch({ type: "START_RECOLOR" });
@@ -415,7 +593,8 @@ function App() {
           />
           {pickerOpen && (
             <YarnPicker
-              onYarnAdd={handleYarnAdd}
+              onYarnUpload={handleYarnUpload}
+              onYarnSampleSelect={handleYarnSampleSelect}
               onClose={() => setPickerOpen(false)}
             />
           )}
@@ -431,6 +610,7 @@ function App() {
               currentRecolorUrl={state.currentRecolorUrl}
               error={state.error}
               onUpload={handleGarmentUpload}
+              onSampleSelect={handleGarmentSampleSelect}
               onClear={handleClearGarment}
               activeMode={state.activeMode}
               activeYarn={

@@ -81,9 +81,13 @@ interface GarmentStageProps {
   currentRecolorUrl: string | null;
   error: string | null;
   // Returns a promise so the stage can show its own loading state on the
-  // clicked sample tile / upload button while the parent's handler is in
-  // flight (rembg can take a couple of seconds, so visible feedback matters).
+  // upload button while the parent's handler is in flight (rembg can take a
+  // couple of seconds, so visible feedback matters).
   onUpload: (file: File) => Promise<void> | void;
+  // Sample path: the parent loads precomputed mask + metadata from
+  // /samples/precomputed/garments/. Fast (no rembg), but still async, so the
+  // tile shows its spinner while in flight.
+  onSampleSelect: (label: string, src: string) => Promise<void> | void;
   onClear: () => void;
   // Phase 2 paint mode plumbing.
   activeMode: Mode;
@@ -114,6 +118,7 @@ function GarmentStage({
   currentRecolorUrl,
   error,
   onUpload,
+  onSampleSelect,
   onClear,
   activeMode,
   activeYarn,
@@ -175,10 +180,11 @@ function GarmentStage({
   const handleSampleClick = async (sample: GarmentSample) => {
     setUploadingSampleLabel(sample.label);
     try {
-      const response = await fetch(sample.src);
-      const blob = await response.blob();
-      const file = new File([blob], `${sample.label}.jpg`, { type: "image/jpeg" });
-      await onUpload(file);
+      // Hand off to the parent's static-asset path. The parent reads the
+      // precomputed JSON + mask under /samples/precomputed/garments/ and
+      // dispatches a sentinel session that the auto-recolour effect handles
+      // entirely client-side.
+      await onSampleSelect(sample.label, sample.src);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Could not load that sample.";
@@ -226,9 +232,21 @@ function GarmentStage({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const targetUrl = showOriginal || !currentRecolorUrl
-      ? session.previewUrl
-      : currentRecolorUrl;
+    // Paint mode always composites against the ORIGINAL garment, never
+    // against an Auto-mode recolour. Two reasons:
+    //   1. UX: Paint should show "the original garment with my brush
+    //      strokes on it", not "the auto-recoloured garment with my
+    //      strokes on top". Otherwise switching Auto -> Paint shows the
+    //      auto-recolour bleeding through.
+    //   2. Math: recolourLocal reads V from whatever's underneath. If the
+    //      underneath is an Auto-recoloured garment, the V values are
+    //      from that recolour, not from the original — so a stroke on
+    //      top of a white auto-recolour gets mapped to the lightest
+    //      colour of its target palette (often near-white) and
+    //      effectively disappears.
+    const useOriginal =
+      showOriginal || activeMode === "paint" || !currentRecolorUrl;
+    const targetUrl = useOriginal ? session.previewUrl : currentRecolorUrl;
 
     let cancelled = false;
     const img = new Image();
@@ -243,15 +261,23 @@ function GarmentStage({
     };
     // drawComposite is referenced lexically; we want to redraw on these inputs
     // changing. The function itself reads refs that hold the latest stroke.
+    // activeMode is included because the targetUrl computation depends on it
+    // (Paint mode always uses the original; Auto uses currentRecolorUrl).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, currentRecolorUrl, showOriginal]);
+  }, [session, currentRecolorUrl, showOriginal, activeMode]);
 
   // Re-composite (without re-loading the base image) when regions or the
   // stroke tick change. The base image is already cached in baseImageRef.
+  // activeMode is included so Paint -> Auto and Auto -> Paint redraw the
+  // overlay correctly: Auto hides regions, Paint shows them. The first
+  // effect also reloads the base image when activeMode changes (Paint uses
+  // the original; Auto uses currentRecolorUrl), which calls drawComposite
+  // via img.onload — so this dep is technically redundant but defends
+  // against a future refactor that might decouple the two effects.
   useEffect(() => {
     drawComposite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regions, strokeTick]);
+  }, [regions, strokeTick, activeMode]);
 
   function drawComposite() {
     const canvas = canvasRef.current;
@@ -267,6 +293,14 @@ function GarmentStage({
     // regions and the in-flight stroke so the user sees the true source
     // photo, not the source plus paint composited.
     if (showOriginal) return;
+
+    // Regions and the active stroke only render in Paint mode. In Auto mode
+    // the canvas shows the whole-garment recolour from currentRecolorUrl
+    // unmodified — overlaying regions on top would mix two semantically
+    // different views (whole-garment Auto + per-region Paint) and confuse
+    // the user. Regions stay in state.regions across mode switches; they're
+    // just hidden in Auto mode and re-shown when Paint comes back.
+    if (activeMode !== "paint") return;
 
     // We're going to apply HSV remaps in-place on a single ImageData buffer.
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -383,28 +417,55 @@ function GarmentStage({
     isStrokingRef.current = false;
     lastPointRef.current = null;
 
-    // Commit: encode the mask as a base64 PNG and dispatch to the parent.
-    encodeMaskAsBase64Png(strokeMaskRef.current, canvas.width, canvas.height)
+    // Capture the mask + region id synchronously. We need stable references
+    // for two reasons:
+    //   1. To pre-populate the decoded-mask cache below (so drawComposite
+    //      can render the new region the instant COMMIT_REGION lands,
+    //      without waiting for the async base64 decode in the regions
+    //      effect to round-trip).
+    //   2. To identity-check before clearing strokeMaskRef in the .then()
+    //      callback. The user may have already started a new stroke by the
+    //      time encoding finishes; nulling strokeMaskRef unconditionally
+    //      would clobber the new stroke's buffer and silently lose its
+    //      pointermove stamps.
+    const strokeMask = strokeMaskRef.current;
+    const newRegionId = crypto.randomUUID();
+
+    // Pre-cache so drawComposite has the mask without waiting for the
+    // regions effect's base64 -> Uint8Array decode round-trip. Without
+    // this, between COMMIT_REGION and decode-complete there's a frame
+    // where neither the active stroke nor the persisted region is drawn,
+    // and the user sees the stroke flash off and back on.
+    regionMasksRef.current.set(newRegionId, strokeMask);
+
+    encodeMaskAsBase64Png(strokeMask, canvas.width, canvas.height)
       .then((maskPngBase64) => {
         onCommitRegion({
-          id: crypto.randomUUID(),
+          id: newRegionId,
           yarnId: activeYarn.id,
           source: "paint",
           maskPngBase64,
           createdAt: Date.now(),
         });
-        // Drop the in-flight stroke now that it's committed; the redraw
-        // effect that fires on the new region picks up the persisted version.
-        strokeMaskRef.current = null;
+        // Only clear if the stroke ref still points to the mask we just
+        // encoded. A new pointerDown may have replaced it with a fresh
+        // buffer mid-encode; nulling that would lose the in-flight stroke.
+        if (strokeMaskRef.current === strokeMask) {
+          strokeMaskRef.current = null;
+        }
         setStrokeTick((t) => t + 1);
       })
       .catch((err) => {
         // Encoding shouldn't fail under normal circumstances. If it does,
-        // surface as a local error so the user knows the stroke was lost.
+        // surface as a local error so the user knows the stroke was lost,
+        // and clean up the cache entry that won't have a region to belong to.
+        regionMasksRef.current.delete(newRegionId);
         setLocalError(
           err instanceof Error ? err.message : "Could not save the paint stroke.",
         );
-        strokeMaskRef.current = null;
+        if (strokeMaskRef.current === strokeMask) {
+          strokeMaskRef.current = null;
+        }
         setStrokeTick((t) => t + 1);
       });
   }
