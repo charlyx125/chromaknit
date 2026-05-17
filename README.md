@@ -19,7 +19,7 @@ license: mit
 
 Upload yarn photo → Extract colors automatically → Recolor any garment
 
-> **Note:** Backend hosted on Railway (no cold starts). See [Deployment Guide](docs/DEPLOYMENT.md) for details.
+> **Note:** Backend hosted on HuggingFace Spaces (free tier, sleep-on-idle). First upload after a long idle period takes ~30-60 seconds while the container wakes; subsequent requests are fast. Sample yarns and garments run entirely client-side and never hit the backend. See [Deployment Guide](docs/DEPLOYMENT.md) for details.
 
 ---
 
@@ -417,9 +417,9 @@ Complete end-to-end workflow (yarn color extraction → background removal → g
 - **Background Removal** stays constant (~1.6s locally) due to fixed model inference time
 - **Garment Recoloring** is negligible (<0.05s)
 
-### Production Performance (Railway Free Tier)
+### Previous Production Performance (Railway Free Tier, historical)
 
-After optimizations (April 2026), production performance on Railway's constrained CPU:
+The numbers below were measured on Railway's free tier after the April 2026 optimizations. The backend has since moved to HuggingFace Spaces (see [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md)). HF Spaces adds a 30 to 60 second cold-start on the first request after a long idle period, but warm-request performance is broadly comparable. Re-benchmarking on HF Spaces is pending.
 
 | Operation | Before | After | Improvement |
 |-----------|--------|-------|-------------|
@@ -488,10 +488,12 @@ After optimizations (April 2026), production performance on Railway's constraine
 
 ### ✅ Phase 4: Polish & Deployment (Complete)
 
-- ✅ Backend deployment (Railway) - https://chromaknit-production.up.railway.app
+- ✅ Backend deployment (HuggingFace Spaces) - https://charlyx125-chromaknit-backend.hf.space
 - ✅ Frontend deployment (Vercel) - https://chromaknit.vercel.app
 - ✅ Lazy loading optimization for memory-constrained hosting
 - ✅ CORS configuration for production
+- ✅ Static-first sample flow (no backend involvement for sample yarns/garments) — see [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md)
+- ✅ Platform pivot from Railway to HuggingFace Spaces (May 2026) for sleep-on-idle billing — see [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md)
 - Drag-and-drop upload with drag events (future)
 - Mobile responsive polish (future)
 - Performance optimizations (future)

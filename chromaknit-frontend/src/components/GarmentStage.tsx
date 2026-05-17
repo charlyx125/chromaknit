@@ -154,6 +154,21 @@ function GarmentStage({
   // prevent confused multi-click states.
   const [uploadingSampleLabel, setUploadingSampleLabel] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  // Cold-start signal: the HuggingFace Spaces backend sleeps when idle and
+  // takes ~30-60 seconds to wake on first request. If the upload is still in
+  // flight after 5 seconds we swap the spinner copy so the user knows it
+  // isn't broken. The warm path (request finishes in <5s) never trips this.
+  const [isWarming, setIsWarming] = useState(false);
+  const warmingTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (warmingTimerRef.current !== null) {
+        window.clearTimeout(warmingTimerRef.current);
+        warmingTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -170,9 +185,17 @@ function GarmentStage({
     }
     setLocalError(null);
     setIsUploadingFile(true);
+    warmingTimerRef.current = window.setTimeout(() => {
+      setIsWarming(true);
+    }, 5000);
     try {
       await onUpload(file);
     } finally {
+      if (warmingTimerRef.current !== null) {
+        window.clearTimeout(warmingTimerRef.current);
+        warmingTimerRef.current = null;
+      }
+      setIsWarming(false);
       setIsUploadingFile(false);
     }
   };
@@ -484,7 +507,14 @@ function GarmentStage({
             {isUploadingFile ? (
               <>
                 <span className="garment-upload-spinner" aria-hidden="true" />
-                <span className="garment-upload-title">uploading...</span>
+                {isWarming ? (
+                  <>
+                    <span className="garment-upload-title">warming up the backend</span>
+                    <span className="garment-upload-hint">give it about 30 seconds, this only happens once</span>
+                  </>
+                ) : (
+                  <span className="garment-upload-title">uploading...</span>
+                )}
               </>
             ) : (
               <>

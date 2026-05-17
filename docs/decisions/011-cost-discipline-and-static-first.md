@@ -1,7 +1,7 @@
 # Decision 011: Cost Discipline and the Static-First Migration
 
 **Date:** May 2026
-**Status:** Accepted
+**Status:** Accepted (updated 2026-05-17: see end)
 **Author:** Joyce Chong
 
 ---
@@ -223,3 +223,29 @@ Reopen this ADR if any of the following becomes true:
 Adopt the static-first architecture. Stay on Railway Hobby with manual pause discipline. Add the four code-level guardrails before Phase 2 ships. Defer Path B and Path C. Enforce the three-part discipline rule in `CLAUDE.md` at code review.
 
 Total expected monthly cost at current traffic patterns and discipline adherence: £0 most months, capped at the Hobby tier's $5 credit even in the worst case.
+
+---
+
+## Update: 2026-05-17 — Platform pivot to HuggingFace Spaces
+
+**What changed.** ChromaKnit's backend moved from Railway Hobby to HuggingFace Spaces (Docker SDK, free CPU basic, 16 GB RAM, 2 vCPU, sleep-on-idle).
+
+**Why.** The "Railway Hobby with manual pause discipline" decision above assumed the operator would remember to pause the project when not developing. In practice, Railway's pause behaviour returns connection-refused to public requests, which means an unpaused project bills 24/7 but a paused project breaks the upload feature for any real visitor. The discipline rule was structurally fragile: forgetting to unpause hurts users; remembering to unpause exhausts the credit. There was no "wake on request" middle ground.
+
+HuggingFace Spaces solves the structural problem: it sleeps when idle, wakes on request (~30 to 60 seconds cold start), and bills £0 throughout. The visitor pays a one-time wake latency instead of the operator paying for always-on uptime. That trade matches ChromaKnit's traffic shape (mostly idle, occasional cold start acceptable).
+
+**What this updates in the analysis above.**
+
+- The Provider Analysis table was missing HuggingFace Spaces. Adding it: free CPU basic (16 GB RAM, sleep-on-idle, free), the cleanest fit for ChromaKnit's memory shape AND its idle profile.
+- The "no free tier gives 1 GB+ RAM AND auto-sleeps" claim is now wrong. It was wrong at the time too; HF Spaces was missed in the original scan because it is positioned as an ML demo host rather than a generic Docker host.
+- The discipline rule's third clause ("paused when not developing") is now automatic rather than manual: HF Spaces sleeps itself after ~48 hours of no traffic.
+
+**What this does not change.**
+
+- Static-first is still the right architecture. The dominant flow still runs from precomputed assets with zero backend involvement.
+- The four code-level guardrails (rate limits, daily budget, semaphore, session cap, timeout) still apply; the only difference is that the backend's idle bill is zero instead of capped at the Hobby tier credit.
+- The trade-off section ("memory baseline when awake stays at ~530 MB") still applies because the model still loads in the awake container. HF Spaces does not reduce *memory while alive*, just *time alive billed to operator*.
+
+**Cold-start UX cost.** Users who upload their own garment after the Space has been idle for >48 hours see a 30 to 60 second cold start on their first request. The frontend shows a "warming up the backend" state after 5 seconds so they know it is not broken. Subsequent uploads within the same wake cycle are fast.
+
+**Rollback.** The Railway project is paused, not deleted. If HuggingFace Spaces ever fails (build will not pass, cold starts grow too long, persistent CORS issues), unpause Railway and revert `chromaknit-frontend/.env.production` to point back at the Railway URL.

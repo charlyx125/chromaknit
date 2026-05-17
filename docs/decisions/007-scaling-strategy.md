@@ -1,7 +1,7 @@
 # Decision 007: Scaling Strategy
 
 **Date:** April 2026
-**Status:** Documented (not yet needed)
+**Status:** Documented (not yet needed). Deployment platform pivoted from Railway to HuggingFace Spaces in May 2026 (see [ADR 011](011-cost-discipline-and-static-first.md)). The scaling principles below still apply; only the Railway-specific commands need substituting for whatever the active host uses if scaling becomes necessary.
 **Author:** Joyce Chong
 
 ---

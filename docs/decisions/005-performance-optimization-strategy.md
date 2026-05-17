@@ -1,7 +1,7 @@
 # ADR 005: Performance Optimization Strategy
 
 **Date:** February 2026
-**Status:** Analysis Complete, Optimizations Planned
+**Status:** Analysis Complete, Optimizations Implemented (April 2026). Deployment platform pivoted from Railway to HuggingFace Spaces in May 2026 (see [ADR 011](011-cost-discipline-and-static-first.md)). The optimisations below still apply; only the host changed.
 **Author:** Joyce Chong
 **Phase:** Post-Phase 3 Analysis
 
