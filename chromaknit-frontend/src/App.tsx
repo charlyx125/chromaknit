@@ -148,7 +148,15 @@ async function runClientSideRecolour(
   canvas.height = session.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context for recolour output");
-  const imageData = new ImageData(rgba, session.width, session.height);
+  // TypeScript 5.7+ tightened typed-array generics: getImageData().data returns
+  // Uint8ClampedArray<ArrayBufferLike> but new ImageData() wants the narrower
+  // Uint8ClampedArray<ArrayBuffer>. Runtime is identical (no SharedArrayBuffer
+  // path here), so a cast is safe and avoids a wasted buffer copy.
+  const imageData = new ImageData(
+    rgba as Uint8ClampedArray<ArrayBuffer>,
+    session.width,
+    session.height,
+  );
   ctx.putImageData(imageData, 0, 0);
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/png"),
