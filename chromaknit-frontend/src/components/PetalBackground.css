@@ -12,14 +12,3 @@
   z-index: 1;
 }
 
-.petals-layer {
-  position: fixed; inset: 0;
-  z-index: 10; pointer-events: none; overflow: hidden;
-}
-
-.petal {
-  position: absolute;
-  border-radius: 60% 40% 60% 40%;
-  opacity: 0;
-  animation: petalfall linear infinite;
-}

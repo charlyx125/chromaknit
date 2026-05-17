@@ -77,6 +77,10 @@ chromaknit-frontend/*.local
 # Local tooling
 .claude/
 
+# Local Claude planning notes and project-instructions file (keep out of repo)
+docs/claude/
+CLAUDE.md
+
 # Personal interview prep (not for public repo)
 chromaknit-interview-reference.py
 chromaknit-interview-reference.pdf
