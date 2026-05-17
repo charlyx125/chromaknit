@@ -1,3 +1,14 @@
+---
+title: ChromaKnit Backend
+emoji: 🧶
+colorFrom: pink
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # 🧶 ChromaKnit
 
 **Visualize how your yarn will look on any garment — before you knit a single stitch.**

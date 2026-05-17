@@ -78,6 +78,12 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
+    # HuggingFace Spaces hosts the backend. The parent dashboard origin is
+    # huggingface.co; the Space itself serves on its own hf.space subdomain.
+    # Both are listed so the Swagger docs and Space preview work without
+    # cross-origin surprises during smoke tests.
+    "https://huggingface.co",
+    "https://charlyx125-chromaknit-backend.hf.space",
 ]
 
 app.add_middleware(

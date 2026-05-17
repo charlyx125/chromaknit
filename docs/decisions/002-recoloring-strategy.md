@@ -187,6 +187,68 @@ recolored_hsv[self.mask > 0, 1] = new_saturation
 
 ---
 
+## The Algorithm in Plain English (Read This First)
+
+The sections below ("The HSV Breakthrough" and "Recoloring Accuracy Iterations") capture the colour-space reasoning, the iteration history, and the formal maths. They are the source of truth for the why and the how.
+
+This section gives the same algorithm in the plainest possible language so a future reader (including future-me) does not have to assemble the mental model from the technical sections. If you only read one part of this ADR, read this one.
+
+### The whole thing is two operations chained together
+
+After background removal, every garment pixel has a brightness value (V in HSV). Yarn extraction has produced 10 yarn colours each with their own brightness value and a percentage (e.g. "this yarn is 40% dark navy, 30% medium navy, 20% light navy, 10% highlight"). The recolour combines these in two steps.
+
+**Step A: Slice the garment by yarn proportions.** Sort every garment pixel by brightness, darkest first. Cut the sorted queue into chunks sized by the yarn's percentages. The darkest 40% of pixels go into the dark-navy chunk, the next 30% into the medium-navy chunk, and so on. Each pixel ends up stamped with one yarn colour. Implemented in `_get_color_mapping`.
+
+**Step B: Inside each chunk, run a basic ratio to translate brightness from the garment's range into the yarn colour's narrow window.** For each pixel, find where it sat in the garment's brightness range as a percentage ("this pixel is 14% of the way from the deepest fold to the brightest highlight"), then place it at the same percentage inside its yarn colour's destination window. Then overwrite the pixel's hue and saturation with the yarn colour's. Implemented in `_apply_hsv_recoloring`.
+
+That is the whole algorithm. Step A controls **which** yarn colour each pixel becomes. Step B controls **how bright** that pixel ends up.
+
+### The ratio in plain words
+
+> "If a pixel was 14% of the way from the garment's darkest to its brightest, then in the recolour it should be 14% of the way from its yarn band's window floor to its yarn band's window ceiling."
+
+That sentence is the entire ratio formula. The "normalisation" and "rescaling" lines in the code (`normalized = (v - garment_min) / garment_range; remapped = low + normalized * (high - low)`) are just the maths form of "preserve relative position when changing the unit of measurement". The same shape as Celsius-to-Fahrenheit conversion, or any unit conversion: find the source-relative position, place it at the same destination-relative position.
+
+### The lime-green bug, in one sentence
+
+V1 left V values in garment-units while pretending they were yarn-units. A dark green yarn applied to a bright yellow cardigan came out lime green because the garment's brightness was being preserved when it should have been converted. The current algorithm does the unit conversion explicitly. See "Recoloring Accuracy Iterations" below for the full four-iteration debug trail.
+
+### A worked example
+
+Yarn proportions: 50% dark, 30% medium, 20% light.
+
+Garment: 20% super-dark, 20% dark, 20% medium, 20% light, 20% white pixels (sorted by brightness; 20% in each natural shade).
+
+**Step A — slice the queue:**
+
+| Position in queue | Garment shade at this position | Goes to band |
+|---|---|---|
+| 0% to 20% | super-dark | dark yarn |
+| 20% to 40% | dark | dark yarn |
+| 40% to 50% | darker half of medium | dark yarn |
+| 50% to 60% | brighter half of medium | medium yarn |
+| 60% to 80% | light | medium yarn |
+| 80% to 100% | white | light yarn |
+
+50% of the garment ends up dark, 30% medium, 20% light. The yarn's character wins regardless of the garment's brightness distribution. The garment's white pixels still become the lightest yarn colour available, even though "white" is brighter than the yarn's brightest colour.
+
+**Step B — ratio inside each band:**
+
+For each pixel in the dark band, find its position in the garment's full brightness range, then place it at the same relative position inside the dark yarn's narrow V window. Same for the medium band. Same for the light band. Within each band, the relative ordering is preserved (a fold pixel that was darker than a flat-panel pixel in the garment is still darker than that flat-panel pixel in the recolour), so the texture of the original garment survives the unit conversion.
+
+### Two design properties that fall out of this
+
+1. **The yarn's character is faithfully reproduced regardless of the garment.** A 50%-dark yarn produces a 50%-dark recolour even on a balanced or bright garment. This is what makes substitution previews look honest to the knitter who knows what the yarn looks like.
+2. **The garment's relative texture survives.** Because the ratio inside each band preserves relative position, folds stay darker than highlights, stitches keep their light-and-shadow pattern. The recoloured cardigan still looks like a knitted cardigan, not a paint-bucket fill.
+
+### Where to go from here
+
+- **"The HSV Breakthrough"** below: why HSV over LAB or HLS, the colour-space reasoning, and the formal min-max normalisation maths.
+- **"Recoloring Accuracy Iterations (April 2026)"** below: the four-iteration debug trail that produced the current algorithm. The lime-green bug story lives here.
+- **`core/garment_recolor.py`**: the actual code. `_get_color_mapping` is step A; `_apply_hsv_recoloring` is step B.
+
+---
+
 ## The HSV Breakthrough
 
 > **Realistic coloring: HSV transformation preserves texture, shadows, and lighting**
@@ -317,6 +379,8 @@ The original approach preserved the garment's V channel entirely. This meant:
 1. Find the garment's brightness range (2nd–98th percentile to avoid outliers)
 2. Normalize each pixel's position within that range (0.0 = darkest, 1.0 = brightest)
 3. Map to the yarn color's brightness ± a small spread (15% of yarn range) for texture variation
+
+> Plain-English version: the V remap is a unit conversion. Each garment pixel's brightness is expressed as a percentage of the garment's range, then placed at the same percentage inside the yarn band's narrow window. Same shape as Celsius-to-Fahrenheit. See "The Algorithm in Plain English" near the top of this ADR for the full walkthrough with a worked example.
 
 This preserves the garment's **relative** lighting pattern (folds stay darker than flat areas) while shifting the **absolute** brightness to match the yarn.
 
@@ -464,6 +528,7 @@ Large (1920x1080) 1.766s
 
 - **2025-11-14:** Initial decision - Selected rembg
 - **2026-02-05:** Updated with current benchmark results
+- **2026-05-06:** Added "The Algorithm in Plain English" section near the top so the recolour walkthrough does not require reading the technical sections first. Added pointer from Iteration 4 to the new section.
 - **Future:** May revisit with SAM or custom garment segmentation model
 
 ---
