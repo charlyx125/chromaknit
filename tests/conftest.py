@@ -16,6 +16,23 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset slowapi limiter state before each test.
+
+    The limiter is module-level state in api.main; without this reset the
+    request counter persists across tests and the same client IP eventually
+    trips the 60/minute cap mid-suite, causing flaky 429s in unrelated tests.
+    """
+    from api.main import limiter
+
+    try:
+        limiter._storage.reset()
+    except (AttributeError, NotImplementedError):
+        pass
+    yield
+
+
 @pytest.fixture
 def yarn_image_bytes():
     """PNG-encoded bytes of a 100x100 synthetic image with 3 solid color blocks."""

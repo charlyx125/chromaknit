@@ -137,6 +137,31 @@ def test_extract_colors_returns_408_on_operation_timeout(
     assert "timed out" in response.json()["detail"].lower()
 
 
+def test_extract_colors_enforces_per_ip_rate_limit(client, yarn_image_bytes):
+    """61st upload from the same client within the rate window returns 429.
+
+    Guards SECURITY.md section 5: shared-worker availability protection. The
+    cap (60/minute) is sized to be invisible to normal use but stop a runaway
+    client from saturating the only Uvicorn worker. The yarn_image_bytes
+    fixture is a 100x100 PNG so each request completes in well under 100ms;
+    60 iterations run in a few seconds.
+    """
+    for i in range(60):
+        response = client.post(
+            "/api/colors/extract",
+            files={"file": ("yarn.png", yarn_image_bytes, "image/png")},
+            data={"n_colors": 3},
+        )
+        assert response.status_code != 429, f"hit 429 too early at iteration {i}"
+
+    response = client.post(
+        "/api/colors/extract",
+        files={"file": ("yarn.png", yarn_image_bytes, "image/png")},
+        data={"n_colors": 3},
+    )
+    assert response.status_code == 429
+
+
 def test_extract_colors_rejects_decompression_bomb(client, dimension_bomb_image_bytes):
     """A small file with huge declared dimensions returns 413 before cv2 decodes.
 
