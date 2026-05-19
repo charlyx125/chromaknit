@@ -6,7 +6,7 @@ REST API Patterns:
 - POST: Client → Server ("Here's data, process it")
 """
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import Response, JSONResponse
 import asyncio
 import json
@@ -16,6 +16,9 @@ import tempfile
 import os
 import cv2
 from PIL import Image as PILImage, UnidentifiedImageError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from core.log_config import setup_logging
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
@@ -31,6 +34,15 @@ MAX_IMAGE_DIMENSION = 800
 UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB
 MAX_IMAGE_PIXELS = 25_000_000  # 25 megapixels; see validate_image_dimensions
 DEFAULT_OPERATION_TIMEOUT_SECONDS = 30.0
+DEFAULT_RATE_LIMIT = "60/minute"
+
+# Per-IP rate limiter. SECURITY.md section 5: shared-worker availability,
+# not cost control. 60/minute is generous for legitimate use but stops a
+# runaway client from pinning the only Uvicorn worker (see also
+# run_in_thread_with_timeout, which bounds individual request duration).
+# In-memory storage; resets on container restart. Acceptable for single-worker
+# HF Spaces deploy.
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 
 async def save_upload_capped(file: UploadFile, max_bytes: int, suffix: str) -> str:
@@ -136,6 +148,10 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Register the slowapi limiter and its 429 exception handler.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS configuration - allow both production and development origins
 origins = [
     "https://chromaknit.vercel.app",
@@ -215,7 +231,9 @@ def health_check():
 # ============================================================================
 
 @app.post("/api/colors/extract")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def extract_colors(
+    request: Request,
     file: UploadFile = File(..., description="Yarn image file (JPG, PNG)"),
     n_colors: int = Form(default=5, ge=1, le=10, description="Number of colors to extract")
 ):
@@ -383,7 +401,9 @@ def _validate_garment_upload(file: UploadFile) -> None:
 
 
 @app.post("/api/garments/session")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def create_garment_session(
+    request: Request,
     file: UploadFile = File(..., description="Garment image file (JPG, PNG)"),
 ):
     """Upload a garment, run rembg once, return a session_id plus mask.
@@ -447,7 +467,9 @@ async def create_garment_session(
 
 
 @app.post("/api/garments/recolor")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def recolor_garment(
+    request: Request,
     session_id: str = Form(..., description="Session id returned from /api/garments/session"),
     colors: str = Form(..., description='Hex colors as JSON array ["#FF0000"] or comma-separated #FF0000,#00FF00'),
     percentages: str = Form(default="", description='Color percentages as JSON array [0.30, 0.22, 0.21]'),
