@@ -20,10 +20,16 @@ build/
 .DS_Store
 Thumbs.db
 
-# Environment variables
+# Environment variables.
+# Public-value mode files (.env.development, .env.production) ARE tracked
+# because their only contents are VITE_API_URL, which is a public value
+# (the VITE_ prefix exposes it to client bundles by design). Per
+# SECURITY.md section 1, public-value env files may be committed, and the
+# ignore rule must not contradict them. Only files that can carry secrets
+# or local overrides are ignored here.
 .env
 .env.local
-.env.production
+.env.*.local
 
 # Logs
 npm-debug.log*
