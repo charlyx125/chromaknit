@@ -49,7 +49,7 @@ The audit's `risk` column was calibrated against a "real production app with pay
 | §1 tracked `.env.development`/`.env.production` | medium | low | **fix** | Cheap; either `git rm --cached` or relax the ignore rule for consistency. |
 | §3 no magic-byte check | medium | low | accept | No serve-back. Polyglots harmless. |
 | §3 percentages not strictly validated | medium | low | accept | Worst case: a malformed weights array produces a wrong-looking recolour for the requester only. No persistence, no fan-out. |
-| §3 no decompression-bomb guard (A1) | medium | medium | **fix** | Trivially crashes the Space. ~10 lines using Pillow header-read. |
+| §3 no decompression-bomb guard (A1) | medium | medium | **resolved** | Pillow header pre-flight added in `validate_image_dimensions` ([api/main.py](api/main.py)); rejects > 25 MP before cv2 decode. Tests `test_extract_colors_rejects_decompression_bomb` and `test_create_session_rejects_decompression_bomb`. See commit `guard image uploads against decompression bombs (SECURITY.md §3)`. |
 | §3 no `colors` field length cap | medium | low | accept | Starlette caps request bodies (default 1 MB form field). Verified by reading Starlette source separately; revisit if hit. |
 | §5 no rate limit | high | medium | **fix (light)** | Platform-protected £0, but worker is single. Add slowapi with generous defaults (60/min) — main goal is to stop a runaway client from pinning the only worker, not to enforce a quota. |
 | §5 no operation timeouts (A8) | high | medium-high | **fix** | Highest realistic impact: one bad upload pins the only worker for everyone. `asyncio.wait_for` on rembg + cv2 + K-means. ~15 lines. |

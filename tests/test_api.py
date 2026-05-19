@@ -107,6 +107,26 @@ def test_extract_colors_rejects_oversized_file(client):
     assert "too large" in response.json()["detail"].lower()
 
 
+def test_extract_colors_rejects_decompression_bomb(client, dimension_bomb_image_bytes):
+    """A small file with huge declared dimensions returns 413 before cv2 decodes.
+
+    Guards SECURITY.md section 3: a uniform-content PNG with 27.5 megapixels
+    of declared size compresses to well under the 5 MB upload cap but would
+    decode to ~140 MB of raw pixels and risks OOMing the container. The
+    validate_image_dimensions header-only check must reject it before cv2.imread
+    is called.
+    """
+    response = client.post(
+        "/api/colors/extract",
+        files={"file": ("bomb.png", dimension_bomb_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 413
+    detail = response.json()["detail"].lower()
+    assert "dimensions" in detail
+    assert "megapixels" in detail
+
+
 # ============================================================================
 # POST /api/garments/session
 # ============================================================================
@@ -156,6 +176,25 @@ def test_create_session_rejects_oversized_file(client):
         files={"file": ("huge.png", oversized_payload, "image/png")},
     )
     assert response.status_code == 413
+
+
+def test_create_session_rejects_decompression_bomb(
+    client, dimension_bomb_image_bytes, mock_rembg
+):
+    """A garment upload with huge declared dimensions returns 413 before rembg runs.
+
+    Guards SECURITY.md section 3. Parallels test_extract_colors_rejects_decompression_bomb
+    for the second upload endpoint.
+    """
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("bomb.png", dimension_bomb_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 413
+    detail = response.json()["detail"].lower()
+    assert "dimensions" in detail
+    assert "megapixels" in detail
 
 
 # ============================================================================

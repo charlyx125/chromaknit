@@ -14,6 +14,7 @@ import re
 import tempfile
 import os
 import cv2
+from PIL import Image as PILImage, UnidentifiedImageError
 from core.log_config import setup_logging
 from core.yarn_color_extractor import ColorExtractor
 from core.garment_recolor import GarmentRecolorer
@@ -27,6 +28,7 @@ HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 MAX_IMAGE_DIMENSION = 800
 UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB
+MAX_IMAGE_PIXELS = 25_000_000  # 25 megapixels; see validate_image_dimensions
 
 
 async def save_upload_capped(file: UploadFile, max_bytes: int, suffix: str) -> str:
@@ -57,6 +59,36 @@ async def save_upload_capped(file: UploadFile, max_bytes: int, suffix: str) -> s
         if os.path.exists(temp_path):
             os.unlink(temp_path)
         raise
+
+
+def validate_image_dimensions(path: str) -> None:
+    """Reject images whose decoded dimensions would exceed MAX_IMAGE_PIXELS.
+
+    Header-only check via PIL: opens the file but does not call .load(), so
+    pixel data is never decoded. A 5 MB compressed PNG can decode to 800+ MB
+    of raw pixels (uniform content compresses extremely well), enough to OOM
+    a 2 GB HF Spaces container. This guard runs before cv2.imread() so the
+    bytes never reach a full decode.
+
+    See SECURITY.md section 3 (image decompression bombs).
+    """
+    try:
+        with PILImage.open(path) as img:
+            width, height = img.size
+    except UnidentifiedImageError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image file: could not read header.",
+        )
+
+    if width * height > MAX_IMAGE_PIXELS:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Image dimensions too large ({width}x{height}). "
+                f"Maximum: {MAX_IMAGE_PIXELS // 1_000_000} megapixels."
+            ),
+        )
 
 
 # Initialize FastAPI application
@@ -195,6 +227,7 @@ async def extract_colors(
     temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
 
     try:
+        validate_image_dimensions(temp_path)
         downscale_image(temp_path, max_dim=400)
         extractor = ColorExtractor(image_path=temp_path, n_colors=n_colors)
         colors = extractor.extract_dominant_colors()
@@ -331,6 +364,7 @@ async def create_garment_session(
 
     temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
     try:
+        validate_image_dimensions(temp_path)
         downscale_image(temp_path)
 
         recolorer = GarmentRecolorer(garment_image_path=temp_path)
