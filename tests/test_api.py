@@ -46,6 +46,53 @@ def test_unknown_endpoint_returns_custom_404(client):
 
 
 # ============================================================================
+# CORS origin policy (SECURITY.md section 9)
+# ============================================================================
+# These tests inspect the Access-Control-Allow-Origin header to verify that
+# the allowlist regex accepts our Vercel preview/branch URLs and rejects
+# unknown origins. They use /health because it's a fast GET that exercises
+# the CORS middleware without touching any of the slower image pipelines.
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://chromaknit.vercel.app",                                   # bare production alias
+        "https://chromaknit-charlyx125.vercel.app",                        # account-level alias
+        "https://chromaknit-git-main-charlyx125.vercel.app",               # per-branch preview
+        "https://chromaknit-git-multi-yarn-charlyx125.vercel.app",         # another branch
+        "https://chromaknit-abc123-charlyx125.vercel.app",                 # per-commit preview
+        "http://localhost:5173",                                           # dev frontend
+        "https://charlyx125-chromaknit-backend.hf.space",                  # the Space itself
+    ],
+)
+def test_cors_accepts_known_origins(client, origin):
+    """Each known shape gets an exact-match Access-Control-Allow-Origin echo."""
+    response = client.get("/health", headers={"Origin": origin})
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == origin
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://evil.com",
+        "https://chromaknit.com",                            # wrong TLD
+        "http://chromaknit.vercel.app",                      # wrong scheme
+        "https://chromaknit-evil.vercel.app",                # no -charlyx125 anchor
+        "https://chromaknit-anything-other-user.vercel.app", # different account
+        "https://evil-chromaknit-charlyx125.vercel.app",     # prefix injection
+    ],
+)
+def test_cors_rejects_unknown_origins(client, origin):
+    """Unknown origins must not receive an echo of their Origin header."""
+    response = client.get("/health", headers={"Origin": origin})
+    # The request itself still completes (CORS is enforced by browsers, not the server)
+    # but the response must not contain the origin echo that would unblock cross-site fetches.
+    assert response.headers.get("access-control-allow-origin") != origin
+
+
+# ============================================================================
 # POST /api/colors/extract
 # ============================================================================
 
