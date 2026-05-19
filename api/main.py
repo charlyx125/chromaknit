@@ -8,6 +8,7 @@ REST API Patterns:
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response, JSONResponse
+import asyncio
 import json
 import logging
 import re
@@ -29,6 +30,7 @@ HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 MAX_IMAGE_DIMENSION = 800
 UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB
 MAX_IMAGE_PIXELS = 25_000_000  # 25 megapixels; see validate_image_dimensions
+DEFAULT_OPERATION_TIMEOUT_SECONDS = 30.0
 
 
 async def save_upload_capped(file: UploadFile, max_bytes: int, suffix: str) -> str:
@@ -59,6 +61,42 @@ async def save_upload_capped(file: UploadFile, max_bytes: int, suffix: str) -> s
         if os.path.exists(temp_path):
             os.unlink(temp_path)
         raise
+
+
+async def run_in_thread_with_timeout(func, *args, timeout: float | None = None, **kwargs):
+    """Run a sync CPU-bound function in a thread, abort the await on timeout.
+
+    Returns the function's result, or raises HTTPException(408) if the deadline
+    fires first. Honest caveat: Python cannot preempt running sync code, so the
+    timeout only frees the request handler (returns 408, releases the event
+    loop). The underlying thread keeps running to completion in the default
+    executor's pool. On a single Uvicorn worker this still buys availability
+    because the event loop unblocks and can accept new requests while the
+    zombie thread finishes; the protection saturates once the thread pool is
+    exhausted (~8 default threads), at which point further uploads queue.
+
+    Reads DEFAULT_OPERATION_TIMEOUT_SECONDS at call time (not as a default-arg
+    snapshot) so tests can monkeypatch the constant to tighten the deadline.
+
+    See SECURITY.md section 5 (per-operation timeouts).
+    """
+    effective_timeout = (
+        timeout if timeout is not None else DEFAULT_OPERATION_TIMEOUT_SECONDS
+    )
+    loop = asyncio.get_running_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, lambda: func(*args, **kwargs)),
+            timeout=effective_timeout,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=408,
+            detail=(
+                f"Operation timed out after {effective_timeout:.0f}s. "
+                "Try a smaller image or retry."
+            ),
+        )
 
 
 def validate_image_dimensions(path: str) -> None:
@@ -228,9 +266,9 @@ async def extract_colors(
 
     try:
         validate_image_dimensions(temp_path)
-        downscale_image(temp_path, max_dim=400)
+        await run_in_thread_with_timeout(downscale_image, temp_path, max_dim=400)
         extractor = ColorExtractor(image_path=temp_path, n_colors=n_colors)
-        colors = extractor.extract_dominant_colors()
+        colors = await run_in_thread_with_timeout(extractor.extract_dominant_colors)
         
         # Validation 3: Check if extraction succeeded
         if not colors:
@@ -365,10 +403,11 @@ async def create_garment_session(
     temp_path = await save_upload_capped(file, MAX_FILE_SIZE, ".jpg")
     try:
         validate_image_dimensions(temp_path)
-        downscale_image(temp_path)
+        await run_in_thread_with_timeout(downscale_image, temp_path)
 
         recolorer = GarmentRecolorer(garment_image_path=temp_path)
-        if not recolorer.prepare():
+        prepared = await run_in_thread_with_timeout(recolorer.prepare)
+        if not prepared:
             raise HTTPException(
                 status_code=400,
                 detail="Could not prepare garment. The image may be corrupted or background removal failed.",
@@ -436,7 +475,10 @@ async def recolor_garment(
         return Response(content=cached, media_type="image/png")
 
     recolorer = GarmentRecolorer.from_prepared(image=session.image, mask=session.mask)
-    if not recolorer.apply_colors(color_list, weights=weight_list):
+    applied = await run_in_thread_with_timeout(
+        recolorer.apply_colors, color_list, weights=weight_list
+    )
+    if not applied:
         raise HTTPException(
             status_code=500,
             detail="Could not apply colours to the garment.",
