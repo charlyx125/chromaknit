@@ -100,8 +100,16 @@ WORKDIR $HOME/app
 #   --user: install into /home/user/.local/ instead of system Python.
 #           Required because we are not root and cannot write to system
 #           site-packages.
-COPY --chown=user:user requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+#
+# We install from requirements.lock (a fully pinned version list generated
+# by `pip-compile --output-file=requirements.lock requirements.txt`) rather
+# than requirements.txt, so every Docker rebuild gets the same dependency
+# tree. SECURITY.md section 8: pin backend deps. The unpinned
+# requirements.txt is still committed as the human-edited source of truth;
+# regenerate the lockfile after editing it via:
+#   venv/Scripts/python -m piptools compile --output-file=requirements.lock requirements.txt
+COPY --chown=user:user requirements.lock .
+RUN pip install --no-cache-dir --user -r requirements.lock
 
 
 # === SECTION 5: Pre-bake the rembg U2-Net model ===
