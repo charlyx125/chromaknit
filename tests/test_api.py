@@ -107,6 +107,36 @@ def test_extract_colors_rejects_oversized_file(client):
     assert "too large" in response.json()["detail"].lower()
 
 
+def test_extract_colors_returns_408_on_operation_timeout(
+    client, yarn_image_bytes, monkeypatch
+):
+    """A pathologically slow CPU operation returns 408 rather than blocking the worker.
+
+    Guards SECURITY.md section 5: one hostile or unlucky upload must not be
+    able to pin the only Uvicorn worker indefinitely. We tighten the timeout
+    to 200ms and patch downscale_image to sleep 1s so the timeout fires
+    deterministically. Asserts the handler returns 408 with a timed-out
+    detail message.
+    """
+    import time
+    from api import main as api_main
+
+    monkeypatch.setattr(api_main, "DEFAULT_OPERATION_TIMEOUT_SECONDS", 0.2)
+
+    def slow_downscale(*args, **kwargs):
+        time.sleep(1.0)
+
+    monkeypatch.setattr(api_main, "downscale_image", slow_downscale)
+
+    response = client.post(
+        "/api/colors/extract",
+        files={"file": ("yarn.png", yarn_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 408
+    assert "timed out" in response.json()["detail"].lower()
+
+
 def test_extract_colors_rejects_decompression_bomb(client, dimension_bomb_image_bytes):
     """A small file with huge declared dimensions returns 413 before cv2 decodes.
 
@@ -176,6 +206,33 @@ def test_create_session_rejects_oversized_file(client):
         files={"file": ("huge.png", oversized_payload, "image/png")},
     )
     assert response.status_code == 413
+
+
+def test_create_session_returns_408_on_operation_timeout(
+    client, garment_image_bytes, mock_rembg, monkeypatch
+):
+    """A pathologically slow rembg call returns 408 rather than blocking the worker.
+
+    Guards SECURITY.md section 5. Parallels the timeout test on /api/colors/extract:
+    tighten the deadline to 200ms, patch downscale_image to sleep 1s, assert 408.
+    """
+    import time
+    from api import main as api_main
+
+    monkeypatch.setattr(api_main, "DEFAULT_OPERATION_TIMEOUT_SECONDS", 0.2)
+
+    def slow_downscale(*args, **kwargs):
+        time.sleep(1.0)
+
+    monkeypatch.setattr(api_main, "downscale_image", slow_downscale)
+
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("garment.png", garment_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 408
+    assert "timed out" in response.json()["detail"].lower()
 
 
 def test_create_session_rejects_decompression_bomb(
