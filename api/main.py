@@ -152,14 +152,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS configuration - allow both production and development origins
-origins = [
-    "https://chromaknit.vercel.app",
-    "https://chromaknit-git-main-charlyx125.vercel.app",
-    "https://chromaknit-charlyx125.vercel.app",
-    # Vercel preview deploys for the multi-yarn branch (and any future branch)
-    # share the same shape; add a regex if more branches need previewing.
-    "https://chromaknit-git-multi-yarn-charlyx125.vercel.app",
+# CORS configuration. SECURITY.md section 9: for rotating preview URLs
+# (Vercel previews here), use allow_origin_regex rather than a hand-edited
+# list. The regex is anchored on `charlyx125` so a project named
+# `chromaknit-*` under a different Vercel account cannot satisfy the match.
+#
+# Vercel deploy URL shapes covered by the regex:
+#   chromaknit.vercel.app                                production alias
+#   chromaknit-charlyx125.vercel.app                     account-level alias
+#   chromaknit-git-<branch>-charlyx125.vercel.app        per-branch preview
+#   chromaknit-<commit-hash>-charlyx125.vercel.app       per-commit preview
+CORS_LITERAL_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
@@ -171,10 +174,16 @@ origins = [
     "https://huggingface.co",
     "https://charlyx125-chromaknit-backend.hf.space",
 ]
+VERCEL_ORIGIN_REGEX = (
+    r"^https://chromaknit"                       # base project name
+    r"(-(?:[a-zA-Z0-9-]+-)?charlyx125)?"         # optional: per-branch / account suffix
+    r"\.vercel\.app$"                            # mandatory vercel.app TLD
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_LITERAL_ORIGINS,
+    allow_origin_regex=VERCEL_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
