@@ -1,0 +1,1681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chromaknit · atlas mockup (v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --atlas: #FBF8F2;
+    --bone: #EBE3D2;
+    --bone-deep: #DDD3BC;
+    --ink: #0F0E0E;
+    --graphite: #3D3A38;
+    --slate: #6B6862;
+    --vermillion: #D14B2C;
+    --vermillion-deep: #A93D2C;
+    --ultramarine: #1B3A8A;
+    --mustard: #C4943C;
+    --sage: #6B7F5A;
+    --plum: #5F3551;
+    --coral: #E37564;
+    --coral-deep: #C46050;
+    --coral-tint: #F8D2C6;
+    --indigo: #1B3A8A;
+    --mint: #A8C8B5;
+    --heather: #B4A2C5;
+    --forest: #6B7F5A;
+    --scarlet: #C84438;
+    --bone-color: #E8DCC0;
+    --grid: rgba(15, 14, 14, 0.05);
+    --grid-strong: rgba(15, 14, 14, 0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--atlas);
+    color: var(--ink);
+    font-family: "Archivo", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* visible 12-col background grid */
+  body {
+    background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px);
+    background-size: calc((100vw - 96px) / 12) 100%;
+    background-position: 48px 0;
+    background-repeat: repeat;
+    position: relative;
+    min-height: 100vh;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 100;
+    opacity: 0.05; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; background: none; color: inherit; border: 0; cursor: pointer; }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 48px;
+    position: relative;
+  }
+  .mono {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--graphite);
+  }
+  .mono-caps {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--graphite);
+  }
+
+  /* ==================== INDEX BAR ==================== */
+  .index-bar {
+    border-bottom: 1px solid var(--grid-strong);
+    padding: 16px 0;
+    position: sticky; top: 0;
+    background: var(--atlas);
+    z-index: 30;
+  }
+  .index-bar-inner {
+    max-width: 1400px; margin: 0 auto;
+    padding: 0 48px;
+    display: flex;
+    justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.04em;
+    color: var(--graphite);
+  }
+  .index-bar .mark {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--ink);
+    letter-spacing: 0;
+  }
+  .index-bar .mark::before {
+    content: '— ';
+    color: var(--vermillion);
+  }
+  .index-bar nav { display: flex; gap: 28px; align-items: center; }
+  .index-bar nav a { color: var(--ink); transition: color 0.2s; }
+  .index-bar nav a:hover { color: var(--vermillion); }
+  .index-bar .file-open {
+    color: var(--vermillion) !important;
+    font-weight: 700;
+  }
+  .index-bar .crumb .red { color: var(--vermillion); font-weight: 700; }
+
+  /* spread label like the old mockup, kept tiny for reviewer */
+  .spread-label {
+    text-align: center;
+    padding: 22px 0 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--graphite);
+    opacity: 0.7;
+  }
+  .spread-label .red { color: var(--vermillion); font-weight: 700; }
+
+  /* ===================================================
+     SCREEN I — LANDING
+     =================================================== */
+  .landing-header {
+    padding: 70px 0 50px;
+  }
+  .plate-meta-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 36px;
+    flex-wrap: wrap; gap: 14px;
+  }
+  .plate-tag {
+    display: inline-flex; align-items: baseline; gap: 16px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+  }
+  .plate-tag .num { color: var(--vermillion); font-weight: 700; letter-spacing: 0.06em; }
+  .plate-tag .label {
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-weight: 700;
+  }
+  .plate-tag .sep { color: var(--graphite); }
+  .plate-title {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: clamp(60px, 8.4vw, 128px);
+    line-height: 0.92;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin-bottom: 28px;
+  }
+  .plate-title em { font-style: italic; color: var(--vermillion); }
+  .plate-lede {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: clamp(20px, 1.7vw, 26px);
+    color: var(--graphite);
+    max-width: 760px;
+    line-height: 1.4;
+  }
+
+  /* hero study */
+  .study-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 32px;
+    margin-bottom: 90px;
+    padding-bottom: 80px;
+    border-bottom: 1px solid var(--grid-strong);
+  }
+  .chip-main {
+    aspect-ratio: 1/1;
+    background: var(--coral);
+    position: relative;
+    box-shadow:
+      inset 0 0 0 1px var(--ink),
+      0 28px 64px rgba(15, 14, 14, 0.10);
+  }
+  .chip-main-label {
+    position: absolute;
+    top: 28px; left: 28px;
+    color: var(--atlas);
+    z-index: 2;
+  }
+  .chip-main-label .mono-caps {
+    color: rgba(251, 248, 242, 0.78);
+    margin-bottom: 12px;
+    display: block;
+  }
+  .chip-main-name {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: clamp(48px, 5vw, 72px);
+    color: var(--atlas);
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .chip-main-corner {
+    position: absolute;
+    bottom: 28px; right: 28px;
+    text-align: right;
+    color: var(--atlas);
+    z-index: 2;
+  }
+  .chip-main-corner .mono-caps {
+    color: rgba(251, 248, 242, 0.78);
+    line-height: 1.8;
+    display: block;
+  }
+  .chip-main-corner .big {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--atlas);
+    line-height: 1;
+    margin-top: 8px;
+  }
+  .chip-main-photo {
+    position: absolute;
+    bottom: 28px; left: 28px;
+    width: 38%; aspect-ratio: 4/5;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.30);
+  }
+  .chip-main-photo::after {
+    content: '';
+    position: absolute; inset: 0;
+    box-shadow: inset 0 0 0 1px rgba(15, 14, 14, 0.4);
+  }
+
+  .studies-side {
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .study-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 20px;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--grid-strong);
+    cursor: pointer;
+    transition: padding-left 0.2s ease;
+  }
+  .study-row:hover { padding-left: 8px; }
+  .study-row:last-child { border-bottom: 0; }
+  .study-chip-sm {
+    width: 76px; height: 76px;
+    box-shadow: inset 0 0 0 1px var(--ink);
+    position: relative;
+  }
+  .study-chip-sm::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 50%);
+  }
+  .study-row .role {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 24px;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .study-row .arrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 16px;
+    color: var(--vermillion);
+    font-weight: 700;
+  }
+
+  /* atlas catalogue */
+  .atlas-grid-section {
+    padding: 0 0 80px;
+  }
+  .atlas-grid-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    margin-bottom: 50px;
+    gap: 32px;
+  }
+  .atlas-grid-head h2 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: clamp(48px, 6vw, 84px);
+    line-height: 0.92;
+    color: var(--ink);
+  }
+  .atlas-grid-head h2 em { font-style: italic; color: var(--vermillion); }
+  .atlas-grid-head .legend {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--graphite);
+    text-align: right;
+    line-height: 1.9;
+    border-left: 2px solid var(--ink);
+    padding-left: 16px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .atlas-grid-head .legend .red { color: var(--vermillion); }
+  .atlas-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 18px;
+  }
+  .a-chip {
+    cursor: pointer;
+    transition: transform 0.25s ease;
+  }
+  .a-chip:hover { transform: translateY(-6px); }
+  .a-chip-color {
+    width: 100%; aspect-ratio: 1/1;
+    box-shadow: inset 0 0 0 1px var(--ink);
+    position: relative;
+  }
+  .a-chip-color::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 50%);
+    pointer-events: none;
+  }
+  .a-chip-plate {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--atlas);
+    padding: 3px 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+  }
+  .a-chip-meta {
+    padding: 16px 0 4px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .a-chip-name {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    line-height: 1.05;
+  }
+  .a-chip-hue {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--graphite);
+  }
+  .a-chip-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--graphite);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .a-chip.is-active .a-chip-color {
+    box-shadow:
+      inset 0 0 0 1px var(--ink),
+      0 0 0 4px var(--atlas),
+      0 0 0 6px var(--vermillion);
+  }
+  .a-chip.is-active .a-chip-name::after {
+    content: ' · in frame';
+    color: var(--vermillion);
+    font-family: "JetBrains Mono", monospace;
+    font-style: normal;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* primaries (mode preview) */
+  .primaries-section {
+    padding: 40px 0 80px;
+    border-top: 1px solid var(--grid-strong);
+  }
+  .primaries-section .atlas-grid-head { margin-top: 60px; margin-bottom: 36px; }
+  .primaries {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+  }
+  .primary {
+    aspect-ratio: 4 / 5;
+    padding: 32px;
+    position: relative;
+    color: var(--ink);
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    box-shadow: inset 0 0 0 1px var(--ink);
+    text-align: left;
+  }
+  .primary:hover { transform: translateY(-6px); }
+  .primary.is-red    { background: var(--vermillion); color: var(--atlas); }
+  .primary.is-blue   { background: var(--ultramarine); color: var(--atlas); }
+  .primary.is-yellow { background: var(--mustard); color: var(--ink); }
+  .primary-no {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; font-weight: 700;
+    opacity: 0.85;
+  }
+  .primary-name {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: clamp(48px, 6vw, 88px);
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+  }
+  .primary-name em { font-style: italic; }
+  .primary-desc {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.4;
+    max-width: 90%;
+  }
+  .primary.is-active .primary-no::after { content: ' · ✓ active'; }
+
+  /* closing CTA */
+  .landing-closing {
+    text-align: center;
+    padding: 120px 0 80px;
+    border-top: 1px solid var(--grid-strong);
+  }
+  .landing-closing h2 {
+    font-family: "Instrument Serif", serif;
+    font-style: italic; font-weight: 400;
+    font-size: clamp(52px, 7vw, 116px);
+    line-height: 0.94;
+    color: var(--ink);
+    margin-bottom: 32px;
+    max-width: 880px; margin-left: auto; margin-right: auto;
+  }
+  .landing-closing h2 em { color: var(--vermillion); }
+  .landing-closing .lede {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--graphite);
+    margin-bottom: 50px;
+  }
+  .landing-closing .lede .red { color: var(--vermillion); }
+  .begin-square {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--atlas);
+    padding: 28px 60px;
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 30px;
+    line-height: 1;
+    position: relative;
+    transition: all 0.2s ease;
+  }
+  .begin-square::after {
+    content: '';
+    position: absolute; inset: 6px;
+    border: 1px solid rgba(251, 248, 242, 0.30);
+    pointer-events: none;
+  }
+  .begin-square:hover {
+    background: var(--vermillion);
+    transform: translateY(-2px);
+  }
+
+  /* ===================================================
+     SCREEN II — EDITOR (exploded view)
+     =================================================== */
+  .editor-section {
+    padding: 60px 0 0;
+    border-top: 6px solid var(--ink);
+    margin-top: 60px;
+  }
+  .editor-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 32px;
+    margin: 22px 0 36px;
+  }
+  .editor-header h2 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: clamp(48px, 6vw, 84px);
+    line-height: 0.92;
+    color: var(--ink);
+  }
+  .editor-header h2 em { font-style: italic; color: var(--vermillion); }
+  .editor-header .right-meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--graphite);
+    text-align: right;
+    line-height: 1.9;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .editor-header .right-meta .red { color: var(--vermillion); }
+
+  .editor-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    gap: 32px;
+    align-items: start;
+    margin-bottom: 80px;
+  }
+
+  /* ---------- LEFT: PALETTE RAIL (the specimen drawer) ---------- */
+  .palette-rail {
+    position: relative;
+  }
+  .palette-rail-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--grid-strong);
+  }
+  .palette-rail-head .mono-caps { color: var(--ink); }
+  .view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--ink);
+    overflow: hidden;
+  }
+  .view-toggle button {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    color: var(--ink);
+    transition: all 0.15s ease;
+  }
+  .view-toggle button + button { border-left: 1px solid var(--ink); }
+  .view-toggle button.is-active {
+    background: var(--ink);
+    color: var(--atlas);
+  }
+
+  .yarn-stack {
+    display: grid;
+    gap: 18px;
+  }
+  .yarn-card {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    position: relative;
+  }
+  .yarn-card:hover { transform: translateX(4px); }
+  .yarn-visual {
+    width: 100%; aspect-ratio: 1/1;
+    position: relative;
+    box-shadow: inset 0 0 0 1px var(--ink);
+  }
+  .yarn-chip {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  .yarn-chip::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 50%);
+  }
+  .yarn-photo {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    filter: saturate(0.96) contrast(1.04);
+  }
+  .yarn-plate {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--atlas);
+    padding: 3px 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+    z-index: 2;
+  }
+  .yarn-meta {
+    padding: 12px 0 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .yarn-name {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    line-height: 1.05;
+  }
+  .yarn-hue {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; font-weight: 700;
+    color: var(--graphite);
+    letter-spacing: 0.06em;
+  }
+  .yarn-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    color: var(--graphite);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* photo/chip toggle */
+  .palette-rail.is-chips  .yarn-photo { display: none; }
+  .palette-rail.is-photos .yarn-chip  { display: none; }
+
+  .yarn-card.is-active .yarn-visual {
+    box-shadow:
+      inset 0 0 0 1px var(--ink),
+      0 0 0 3px var(--atlas),
+      0 0 0 5px var(--vermillion);
+  }
+  .yarn-card.is-active .yarn-name::after {
+    content: ' · working';
+    color: var(--vermillion);
+    font-family: "JetBrains Mono", monospace;
+    font-style: normal;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* "+ add yarn" tile */
+  .yarn-add {
+    width: 100%; aspect-ratio: 1/1;
+    border: 1px dashed var(--grid-strong);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .yarn-add:hover {
+    border-color: var(--vermillion);
+    border-style: solid;
+  }
+  .yarn-add-mark {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 56px;
+    color: var(--graphite);
+    line-height: 0.8;
+    transition: color 0.2s ease;
+  }
+  .yarn-add:hover .yarn-add-mark { color: var(--vermillion); }
+  .yarn-add-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--graphite);
+  }
+
+  /* on-demand colour study */
+  .study-toggle {
+    margin: 20px 0 0;
+    padding: 14px 0;
+    border-top: 1px solid var(--grid-strong);
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vermillion);
+    transition: color 0.2s ease;
+  }
+  .study-toggle:hover { color: var(--ink); }
+  .study-toggle::after {
+    content: '↓';
+    transition: transform 0.2s ease;
+  }
+  .study-panel.is-open + .study-toggle::after,
+  .study-toggle.is-open::after {
+    transform: rotate(180deg);
+  }
+  .study-panel {
+    display: none;
+    padding: 14px 0 4px;
+    border-top: 1px solid var(--grid-strong);
+    margin-top: 14px;
+  }
+  .study-panel.is-open { display: block; }
+  .study-panel .study-row {
+    grid-template-columns: 56px 1fr auto;
+    gap: 12px;
+    padding: 8px 0;
+  }
+  .study-panel .study-chip-sm { width: 56px; height: 56px; }
+  .study-panel .role { font-size: 18px; }
+  .study-panel .mono-caps { font-size: 9px; }
+
+  /* ---------- CENTER: GARMENT STAGE ---------- */
+  .stage {
+    position: relative;
+  }
+  .stage-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--grid-strong);
+  }
+  .stage-head .mono-caps { color: var(--ink); }
+  .stage-head .red { color: var(--vermillion); font-weight: 700; }
+  .garment-frame {
+    position: relative;
+    width: 100%; aspect-ratio: 1/1;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px var(--ink), 0 24px 48px rgba(15, 14, 14, 0.10);
+    background: var(--bone);
+  }
+  .garment-img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    filter: saturate(0.96) contrast(1.04) hue-rotate(-44deg);
+    transition: filter 0.5s ease;
+  }
+  .garment-frame.is-original .garment-img { filter: grayscale(1) contrast(1.04); }
+  .garment-plate-tag {
+    position: absolute;
+    top: 18px; left: 18px;
+    background: var(--vermillion);
+    color: var(--atlas);
+    padding: 7px 11px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.20em;
+    text-transform: uppercase; font-weight: 700;
+    z-index: 2;
+  }
+  .garment-frame.is-original .garment-plate-tag {
+    background: var(--ink);
+  }
+  .garment-hue-tag {
+    position: absolute;
+    bottom: 18px; right: 18px;
+    background: rgba(15, 14, 14, 0.84);
+    color: var(--atlas);
+    padding: 7px 11px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase; font-weight: 700;
+    z-index: 2;
+  }
+  .garment-hue-tag .red { color: var(--vermillion); }
+  .stage-foot {
+    padding: 18px 0 0;
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 18px;
+  }
+  .stage-caption {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 19px;
+    color: var(--ink);
+    line-height: 1.35;
+    max-width: 60%;
+  }
+  .stage-caption em { color: var(--vermillion); font-weight: 500; }
+  .stage-toggle {
+    display: inline-flex;
+    border: 1px solid var(--ink);
+  }
+  .stage-toggle button {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    color: var(--ink);
+    transition: all 0.15s ease;
+  }
+  .stage-toggle button + button { border-left: 1px solid var(--ink); }
+  .stage-toggle button.is-active { background: var(--ink); color: var(--atlas); }
+
+  /* ---------- RIGHT: MODES + SAVE ---------- */
+  .stage-side {
+    display: grid; gap: 14px;
+    align-content: start;
+  }
+  .side-head {
+    padding-bottom: 14px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--grid-strong);
+  }
+  .side-head .mono-caps { color: var(--ink); }
+
+  .mode-stack {
+    display: grid; gap: 14px;
+  }
+  .mode-tile {
+    padding: 18px 18px 22px;
+    box-shadow: inset 0 0 0 1px var(--ink);
+    background: transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    text-align: left;
+    color: var(--ink);
+  }
+  .mode-tile:hover { transform: translateY(-3px); }
+  .mode-tile.is-active.is-red    { background: var(--vermillion); color: var(--atlas); }
+  .mode-tile.is-active.is-blue   { background: var(--ultramarine); color: var(--atlas); }
+  .mode-tile.is-active.is-yellow { background: var(--mustard); color: var(--ink); }
+  .mode-tile-no {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--vermillion);
+    margin-bottom: 10px;
+    display: block;
+  }
+  .mode-tile.is-active .mode-tile-no { color: inherit; opacity: 0.85; }
+  .mode-tile-name {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 30px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .mode-tile-desc {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--graphite);
+    line-height: 1.35;
+  }
+  .mode-tile.is-active .mode-tile-desc { color: inherit; opacity: 0.85; }
+
+  .save-block {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--grid-strong);
+    display: grid; gap: 10px;
+  }
+  .save-btn {
+    display: block;
+    text-align: center;
+    padding: 16px 12px;
+    background: var(--ink);
+    color: var(--atlas);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .save-btn:hover { background: var(--vermillion); }
+  .save-btn.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+  }
+  .save-btn.secondary:hover {
+    background: var(--ink); color: var(--atlas);
+  }
+
+  /* ===================================================
+     PICKER MODAL (illustrative; nested below editor)
+     =================================================== */
+  .picker-section {
+    padding: 60px 0 100px;
+    border-top: 1px solid var(--grid-strong);
+  }
+  .picker-section .atlas-grid-head { margin-bottom: 36px; }
+  .modal-stage {
+    position: relative;
+    background:
+      linear-gradient(to bottom, rgba(15, 14, 14, 0.42), rgba(15, 14, 14, 0.42)),
+      var(--bone-deep);
+    padding: 56px 36px;
+    box-shadow: inset 0 0 0 1px var(--grid-strong);
+    min-height: 720px;
+  }
+  .modal-stage-note {
+    position: absolute;
+    top: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(251, 248, 242, 0.78);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .modal {
+    max-width: 960px;
+    margin: 0 auto;
+    background: var(--atlas);
+    box-shadow:
+      inset 0 0 0 1px var(--ink),
+      0 30px 80px rgba(0, 0, 0, 0.40);
+    position: relative;
+    padding: 48px 48px 40px;
+  }
+  .modal-close {
+    position: absolute;
+    top: 18px; right: 18px;
+    width: 40px; height: 40px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 18px;
+    color: var(--ink);
+    transition: color 0.2s;
+    cursor: pointer;
+  }
+  .modal-close:hover { color: var(--vermillion); }
+  .modal-head { margin-bottom: 36px; }
+  .modal-head .crumb {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--vermillion);
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .modal-head h3 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: 48px;
+    line-height: 0.96;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .modal-head h3 em { font-style: italic; color: var(--vermillion); }
+  .modal-head p {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--graphite);
+    line-height: 1.4;
+  }
+  .modal-body {
+    display: grid;
+    grid-template-columns: 1.5fr 1px 1fr;
+    gap: 36px;
+    align-items: stretch;
+  }
+  .modal-rule {
+    background: linear-gradient(to bottom, transparent, var(--grid-strong) 14%, var(--grid-strong) 86%, transparent);
+  }
+  .modal-section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--grid-strong);
+  }
+  .modal-section-head .mono-caps { color: var(--ink); }
+  .modal-section-head .red { color: var(--vermillion); font-weight: 700; }
+
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  /* picker-grid uses .a-chip same as catalogue */
+
+  .upload-zone {
+    border: 1px dashed var(--grid-strong);
+    padding: 32px 22px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px;
+    min-height: 100%;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    background:
+      repeating-linear-gradient(135deg, rgba(209, 75, 44, 0.04) 0 8px, transparent 8px 16px);
+  }
+  .upload-zone:hover {
+    border-color: var(--vermillion);
+    border-style: solid;
+    background:
+      repeating-linear-gradient(135deg, rgba(209, 75, 44, 0.08) 0 8px, transparent 8px 16px);
+  }
+  .upload-mark {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 64px;
+    color: var(--graphite);
+    line-height: 0.7;
+  }
+  .upload-zone:hover .upload-mark { color: var(--vermillion); }
+  .upload-zone h5 {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 22px;
+    color: var(--ink);
+  }
+  .upload-zone p {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 15px;
+    color: var(--graphite);
+    line-height: 1.4;
+    max-width: 220px;
+  }
+  .upload-button {
+    margin-top: 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--atlas);
+    background: var(--ink);
+    padding: 12px 18px;
+    transition: background 0.2s ease;
+  }
+  .upload-zone:hover .upload-button { background: var(--vermillion); }
+  .upload-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--graphite);
+    margin-top: 8px;
+  }
+  .modal-foot {
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--grid-strong);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-foot small {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--graphite);
+  }
+  .modal-foot a {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--vermillion);
+  }
+
+  /* ==================== FOOTER ==================== */
+  footer.page-foot {
+    border-top: 1px solid var(--grid-strong);
+    padding: 36px 0 28px;
+  }
+  .footer-inner {
+    max-width: 1400px; margin: 0 auto;
+    padding: 0 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--graphite);
+  }
+  .footer-inner .red { color: var(--vermillion); }
+
+  /* ==================== RESPONSIVE ==================== */
+  @media (max-width: 1100px) {
+    .study-grid { grid-template-columns: 1fr; }
+    .atlas-grid { grid-template-columns: repeat(3, 1fr); }
+    .primaries { grid-template-columns: 1fr; }
+    .primary { aspect-ratio: auto; min-height: 220px; padding: 28px; }
+    .editor-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+    .modal-body {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .modal-rule { display: none; }
+    .picker-grid { grid-template-columns: repeat(2, 1fr); }
+    .index-bar-inner { padding: 0 24px; flex-wrap: wrap; gap: 14px; }
+    .index-bar nav { font-size: 10px; gap: 18px; }
+    .container { padding: 0 24px; }
+    .atlas-grid-head { grid-template-columns: 1fr; }
+    .atlas-grid-head .legend {
+      text-align: left; padding-left: 0; padding-top: 8px;
+      border-left: 0; border-top: 2px solid var(--ink);
+    }
+    .editor-header { grid-template-columns: 1fr; gap: 12px; }
+    .editor-header .right-meta { text-align: left; }
+    .modal { padding: 32px 24px; }
+  }
+  @media (max-width: 640px) {
+    body {
+      background-size: calc((100vw - 48px) / 6) 100%;
+      background-position: 24px 0;
+    }
+    .atlas-grid { grid-template-columns: repeat(2, 1fr); }
+    .picker-grid { grid-template-columns: 1fr 1fr; }
+    .footer-inner { grid-template-columns: 1fr; gap: 14px; padding: 0 24px; text-align: left !important; }
+    .chip-main-name { font-size: 36px; }
+    .chip-main-corner .big { font-size: 18px; }
+    .stage-foot { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .stage-caption { max-width: 100%; }
+    .modal-stage { padding: 32px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== index bar ===== -->
+<div class="index-bar">
+  <div class="index-bar-inner">
+    <a class="mark" href="#screen-i">Chromaknit</a>
+    <div class="crumb">Plate <span class="red">04</span> · of 06 · An atlas of yarn</div>
+    <nav>
+      <a href="#screen-i">Atlas</a>
+      <a href="#screen-ii">Editor</a>
+      <a href="#screen-ii" class="file-open">Open file →</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ===========================================================
+     SCREEN I — LANDING (the marketing atlas)
+=========================================================== -->
+<section id="screen-i">
+  <div class="spread-label">Screen i <span class="red">·</span> The atlas</div>
+
+  <div class="container landing-header">
+    <div class="plate-meta-row">
+      <div class="plate-tag">
+        <span class="num">PLATE 04</span>
+        <span class="sep">·</span>
+        <span class="label">Coral, washed</span>
+      </div>
+      <span class="mono">HUE 14° · MERINO DK · 8 PLY</span>
+    </div>
+    <h1 class="plate-title">A garment, repainted <em>at the speed of looking</em>.</h1>
+    <p class="plate-lede">Chromaknit reads the colour of a yarn, lifts it from the photograph of a skein, and lays it onto the photograph of a garment. An atlas of colour for knitters, crocheters and the colour-curious.</p>
+  </div>
+
+  <div class="container">
+    <div class="study-grid">
+      <div class="chip-main">
+        <div class="chip-main-label">
+          <span class="mono-caps">Plate 04 · of 06</span>
+          <div class="chip-main-name">Coral,<br>washed.</div>
+        </div>
+        <div class="chip-main-photo" style="background-image: url('chromaknit-frontend/public/samples/coral-pink-yarn.jpg');"></div>
+        <div class="chip-main-corner">
+          <span class="mono-caps">Hue 14°</span>
+          <span class="mono-caps">Merino · dk</span>
+          <span class="big">"a faded sunset"</span>
+        </div>
+      </div>
+
+      <div class="studies-side">
+        <div class="study-row">
+          <div class="study-chip-sm" style="background: #1B3A8A;"></div>
+          <div>
+            <div class="role">Its complement.</div>
+            <span class="mono-caps">Plate 02 · Indigo, deep · Hue 220°</span>
+          </div>
+          <span class="arrow">→</span>
+        </div>
+        <div class="study-row">
+          <div class="study-chip-sm" style="background: #C4943C;"></div>
+          <div>
+            <div class="role">Its analogue.</div>
+            <span class="mono-caps">Plate 05 · Mustard, raw · Hue 38°</span>
+          </div>
+          <span class="arrow">→</span>
+        </div>
+        <div class="study-row">
+          <div class="study-chip-sm" style="background: #6B7F5A;"></div>
+          <div>
+            <div class="role">Its triad.</div>
+            <span class="mono-caps">Plate 06 · Sage, moss · Hue 88°</span>
+          </div>
+          <span class="arrow">→</span>
+        </div>
+        <div class="study-row">
+          <div class="study-chip-sm" style="background: #F8D2C6;"></div>
+          <div>
+            <div class="role">Its tint.</div>
+            <span class="mono-caps">Plate 04A · Coral, washed lightly</span>
+          </div>
+          <span class="arrow">→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container atlas-grid-section">
+    <header class="atlas-grid-head">
+      <h2>The atlas. <em>Six plates this week.</em></h2>
+      <div class="legend">
+        <div>The chip is the dye.</div>
+        <div>The number is its <span class="red">plate</span>.</div>
+        <div>The hue is its angle.</div>
+      </div>
+    </header>
+    <div class="atlas-grid">
+      <div class="a-chip">
+        <div class="a-chip-color" style="background: #A8C8B5;">
+          <span class="a-chip-plate">01</span>
+        </div>
+        <div class="a-chip-meta">
+          <div class="a-chip-name">Mint, soft</div>
+          <span class="a-chip-hue">154°</span>
+        </div>
+        <div class="a-chip-sub">Cotton blend</div>
+      </div>
+      <div class="a-chip">
+        <div class="a-chip-color" style="background: #1B3A8A;">
+          <span class="a-chip-plate">02</span>
+        </div>
+        <div class="a-chip-meta">
+          <div class="a-chip-name">Indigo, deep</div>
+          <span class="a-chip-hue">220°</span>
+        </div>
+        <div class="a-chip-sub">Wool worsted</div>
+      </div>
+      <div class="a-chip">
+        <div class="a-chip-color" style="background: #B4A2C5;">
+          <span class="a-chip-plate">03</span>
+        </div>
+        <div class="a-chip-meta">
+          <div class="a-chip-name">Heather, soft</div>
+          <span class="a-chip-hue">266°</span>
+        </div>
+        <div class="a-chip-sub">Mohair</div>
+      </div>
+      <div class="a-chip is-active">
+        <div class="a-chip-color" style="background: #E37564;">
+          <span class="a-chip-plate">04</span>
+        </div>
+        <div class="a-chip-meta">
+          <div class="a-chip-name">Coral, washed</div>
+          <span class="a-chip-hue">14°</span>
+        </div>
+        <div class="a-chip-sub">Merino dk</div>
+      </div>
+      <div class="a-chip">
+        <div class="a-chip-color" style="background: #6B7F5A;">
+          <span class="a-chip-plate">05</span>
+        </div>
+        <div class="a-chip-meta">
+          <div class="a-chip-name">Forest, silken</div>
+          <span class="a-chip-hue">88°</span>
+        </div>
+        <div class="a-chip-sub">Silk + wool</div>
+      </div>
+      <div class="a-chip">
+        <div class="a-chip-color" style="background: #C84438;">
+          <span class="a-chip-plate">06</span>
+        </div>
+        <div class="a-chip-meta">
+          <div class="a-chip-name">Scarlet, raw</div>
+          <span class="a-chip-hue">4°</span>
+        </div>
+        <div class="a-chip-sub">Single ply</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container primaries-section">
+    <header class="atlas-grid-head">
+      <h2>The three tools, <em>in primary.</em></h2>
+      <div class="legend">
+        <div>Each tool, a primary.</div>
+        <div>Red for the whole.</div>
+        <div>Blue for a region.</div>
+        <div>Yellow for the brush.</div>
+      </div>
+    </header>
+
+    <div class="primaries">
+      <div class="primary is-red is-active">
+        <span class="primary-no">01 · Default</span>
+        <div class="primary-name">Auto<em>.</em></div>
+        <p class="primary-desc">The whole garment in one yarn. One pass, one take.</p>
+      </div>
+      <div class="primary is-blue">
+        <span class="primary-no">02 · Region</span>
+        <div class="primary-name">Select<em>.</em></div>
+        <p class="primary-desc">Tap a panel. The engine lifts the cloth and recolours it.</p>
+      </div>
+      <div class="primary is-yellow">
+        <span class="primary-no">03 · Brush</span>
+        <div class="primary-name">Paint<em>.</em></div>
+        <p class="primary-desc">For a cuff, a bib, a single cable. Paint the cloth by hand.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container landing-closing">
+    <h2><em>Choose a yarn.</em> Watch it speak.</h2>
+    <p class="lede">A free atlas for knitters, crocheters and yarn lovers · <span class="red">Open file ↓</span></p>
+    <a class="begin-square" href="#screen-ii">Open the atlas</a>
+  </div>
+</section>
+
+
+<!-- ===========================================================
+     SCREEN II — EDITOR (exploded view)
+=========================================================== -->
+<section id="screen-ii" class="editor-section">
+  <div class="spread-label">Screen ii <span class="red">·</span> The editor</div>
+
+  <div class="container">
+    <header class="editor-header">
+      <h2>In <em>revision.</em></h2>
+      <div class="right-meta">
+        <div>Plate <span class="red">04</span> · in frame</div>
+        <div>Coral, washed · hue 14°</div>
+        <div>edited just now</div>
+      </div>
+    </header>
+
+    <div class="editor-grid">
+
+      <!-- LEFT: PALETTE RAIL -->
+      <aside class="palette-rail is-chips" id="palette-rail">
+        <div class="palette-rail-head">
+          <span class="mono-caps">Palette · 4</span>
+          <div class="view-toggle" role="tablist" aria-label="View as chips or photos">
+            <button class="is-active" data-view="chips">Chips</button>
+            <button data-view="photos">Photos</button>
+          </div>
+        </div>
+
+        <div class="yarn-stack">
+
+          <div class="yarn-card">
+            <div class="yarn-visual">
+              <div class="yarn-chip" style="background: var(--mint);"></div>
+              <img class="yarn-photo" src="chromaknit-frontend/public/samples/yarn-mint.jpg" alt="">
+              <span class="yarn-plate">01</span>
+            </div>
+            <div class="yarn-meta">
+              <div class="yarn-name">Mint, soft</div>
+              <span class="yarn-hue">154°</span>
+            </div>
+            <div class="yarn-sub">Cotton blend</div>
+          </div>
+
+          <div class="yarn-card is-active">
+            <div class="yarn-visual">
+              <div class="yarn-chip" style="background: var(--coral);"></div>
+              <img class="yarn-photo" src="chromaknit-frontend/public/samples/coral-pink-yarn.jpg" alt="">
+              <span class="yarn-plate">04</span>
+            </div>
+            <div class="yarn-meta">
+              <div class="yarn-name">Coral, washed</div>
+              <span class="yarn-hue">14°</span>
+            </div>
+            <div class="yarn-sub">Merino dk</div>
+          </div>
+
+          <div class="yarn-card">
+            <div class="yarn-visual">
+              <div class="yarn-chip" style="background: var(--indigo);"></div>
+              <img class="yarn-photo" src="chromaknit-frontend/public/samples/yarn-dark-blue.jpg" alt="">
+              <span class="yarn-plate">02</span>
+            </div>
+            <div class="yarn-meta">
+              <div class="yarn-name">Indigo, deep</div>
+              <span class="yarn-hue">220°</span>
+            </div>
+            <div class="yarn-sub">Wool worsted</div>
+          </div>
+
+          <div class="yarn-card">
+            <div class="yarn-visual">
+              <div class="yarn-chip" style="background: var(--bone-color);"></div>
+              <img class="yarn-photo" src="chromaknit-frontend/public/samples/cream-yarn.png" alt="">
+              <span class="yarn-plate">07</span>
+            </div>
+            <div class="yarn-meta">
+              <div class="yarn-name">Bone, raw</div>
+              <span class="yarn-hue">42°</span>
+            </div>
+            <div class="yarn-sub">Uploaded · 2 min ago</div>
+          </div>
+
+          <button class="yarn-add" id="open-picker">
+            <span class="yarn-add-mark">+</span>
+            <span class="yarn-add-label">add yarn</span>
+          </button>
+
+        </div>
+
+        <button class="study-toggle" id="study-toggle">
+          Show colour-theory study
+        </button>
+        <div class="study-panel" id="study-panel">
+          <div class="study-row">
+            <div class="study-chip-sm" style="background: #1B3A8A;"></div>
+            <div>
+              <div class="role">Complement.</div>
+              <span class="mono-caps">Plate 02 · Indigo, deep</span>
+            </div>
+            <span class="arrow">→</span>
+          </div>
+          <div class="study-row">
+            <div class="study-chip-sm" style="background: #C4943C;"></div>
+            <div>
+              <div class="role">Analogue.</div>
+              <span class="mono-caps">Plate 05 · Mustard, raw</span>
+            </div>
+            <span class="arrow">→</span>
+          </div>
+          <div class="study-row">
+            <div class="study-chip-sm" style="background: #F8D2C6;"></div>
+            <div>
+              <div class="role">Tint.</div>
+              <span class="mono-caps">Plate 04A · Lightened</span>
+            </div>
+            <span class="arrow">→</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER: GARMENT STAGE -->
+      <article class="stage">
+        <header class="stage-head">
+          <span class="mono-caps">In revision <span class="red">·</span> Plate 04 applied</span>
+          <span class="mono-caps">800 × 1000</span>
+        </header>
+        <div class="garment-frame" id="garment-frame">
+          <img class="garment-img" src="chromaknit-frontend/public/samples/garment-cardigan.jpg" alt="A cabled cardigan, in revision">
+          <span class="garment-plate-tag">Plate 04 · applied</span>
+          <span class="garment-hue-tag">hue <span class="red">14°</span></span>
+        </div>
+        <div class="stage-foot">
+          <p class="stage-caption">A cabled cardigan, lifted into <em>coral, washed</em>.</p>
+          <div class="stage-toggle" id="stage-toggle">
+            <button class="is-active" data-view="recoloured">Recoloured</button>
+            <button data-view="original">Original</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- RIGHT: MODES + SAVE -->
+      <aside class="stage-side">
+        <div class="side-head"><span class="mono-caps">Mode · 3 tools</span></div>
+        <div class="mode-stack">
+          <button class="mode-tile is-active is-red" type="button">
+            <span class="mode-tile-no">01 · Default</span>
+            <div class="mode-tile-name">Auto</div>
+            <p class="mode-tile-desc">The whole garment in one yarn.</p>
+          </button>
+          <button class="mode-tile is-blue" type="button">
+            <span class="mode-tile-no">02 · Region</span>
+            <div class="mode-tile-name">Select</div>
+            <p class="mode-tile-desc">Tap a panel to recolour it.</p>
+          </button>
+          <button class="mode-tile is-yellow" type="button">
+            <span class="mode-tile-no">03 · Brush</span>
+            <div class="mode-tile-name">Paint</div>
+            <p class="mode-tile-desc">Paint a region by hand.</p>
+          </button>
+        </div>
+
+        <div class="save-block">
+          <button class="save-btn">Save this revision</button>
+          <button class="save-btn secondary">Download as image</button>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+
+  <!-- ===== inline picker (illustrative open state) ===== -->
+  <div class="container picker-section">
+    <header class="atlas-grid-head">
+      <h2>The picker, <em>when you tap +</em>.</h2>
+      <div class="legend">
+        <div>A second sheet opens.</div>
+        <div>Chips on the left.</div>
+        <div>Your studio on the right.</div>
+      </div>
+    </header>
+
+    <div class="modal-stage">
+      <div class="modal-stage-note">Illustrative backdrop · the real modal opens over the editor</div>
+
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+        <button class="modal-close" aria-label="Close">×</button>
+        <header class="modal-head">
+          <div class="crumb">A choice of yarn</div>
+          <h3 id="picker-title">Choose a <em>plate</em>.</h3>
+          <p>From the atlas, or a photograph from your studio.</p>
+        </header>
+
+        <div class="modal-body">
+
+          <div>
+            <div class="modal-section-head">
+              <span class="mono-caps">From the atlas <span class="red">·</span> 6 plates</span>
+              <span class="mono-caps">Hue°</span>
+            </div>
+            <div class="atlas-grid picker-grid">
+              <div class="a-chip">
+                <div class="a-chip-color" style="background: #A8C8B5;"><span class="a-chip-plate">01</span></div>
+                <div class="a-chip-meta">
+                  <div class="a-chip-name">Mint, soft</div>
+                  <span class="a-chip-hue">154°</span>
+                </div>
+                <div class="a-chip-sub">Cotton blend</div>
+              </div>
+              <div class="a-chip">
+                <div class="a-chip-color" style="background: #1B3A8A;"><span class="a-chip-plate">02</span></div>
+                <div class="a-chip-meta">
+                  <div class="a-chip-name">Indigo, deep</div>
+                  <span class="a-chip-hue">220°</span>
+                </div>
+                <div class="a-chip-sub">Wool worsted</div>
+              </div>
+              <div class="a-chip">
+                <div class="a-chip-color" style="background: #B4A2C5;"><span class="a-chip-plate">03</span></div>
+                <div class="a-chip-meta">
+                  <div class="a-chip-name">Heather, soft</div>
+                  <span class="a-chip-hue">266°</span>
+                </div>
+                <div class="a-chip-sub">Mohair</div>
+              </div>
+              <div class="a-chip">
+                <div class="a-chip-color" style="background: #E37564;"><span class="a-chip-plate">04</span></div>
+                <div class="a-chip-meta">
+                  <div class="a-chip-name">Coral, washed</div>
+                  <span class="a-chip-hue">14°</span>
+                </div>
+                <div class="a-chip-sub">Merino dk</div>
+              </div>
+              <div class="a-chip">
+                <div class="a-chip-color" style="background: #6B7F5A;"><span class="a-chip-plate">05</span></div>
+                <div class="a-chip-meta">
+                  <div class="a-chip-name">Forest, silken</div>
+                  <span class="a-chip-hue">88°</span>
+                </div>
+                <div class="a-chip-sub">Silk + wool</div>
+              </div>
+              <div class="a-chip">
+                <div class="a-chip-color" style="background: #C84438;"><span class="a-chip-plate">06</span></div>
+                <div class="a-chip-meta">
+                  <div class="a-chip-name">Scarlet, raw</div>
+                  <span class="a-chip-hue">4°</span>
+                </div>
+                <div class="a-chip-sub">Single ply</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-rule" aria-hidden="true"></div>
+
+          <div>
+            <div class="modal-section-head">
+              <span class="mono-caps">From your studio</span>
+              <span class="mono-caps">5 MB max</span>
+            </div>
+            <div class="upload-zone" role="button" tabindex="0">
+              <div class="upload-mark">+</div>
+              <h5>Drop a photograph.</h5>
+              <p>A shade card, a skein on a windowsill, a colour you saw in a dream.</p>
+              <span class="upload-button">Choose a file</span>
+              <span class="upload-sub">JPG or PNG · up to 5 MB</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-foot">
+          <small>Your photographs stay on your device until you submit.</small>
+          <a href="#screen-ii">Cancel &amp; return →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============ footer ============ -->
+<footer class="page-foot">
+  <div class="footer-inner">
+    <div>Chromaknit · An atlas of yarn</div>
+    <div style="text-align:center;"><span class="red">2026</span> · Plate 04 of 06</div>
+    <div style="text-align:right;">No accounts · No fees · Made for makers</div>
+  </div>
+</footer>
+
+<script>
+  // chip / photo toggle on the palette rail
+  (function () {
+    var rail = document.getElementById('palette-rail');
+    if (!rail) return;
+    var btns = rail.querySelectorAll('.view-toggle button');
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var view = btn.dataset.view;
+        rail.classList.toggle('is-chips', view === 'chips');
+        rail.classList.toggle('is-photos', view === 'photos');
+        btns.forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+      });
+    });
+  })();
+
+  // colour-theory study panel toggle
+  (function () {
+    var toggle = document.getElementById('study-toggle');
+    var panel = document.getElementById('study-panel');
+    if (!toggle || !panel) return;
+    toggle.addEventListener('click', function () {
+      var open = panel.classList.toggle('is-open');
+      toggle.classList.toggle('is-open', open);
+      toggle.textContent = open ? 'Hide colour-theory study' : 'Show colour-theory study';
+    });
+  })();
+
+  // before/after toggle on the garment frame
+  (function () {
+    var stageToggle = document.getElementById('stage-toggle');
+    var frame = document.getElementById('garment-frame');
+    if (!stageToggle || !frame) return;
+    var btns = stageToggle.querySelectorAll('button');
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        frame.classList.toggle('is-original', btn.dataset.view === 'original');
+        btns.forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
