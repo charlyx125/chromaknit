@@ -32,22 +32,40 @@ class ErrorBoundary extends Component<Props, State> {
         }}>
           <div>
             <h2 style={{
-              fontFamily: '"Cormorant Garamond", serif',
-              fontSize: "28px", color: "#C4707A", marginBottom: "12px",
+              fontFamily: '"Playfair Display", serif',
+              fontWeight: 700,
+              fontSize: "28px", color: "var(--red)", marginBottom: "12px",
             }}>
-              something went wrong
+              Something went wrong
             </h2>
-            <p style={{ fontSize: "15px", color: "#8a6870", marginBottom: "24px" }}>
-              try refreshing the page — your images weren't saved
+            <p style={{
+              fontFamily: '"Cormorant Garamond", serif',
+              fontStyle: "italic",
+              fontSize: "17px", color: "var(--ink-soft)", marginBottom: "24px",
+            }}>
+              Try refreshing the page. Your images were not saved.
             </p>
             <button
-              className="btn-primary"
+              type="button"
+              style={{
+                fontFamily: '"Playfair Display", serif',
+                fontWeight: 600,
+                fontSize: "13px",
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "var(--bg)",
+                background: "var(--red)",
+                padding: "14px 28px",
+                border: "1px solid var(--red)",
+                borderRadius: "2px",
+                cursor: "pointer",
+              }}
               onClick={() => {
                 this.setState({ hasError: false });
                 window.location.reload();
               }}
             >
-              refresh page
+              Refresh page
             </button>
           </div>
         </div>

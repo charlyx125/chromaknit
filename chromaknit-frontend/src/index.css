@@ -1,23 +1,9 @@
 /* === DESIGN SYSTEM ===
-   Two sets of tokens coexist during the redesign migration:
-   - Legacy pastel tokens (--rose, --blush, etc.) for components still on
-     the old design. These are removed component by component.
-   - Romantic portrait-book tokens (--bg, --ink, --red, etc.) for the new
-     design. Used by migrated components.
-   When the migration finishes, only the new tokens remain. */
+   Romantic portrait-book tokens. All UI colour must come from these tokens.
+   The legacy pastel palette was removed during the redesign; reintroducing
+   any of its token names or hex values is blocked by the guardrail test in
+   src/no-legacy-tokens.test.ts. */
 :root {
-  /* --- legacy pastel tokens (being phased out) --- */
-  --rose: #E87B8B;
-  --blush: #F2AEBC;
-  --lavender: #C9B8D8;
-  --sage: #9BB89A;
-  --sky: #A8C8DC;
-  --peach: #F0A882;
-  --mustard: #D4A843;
-  --cream: #FAF6F0;
-  --dark: #2A1F28;
-
-  /* --- new romantic portrait-book tokens --- */
   --bg: #F4EDE0;
   --paper: #EFE6D5;
   --paper-deep: #E5DAC4;
