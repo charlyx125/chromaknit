@@ -3,13 +3,14 @@ import type { GarmentSession, Mode, Region, Yarn } from "../hooks/useAppState";
 import { recolourLocal, stampCircle, stampLine } from "../lib/recolourLocal";
 import "./GarmentStage.css";
 
-// Five discrete brush sizes for the editorial dot picker. Index 2 is the
-// default. Replaces the continuous range slider with the 5-dot affordance
-// from the mockup. Loses fine-grained control in exchange for a refined
-// look; for the audience (knitters trying colourways) five presets are
-// plenty.
-const BRUSH_SIZES = [6, 12, 18, 36, 60];
-const BRUSH_DEFAULT_INDEX = 2;
+// Continuous brush radius in canvas pixels. Range covers fine detail
+// (BRUSH_MIN) up to fully chunky strokes (BRUSH_MAX); step is 2 to keep the
+// value space tidy without making the slider feel snappy. BRUSH_DEFAULT is
+// the same mid-range value the old 5-dot picker used at index 2.
+const BRUSH_MIN = 4;
+const BRUSH_MAX = 60;
+const BRUSH_STEP = 2;
+const BRUSH_DEFAULT = 18;
 
 // Decode a base64-encoded PNG mask back to a 1-channel Uint8Array (R channel).
 async function decodeMaskPng(base64: string): Promise<Uint8Array> {
@@ -113,8 +114,7 @@ function GarmentStage({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [brushIndex, setBrushIndex] = useState(BRUSH_DEFAULT_INDEX);
-  const brushRadius = BRUSH_SIZES[brushIndex];
+  const [brushRadius, setBrushRadius] = useState(BRUSH_DEFAULT);
 
   const baseImageRef = useRef<HTMLImageElement | null>(null);
   const regionMasksRef = useRef<Map<string, Uint8Array>>(new Map());
@@ -415,12 +415,16 @@ function GarmentStage({
           }}
           aria-disabled={anyUploadInFlight}
         >
-          {isUploadingFile ? (
+          {anyUploadInFlight ? (
             <>
               <span className="garment-upload-spinner" aria-hidden="true" />
-              <h5>{isWarming ? "Stretching its legs" : "Reading the photograph"}</h5>
+              <h5>
+                {isUploadingFile
+                  ? (isWarming ? "Stretching its legs" : "Reading the photograph")
+                  : `Loading the ${uploadingSampleLabel}`}
+              </h5>
               <p>
-                {isWarming
+                {isUploadingFile && isWarming
                   ? "ChromaKnit runs on a free tier, so the engine takes a moment after a quiet stretch."
                   : "A moment please."}
               </p>
@@ -555,20 +559,20 @@ function GarmentStage({
             </span>
           </div>
           <div className="brush-size">
-            <span className="brush-size-label">Brush</span>
-            <div className="brush-size-slider" role="radiogroup" aria-label="Brush size">
-              {BRUSH_SIZES.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`dot${i === brushIndex ? " is-active" : ""}`}
-                  onClick={() => setBrushIndex(i)}
-                  role="radio"
-                  aria-checked={i === brushIndex}
-                  aria-label={`Brush size ${i + 1} of ${BRUSH_SIZES.length}`}
-                />
-              ))}
-            </div>
+            <label className="brush-size-label" htmlFor="brush-size-range">Brush</label>
+            <input
+              id="brush-size-range"
+              type="range"
+              className="brush-size-range"
+              min={BRUSH_MIN}
+              max={BRUSH_MAX}
+              step={BRUSH_STEP}
+              value={brushRadius}
+              onChange={(e) => setBrushRadius(Number(e.target.value))}
+              aria-label="Brush size in pixels"
+              aria-valuetext={`${brushRadius} pixels`}
+            />
+            <span className="brush-size-value" aria-hidden="true">{brushRadius}<small>px</small></span>
           </div>
           <button
             type="button"

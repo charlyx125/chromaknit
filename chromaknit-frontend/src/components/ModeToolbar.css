@@ -76,11 +76,12 @@
   text-overflow: ellipsis;
 }
 
-.mode-tile:hover:not(:disabled) {
+.mode-tile:hover:not(:disabled):not(.is-active) {
   background: var(--bg);
 }
 
-.mode-tile.is-active {
+.mode-tile.is-active,
+.mode-tile.is-active:hover {
   background: var(--ink);
 }
 .mode-tile.is-active .mode-tile-name { color: var(--bg); }

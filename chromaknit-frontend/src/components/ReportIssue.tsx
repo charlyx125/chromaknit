@@ -10,6 +10,12 @@ const ISSUE_CATEGORIES = [
 
 const FORMSPREE_URL = "https://formspree.io/f/mqewplpo";
 
+// After a successful submission, the Send button stays disabled for this
+// many milliseconds. UX guard against the impatient-user case (clicking Send
+// again immediately after the success animation). Scripted abuse is handled
+// upstream by Formspree's CAPTCHA + honeypot.
+const COOLDOWN_MS = 30_000;
+
 function ReportIssue() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -17,7 +23,22 @@ function ReportIssue() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(false);
+  const [lastSubmittedAt, setLastSubmittedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Tick once per second only while a cooldown is active. The interval is
+  // torn down as soon as the cooldown elapses, so we don't rerender forever.
+  useEffect(() => {
+    if (lastSubmittedAt === 0) return;
+    if (Date.now() - lastSubmittedAt >= COOLDOWN_MS) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [lastSubmittedAt, now]);
+
+  const cooldownMs = Math.max(0, COOLDOWN_MS - (now - lastSubmittedAt));
+  const inCooldown = lastSubmittedAt > 0 && cooldownMs > 0;
+  const cooldownSeconds = Math.ceil(cooldownMs / 1000);
 
   // Focus trap and Escape key handling
   useEffect(() => {
@@ -69,6 +90,8 @@ function ReportIssue() {
 
       if (!res.ok) throw new Error();
       setSubmitted(true);
+      setLastSubmittedAt(Date.now());
+      setNow(Date.now());
     } catch {
       setSubmitError(true);
     } finally {
@@ -170,13 +193,23 @@ function ReportIssue() {
                   </p>
                 )}
 
+                {inCooldown && (
+                  <p className="report-cooldown" role="status">
+                    Sent. You can send another in {cooldownSeconds}s.
+                  </p>
+                )}
+
                 <button
                   type="button"
                   className="report-submit"
-                  disabled={submitting || !selected || (selected === "other" && !details.trim())}
+                  disabled={submitting || inCooldown || !selected || (selected === "other" && !details.trim())}
                   onClick={handleSubmit}
                 >
-                  {submitting ? "Sending..." : "Send report"}
+                  {submitting
+                    ? "Sending..."
+                    : inCooldown
+                      ? `Wait ${cooldownSeconds}s`
+                      : "Send report"}
                 </button>
               </>
             )}
