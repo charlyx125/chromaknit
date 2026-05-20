@@ -111,6 +111,7 @@ export const initialState: AppState = {
 // --- Actions ---
 export type Action =
   | { type: "SHOW_STRIP" }
+  | { type: "HIDE_STRIP" }
   | { type: "SET_ERROR"; error: string }
   | { type: "ADD_YARN_PENDING"; id: string; label: string; previewUrl: string }
   | { type: "ADD_YARN_SUCCESS"; id: string; palette: string[]; percentages: number[] }
@@ -135,6 +136,9 @@ export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "SHOW_STRIP":
       return { ...state, showSampleStrip: true };
+
+    case "HIDE_STRIP":
+      return { ...state, showSampleStrip: false };
 
     case "SET_ERROR":
       return { ...state, error: action.error };

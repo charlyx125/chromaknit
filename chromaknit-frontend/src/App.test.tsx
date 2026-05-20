@@ -15,15 +15,17 @@ describe("App", () => {
     render(<App />);
 
     // Picker is hidden before any interaction.
-    expect(screen.queryByText(/pick a yarn to add/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /choose a yarn/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /try it now/i }));
+    // Both the Masthead and the Hero render a "Try it now" button; either
+    // triggers the same handleStart. Click the first one (Masthead).
+    fireEvent.click(screen.getAllByRole("button", { name: /try it now/i })[0]);
 
     // Palette is now mounted and the picker opens automatically on first run.
     expect(screen.getByRole("region", { name: /yarn palette/i })).toBeInTheDocument();
-    expect(screen.getByText(/pick a yarn to add/i)).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /choose a yarn/i })).toBeInTheDocument();
     // Sample tiles are rendered inside the picker.
-    expect(screen.getByRole("button", { name: /add plum yarn/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add plum, deep yarn/i })).toBeInTheDocument();
   });
 
   it("hydrates the palette with persisted yarns on mount", () => {
@@ -45,7 +47,9 @@ describe("App", () => {
     );
 
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /try it now/i }));
+    // Both the Masthead and the Hero render a "Try it now" button; either
+    // triggers the same handleStart. Click the first one (Masthead).
+    fireEvent.click(screen.getAllByRole("button", { name: /try it now/i })[0]);
 
     expect(
       screen.getByRole("button", { name: /select saved plum/i }),

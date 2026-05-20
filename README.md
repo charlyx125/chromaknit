@@ -9,542 +9,200 @@ pinned: false
 license: mit
 ---
 
-# 🧶 ChromaKnit
+# Chromaknit
 
-**Visualize how your yarn will look on any garment — before you knit a single stitch.**
+Try the yarn before you cast on. Upload yarn, pick a garment, recolour it with the texture intact. Multi-yarn palette, paint mode for colourwork, all running on free tiers.
 
-🌐 **[Try it live →](https://chromaknit.vercel.app)**
+**[Try it live](https://chromaknit.vercel.app)** &nbsp;·&nbsp; **[Read the decisions](docs/decisions/)** &nbsp;·&nbsp; **[Architecture overview](docs/ARCHITECTURE.md)**
 
-![ChromaKnit Demo](examples/E2E-demo.gif)
-
-Upload yarn photo → Extract colors automatically → Recolor any garment
-
-> **Note:** Backend hosted on HuggingFace Spaces (free tier, sleep-on-idle). First upload after a long idle period takes ~30-60 seconds while the container wakes; subsequent requests are fast. Sample yarns and garments run entirely client-side and never hit the backend. See [Deployment Guide](docs/DEPLOYMENT.md) for details.
+> The backend sleeps on idle (HuggingFace Spaces free tier). The first upload after a long quiet period takes 30 to 60 seconds while the container wakes. Sample yarns and garments run entirely in the browser and never hit the backend, so clicking around the demo is always instant.
 
 ---
 
-## The Problem
+## See it in motion
 
-Knitters spend hours (and money) on yarn, only to discover the finished garment doesn't look how they imagined. ChromaKnit lets you preview yarn colors on garments *before* committing to a project.
+### Auto mode: pick a yarn, the whole garment recolours
 
-## ✨ Features
+![Auto recolour demo](examples/auto-mode.gif)
 
-| Feature | Description | Details |
-|---------|-------------|---------|
-| **Color Extraction** | K-means clustering extracts dominant colors from yarn photos | [ADR 001](docs/decisions/001-yarn-color-extraction.md) |
-| **Background Removal** | Neural segmentation (rembg/U²-Net) isolates garments | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
-| **Realistic Recoloring** | HSV transformation preserves texture, shadows, and lighting | [ADR 002](docs/decisions/002-recoloring-strategy.md) |
-| **REST API** | FastAPI endpoints with Swagger docs at `/docs` | [ADR 003](docs/decisions/003-api-design.md) |
-| **React Frontend** | TypeScript + Vite with real-time color extraction | [ADR 004](docs/decisions/004-react-frontend-architecture.md) |
-| **UI Design** | Frosted glass header, tabbed workspace, before/after slider | [ADR 006](docs/decisions/006-ui-redesign.md) |
-| **Report Issue** | In-app issue reporting — users pick a category and submit directly to GitHub Issues | — |
+### Paint mode: brush regions for colourwork and stripes
 
-**Status:** ✅ Phases 1-4 Complete
+![Paint mode demo](examples/paint-mode.gif)
 
-## 🎨 Results
+> The GIFs above are recorded against the real app. Replace with fresh captures after each major UI change.
 
-### Example: Blue Yarn → Yellow Cardigan
+---
 
-| Input Yarn                             | Extracted Colors                                 |
-| -------------------------------------- | ------------------------------------------------ |
-| ![Blue Yarn](examples/yarn/sample-yarn.jpg) | ![Color Palette](results/sample-yarn-colors.png) |
+## The problem
 
-| Original Garment                                | Recolored Result                                |
-| ----------------------------------------------- | ----------------------------------------------- |
-| ![Yellow Cardigan](examples/garment/sample-garment.jpg) | ![Blue Cardigan](results/recolored_garment.png) |
+Knitters spend a lot of money on yarn before knowing how it will look on the finished piece. Stash photos do not preview well. Yarn shops do not stock every colourway. ChromaKnit lets you stage a recolour against a real garment photo before committing.
 
-_Original garment image from Wool and the Gang_
+The MVP was single yarn, whole-garment auto recolour. The current version (v2) extends that to a Procreate-style canvas: a palette of yarns, paint strokes for stripes and fair isle, and a single region-mask engine underneath that handles all modes.
 
-The yellow cardigan was successfully transformed to blue while **preserving all knit texture, shadows, and folds**!
+## How it works
 
-## 🏗️ Architecture
+1. **Extract.** K-means in RGB on a downscaled yarn image returns up to ten dominant colours with their frequencies. MiniBatchKMeans on the backend, downscale to 400px on the frontend before upload. See [ADR 001](docs/decisions/001-yarn-color-extraction.md) and [ADR 002.1](docs/decisions/002.1-cluster-count-5-to-10.md).
+2. **Isolate.** `rembg` with the lightweight `u2netp` model (~50% less memory than `u2net`) removes the background and produces a foreground mask. Done once per garment upload and cached for the rest of the session. See [ADR 002](docs/decisions/002-recoloring-strategy.md).
+3. **Recolour.** HSV remap per region: hue and saturation come from the yarn, value is remapped from the garment's brightness range into the yarn's brightness range. Multi-colour yarns are mapped by yarn-distribution-weighted brightness bands so a dark yarn covers the shadow bands and a light yarn covers the highlights.
+4. **Compose.** Each region (Auto, Paint, or Select) produces a mask. Regions composite in z-order over the original garment. Auto is the trivial case: one region covering the full foreground.
+
+The recolouring algorithm is solid but not novel. The interesting work was getting it to ship on free tiers without falling over.
+
+## How it is built
+
+**One engine, three modes.** `core/garment_recolor.py` takes a list of regions, each `{mask, yarn, weights?}`, and composites them. Auto is one region covering the rembg foreground. Paint is brush strokes that produce sub-region masks. Select (queued) will use flood-fill on Lab distance. Adding a new mode does not touch the colour math.
+
+**Session-keyed API.** Garment uploads run rembg once and cache the mask in an in-memory session store with 30-minute idle-TTL eviction. Subsequent recolour calls send only the session id plus the yarn palette, and a per-(session, palette) result cache means resending the same palette returns the cached PNG without re-running the HSV pipeline. Switching between cached yarns is a blob URL lookup on the frontend, no network at all. See [ADR 010](docs/decisions/010-session-storage.md).
+
+**Static-first sample pipeline.** Sample yarns and garments are precomputed at build time (`scripts/precompute_samples.py`) and shipped as static JSON plus pre-rendered mask PNGs. The frontend ships a JavaScript port of the HSV remap (`chromaknit-frontend/src/lib/recolourLocal.ts`) that runs the recolour client-side for any sample session. A LinkedIn passer-by clicking samples generates zero backend requests. The JS port has a pixel-diff regression test against the Python reference (`recolourLocal.parity.test.ts`): mean absolute RGB diff under 6/255 over foreground pixels, max under 50/255. The spike that justified the port measured 2 to 3 / 255. See [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md).
+
+**Cost discipline.** The backend used to live on Railway. Free credits went from 80% to 100% in five days while the app was effectively idle, because `rembg`'s U²-Net model sits at ~500MB resident regardless of traffic. The fix was architectural: static precompute for the demo path, backend only for user uploads, sleep-on-idle on HuggingFace Spaces, plus per-IP rate limits on every POST endpoint (SlowAPI). The CLAUDE.md committed at the repo root encodes the rule as a code-review-enforceable regression guard. Daily request budget and content-addressable mask cache are queued for Phase 2 cost guardrails, not yet shipped.
+
+**Persistence that survives a refresh.** Yarn palettes (small, user-owned, durable) live in `localStorage` with a versioned schema so future changes can be detected and dropped instead of crashing. Garment sessions (large, expensive to recompute, ephemeral) live in the server session store. The two are deliberately not conflated. See [ADR 009](docs/decisions/009-frontend-persistence-strategy.md).
+
+**Tested at both layers.** 99 backend tests (`tests/`) cover the recolour engine, session store, TTL eviction, and every endpoint validation branch. 33 frontend tests (`vitest` + Testing Library) cover the reducer, `localStorage` hydration, components, an end-to-end smoke flow, and the pixel-diff parity test against the Python reference. See [ADR 008](docs/decisions/008-frontend-testing-strategy.md).
+
+## Architecture
+
 ```
 chromaknit/
 ├── core/
-│   ├── yarn_color_extractor.py  # Color extraction from yarn images
-│   ├── garment_recolor.py       # Garment recoloring with texture preservation
-│   └── utils.py                 # Shared utilities (color conversion, printing)
+│   ├── yarn_color_extractor.py    K-means palette extraction
+│   ├── garment_recolor.py         Region-based HSV recolour engine
+│   ├── utils.py
+│   └── log_config.py
 ├── api/
-│   └── main.py                  # FastAPI REST endpoints with CORS
-├── chromaknit-frontend/         # React frontend
-│   ├── public/
-│   │   └── header-yarn-background.jpg  # Header background image
-│   ├── src/
-│   │   ├── App.tsx              # Main application (state + API logic)
-│   │   ├── App.css              # All component styles (~900 lines)
-│   │   ├── index.css            # Design system variables + keyframes
-│   │   ├── config.ts            # API base URL configuration
-│   │   ├── main.tsx             # React entry point
-│   │   └── components/
-│   │       ├── Header.tsx       # Frosted glass header with CTA
-│   │       ├── PetalBackground.tsx  # Fixed background + floating petals
-│   │       ├── BuilderNotes.tsx # Collapsible tech stack panel
-│   │       ├── SampleStrip.tsx  # Tabbed workspace (pick yarn → upload garment → result)
-│   │       ├── StepSection.tsx  # Reusable step wrapper
-│   │       ├── InfoPanel.tsx    # Expandable info tooltips
-│   │       ├── UploadZone.tsx   # Styled file upload dropzone with sample images
-│   │       ├── ColorPalette.tsx # Colour swatches + distribution bar
-│   │       ├── LoadingCat.tsx   # Cat + yarn ball loading animation
-│   │       ├── BeforeAfter.tsx  # Draggable comparison slider
-│   │       └── ReportIssue.tsx  # Floating issue reporter → GitHub Issues
-│   ├── package.json             # Node dependencies
-│   ├── tsconfig.json            # TypeScript configuration
-│   ├── vite.config.ts           # Vite build configuration
-│   └── index.html               # HTML shell + Google Fonts
-├── tests/
-│   ├── test_color_extractor.py  # Color extraction tests
-│   ├── test_garment_recolor.py  # Garment recoloring tests
-│   └── test_utils.py            # Utility function tests
-├── benchmarks/
-│   ├── benchmark_color_extractor.py  # Color extraction benchmarks
-│   ├── benchmark_recolor_garment.py  # Recoloring benchmarks
-│   ├── benchmark_full_workflow.py    # End-to-end workflow benchmarks
-│   └── workflow_results.md           # Latest benchmark results
-├── examples/                    # Sample images
-├── results/                     # Output directory
-└── main.py                      # Demo workflow
+│   ├── main.py                    FastAPI: extract, session, recolor
+│   ├── sessions.py                In-memory session store + TTL
+│   └── api-readme.md
+├── scripts/
+│   ├── precompute_samples.py      Precompute static sample assets
+│   ├── generate_parity_fixture.py JS port regression fixture
+│   └── spike_hsv/                 Exploratory work
+├── chromaknit-frontend/
+│   ├── public/samples/            Sample yarns, garments, precomputed JSON + masks
+│   └── src/
+│       ├── App.tsx                Orchestrates state, dispatches recolour
+│       ├── components/
+│       │   ├── Masthead.tsx       Sticky header
+│       │   ├── Hero.tsx           Landing hero with before/after demo
+│       │   ├── YarnPicker.tsx     Sample tiles + upload tile
+│       │   ├── YarnPalette.tsx    Persistent multi-yarn rail
+│       │   ├── GarmentStage.tsx   Canvas, paint mode, before/after slider
+│       │   ├── ModeToolbar.tsx    Auto / Paint / Select toggle
+│       │   ├── ReportIssue.tsx    In-app GitHub Issues reporter
+│       │   └── ErrorBoundary.tsx
+│       ├── hooks/useAppState.ts   Reducer + localStorage persistence
+│       └── lib/recolourLocal.ts   JS port of the HSV remap
+├── tests/                         Backend tests
+├── benchmarks/                    End-to-end + per-stage benchmarks
+├── docs/decisions/                ADRs 001 to 011
+└── SECURITY.md                    Threat model, rate limits, CORS posture
 ```
 
-## 🛠️ Tech Stack
+## Tech stack
 
-**Backend:**
+| Layer | Tools |
+|-------|-------|
+| Backend | Python 3.11, FastAPI, OpenCV, NumPy, scikit-learn (MiniBatchKMeans), rembg + u2netp, SlowAPI, uvicorn |
+| Frontend | React 19, TypeScript, Vite 7, Vitest + Testing Library |
+| Infrastructure | HuggingFace Spaces (Docker, free CPU), Vercel (frontend), £0/month target |
+| Quality | pytest + pytest-cov, ESLint, GitHub Actions, ADRs for every load-bearing decision |
 
-- Python 3.11+ - Primary language
-- FastAPI - Modern web framework with auto-docs
-- OpenCV - Image processing
-- NumPy - Numerical operations
-- scikit-learn - K-means clustering
-- rembg - U²-Net background removal
-- Uvicorn - ASGI server
+## Performance
 
-**Frontend:**
+Measured on LG GRAM in February 2026, against synthetic test images, with `psutil` for memory tracking. Re-benchmarking on HuggingFace Spaces is pending.
 
-- React 19 - UI library
-- TypeScript - Type safety and better DX
-- Vite - Lightning-fast build tool and dev server
-- Cormorant Garamond + DM Sans - Typography (Google Fonts)
-- CSS3 - Custom design system with frosted glass effects, CSS variables, keyframe animations
+| Image size | Colour extraction | Background removal | Recolour | Total | Memory |
+|------------|-------------------|--------------------|----------|-------|--------|
+| 300×300 | 2.87s | 1.63s | 0.01s | **4.51s** | 262 MB |
+| 800×800 | 2.63s | 1.56s | 0.01s | **4.20s** | 271 MB |
+| 1920×1080 | 7.34s | 1.70s | 0.04s | **9.09s** | 293 MB |
 
-**Development Tools:**
+K-means dominates at large sizes. `rembg` is roughly constant because model inference cost is fixed and lazy-loaded. Frontend resizes yarn images to 400px and garments to 800px before upload, which clamps the worst case. See [ADR 005](docs/decisions/005-performance-optimization-strategy.md) and the full benchmark scripts in [benchmarks/](./benchmarks/).
 
-- pytest - Testing framework
-- pytest-cov - Code coverage
-- GitHub Actions - CI/CD pipeline
-- Git - Version control
+In the warm-cache path, the second click on a previously-recoloured yarn is a blob URL lookup with no network call. The first click on a new yarn pays one server-side recolour and is then cached for the rest of the session.
 
-## 🚀 Getting Started
+## Run locally
 
-### Prerequisites
-
-- Python 3.11 or higher
-- Node.js 18+ and npm
-- pip (Python package manager)
-
-### Backend Setup
-
-1. **Clone the repository:**
 ```bash
-git clone https://github.com/charlyx125/chromaknit.git
-cd chromaknit
-```
-
-2. **Create virtual environment:**
-```bash
+# Backend
 python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# macOS/Linux
-source venv/bin/activate
-```
-
-3. **Install dependencies:**
-```bash
+venv\Scripts\activate          # macOS/Linux: source venv/bin/activate
 pip install -r requirements-api.txt
-```
+uvicorn api.main:app --reload   # http://localhost:8000, docs at /docs
 
-4. **Start API server:**
-```bash
-uvicorn api.main:app --reload
-```
-
-**API available at:** http://localhost:8000  
-**Interactive docs:** http://localhost:8000/docs
-
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
-```bash
+# Frontend (separate terminal)
 cd chromaknit-frontend
-```
-
-2. **Install dependencies:**
-```bash
 npm install
+npm run dev                     # http://localhost:5173
 ```
 
-3. **Start development server:**
+Tests:
+
 ```bash
-npm run dev
+pytest tests/ --cov=core --cov=api --cov-report=term-missing
+cd chromaknit-frontend && npm run test
 ```
 
-**Frontend available at:** http://localhost:5173
+## Use the API directly
 
-### Full Stack Development
-
-**For the complete development experience, run both servers:**
-
-**Terminal 1 - Backend:**
 ```bash
-cd chromaknit
-source venv/bin/activate  # Windows: venv\Scripts\activate
-uvicorn api.main:app --reload
-```
-
-**Terminal 2 - Frontend:**
-```bash
-cd chromaknit-frontend
-npm run dev
-```
-
-**Benefits:**
-- ⚡ Hot reload on both frontend and backend
-- 🔄 Real-time API integration
-- 🎨 Instant visual feedback
-- 🐛 Easy debugging across the stack
-
-**Open browser:** http://localhost:5173
-
-## 💻 Usage
-
-### Option 1: Web Interface (Recommended)
-
-1. **Start both servers** (see Full Stack Development above)
-2. **Open http://localhost:5173 in browser**
-3. **Click "try it now"** on the header to begin
-4. **Tab 1 — Pick yarn:**
-   - Click a sample yarn swatch or the "+" card to upload your own
-   - Colours are extracted automatically (loading animation while processing)
-   - Extracted palette appears below the swatches
-5. **Tab 2 — Upload garment:**
-   - Upload a garment photo or pick a sample
-   - Click "recolour garment" button
-   - Progress animation plays while processing
-6. **Tab 3 — Result:**
-   - Drag the slider to compare original vs recoloured garment
-   - Download the result or start over
-7. **Report an issue:** Click the floating icon (bottom-right) to report problems directly to GitHub Issues
-
-### Option 2: Use the REST API Directly
-
-**Start API server:**
-```bash
-uvicorn api.main:app --reload
-```
-
-**Access interactive documentation:**
-
-- Swagger UI: http://127.0.0.1:8000/docs
-- ReDoc: http://127.0.0.1:8000/redoc
-
-**API Workflow:**
-
-1. **Extract colors from yarn:**
-
-   - POST to `/api/colors/extract`
-   - Upload yarn image
-   - Receive: `{"success": true, "colors": ["#142a68", "#23438d"], "count": 2}`
-
-2. **Recolor garment:**
-   - POST to `/api/garments/recolor`
-   - Upload garment image
-   - Provide colors (JSON array or comma-separated)
-   - Download recolored garment
-
-**Example with curl:**
-```bash
-# Extract colors
+# Extract a palette
 curl -X POST "http://127.0.0.1:8000/api/colors/extract" \
   -F "file=@examples/yarn/sample-yarn.jpg" \
   -F "n_colors=10"
 
-# Recolor garment
+# Start a garment session
+curl -X POST "http://127.0.0.1:8000/api/garments/session" \
+  -F "file=@examples/garment/sample-garment.jpg"
+
+# Recolour using the session id
 curl -X POST "http://127.0.0.1:8000/api/garments/recolor" \
-  -F "file=@examples/garment/sample-garment.jpg" \
+  -F "session_id=<id>" \
   -F "colors=#142a68,#23438d,#0c153b" \
-  --output recolored.png
+  --output recoloured.png
 ```
 
-### Option 3: Use Python Directly
+Interactive docs: `/docs` (Swagger) and `/redoc`.
 
-**Extract Colors from Yarn:**
-```python
-from core.yarn_color_extractor import ColorExtractor
+## Roadmap
 
-# Extract 10 dominant colors (captures shadow and highlight tones)
-extractor = ColorExtractor(image_path="yarn.jpg", n_colors=10)
-colors = extractor.extract_dominant_colors()
+- **Phase 1: Multi-yarn Auto.** Shipped. Multi-yarn palette with `localStorage` persistence, session-keyed API, per-yarn recolour cache. Switching cached yarns is under 100ms.
+- **Phase 2: Paint mode.** Shipped. Brush strokes commit regions to the canvas. Live preview uses the JS port of the HSV pipeline; commit is the source of truth. Ctrl+Z removes the last region. Foreground clipping prevents background bleed. Soft brush edges anti-alias the stroke boundary.
+- **Vintage editorial redesign.** In progress on this branch. Calmer typography, less performative chrome, more breathing room. Logic untouched; presentation only.
+- **Phase 3: Select mode.** Click-to-fill on Lab-distance flood fill with a tolerance slider. Server-side `/api/garments/segment` endpoint, reuses the existing region pipeline. SAM is out of scope (does not fit free-tier memory).
+- **Dream landing page.** Scroll-triggered black-and-white to colour demo using the engine itself. Gated on Phase 3.
 
-# Visualize results
-extractor.visualize_colors(output_path="results/colors.png")
+## Known limitations
 
-print(colors)  # ['#142a68', '#23438d', '#0c153b', '#3e64b2', '#658ad6']
-```
+- **Foreground detection.** `rembg` recolours all detected foreground, which can include a model wearing the garment. Works best on flat lays or simple subject-background separation. Phase 3 Select mode addresses this for messy photos.
+- **First request cold start.** HuggingFace Spaces sleeps on idle, so the first user-upload request after a quiet period takes 30 to 60 seconds. Sample flows are unaffected because they never hit the backend.
+- **Mobile.** Yarn palette `×` button is hover-revealed and error messages live in `title` tooltips. Both are desktop-only affordances. Tracked in the Phase 2 backlog.
+- **Upload size cap.** 5MB maximum for API uploads. Larger images are resized client-side before upload.
 
-**Recolor a Garment:**
-```python
-from core.garment_recolor import GarmentRecolorer
+## Decisions
 
-# Create recolorer
-recolorer = GarmentRecolorer(garment_image_path="sweater.jpg")
+The full ADR set lives in [docs/decisions/](docs/decisions/). The ones load-bearing for the current architecture:
 
-# Recolor with extracted yarn colors
-recolored_image = recolorer.recolor_garment(target_colors=colors)
+- [ADR 001: Yarn colour extraction](docs/decisions/001-yarn-color-extraction.md)
+- [ADR 002: Recolouring strategy](docs/decisions/002-recoloring-strategy.md)
+- [ADR 003: API design](docs/decisions/003-api-design.md)
+- [ADR 004: Frontend architecture](docs/decisions/004-react-frontend-architecture.md)
+- [ADR 005: Performance optimisation](docs/decisions/005-performance-optimization-strategy.md)
+- [ADR 006: UI redesign (v1)](docs/decisions/006-ui-redesign.md)
+- [ADR 007: Scaling strategy](docs/decisions/007-scaling-strategy.md)
+- [ADR 008: Frontend testing](docs/decisions/008-frontend-testing-strategy.md)
+- [ADR 009: Frontend persistence](docs/decisions/009-frontend-persistence-strategy.md)
+- [ADR 010: Session storage](docs/decisions/010-session-storage.md)
+- [ADR 011: Cost discipline and static-first](docs/decisions/011-cost-discipline-and-static-first.md)
 
-# Save result
-recolorer.save_result(output_path="results/recolored_sweater.png")
-```
+Security posture is documented separately in [SECURITY.md](SECURITY.md).
 
-## 🧪 Testing
+## Author
 
-Tests are organised by layer:
+Joyce Chong &middot; [@charlyx125](https://github.com/charlyx125) &middot; [Project](https://github.com/charlyx125/chromaknit)
 
-- **Core unit tests** ([tests/test_color_extractor.py](tests/test_color_extractor.py), [tests/test_garment_recolor.py](tests/test_garment_recolor.py), [tests/test_utils.py](tests/test_utils.py)) cover the image-processing engine in isolation.
-- **API integration tests** ([tests/test_api.py](tests/test_api.py)) exercise every endpoint through FastAPI's `TestClient`, covering happy paths plus each validation branch (content-type, file size, malformed colors, corrupt image, custom 404).
-- **Helper unit test** for `save_upload_capped` regression-guards the streaming upload cap, which `TestClient` can't reach because it always populates `file.size`.
+## License
 
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Run with coverage (97% overall, 92% on api/main.py)
-pytest tests/ --cov=core --cov=api --cov-report=term-missing
-
-# Run a specific suite
-pytest tests/test_api.py -v
-```
-
-**Frontend development:**
-```bash
-cd chromaknit-frontend
-
-# Start dev server with hot reload
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-## 📊 Technical Approach
-
-### Color Extraction ([ADR 001](docs/decisions/001-yarn-color-extraction.md))
-
-- **Algorithm:** K-means clustering in RGB space
-- **Optimization:** Configurable cluster count, random seed for reproducibility
-- **Output:** Sorted by frequency, hex codes with percentages
-
-### Garment Recoloring ([ADR 002](docs/decisions/002-recoloring-strategy.md))
-
-- **Color Space:** HSV (Hue, Saturation, Value)
-  - H: Changed to yarn color hue
-  - S: Changed to yarn color saturation
-  - V: Remapped from garment range to yarn range (preserves relative texture while matching yarn brightness)
-- **Multi-Color:** Distribution-weighted mapping using extraction percentages (dark yarn = more dark pixels)
-- **Background Removal:** rembg with u2netp model
-
-### Frontend Architecture ([ADR 004](docs/decisions/004-react-frontend-architecture.md), [ADR 006](docs/decisions/006-ui-redesign.md))
-
-- **Component-Based:** 11 focused components (Header, PetalBackground, SampleStrip, StepSection, UploadZone, ColorPalette, LoadingCat, BeforeAfter, InfoPanel, BuilderNotes, ReportIssue)
-- **State Management:** `useReducer` via a custom `useAppState` hook — 12-field state with typed actions; components are presentational
-- **API Integration:** Fetch API with async/await, AbortController for cancellation, and error handling
-- **Tabbed Workspace:** Three-tab workflow (pick yarn → upload garment → result) with fanned yarn sample cards
-- **Design System:** 9-token colour palette, Cormorant Garamond + DM Sans typography, frosted glass header with `backdrop-filter: blur(28px)`
-- **Before/After Slider:** Draggable comparison using `clip-path: inset()` with mouse, touch, and range input support
-- **Issue Reporting:** Floating report button that opens pre-filled GitHub Issues with categorised templates
-- **Type Safety:** Full TypeScript coverage for compile-time error detection
-
-### API Design ([ADR 003](docs/decisions/003-api-design.md))
-
-- **Layered validation:** File type → File size → Processing quality
-- **Flexible input:** Accepts JSON arrays or comma-separated color values
-- **Proper HTTP semantics:** Uses appropriate status codes (200, 400, 413, 500)
-- **Memory efficient:** Streams large files, temporary file cleanup
-- **CORS configured:** Allows frontend-backend communication during development
-
-## ⚡ Performance Benchmarks ([ADR 005](docs/decisions/005-performance-optimization-strategy.md))
-
-**Test Environment:**
-- Machine: LG GRAM
-- Test Date: February 2026
-- Methodology: Synthetic test images, timed operations with psutil memory tracking
-
-### Individual Operations
-
-| Operation | Small (300x300) | Medium (800x800) | Large (1920x1080) |
-|-----------|-----------------|------------------|-------------------|
-| Color Extraction | 3.382s | 3.797s | 7.014s |
-| Garment Recoloring | 1.746s | 1.863s | 1.766s |
-| **Partial Total** | **5.128s** | **5.660s** | **8.780s** |
-
-**Note:** Recoloring time includes background removal (rembg model loading ~1.5s)
-plus HSV transformation (~0.2s). Background removal dominates, making recoloring
-time nearly constant regardless of image size.
-
-### Full Workflow (Measured)
-
-Complete end-to-end workflow (yarn color extraction → background removal → garment recoloring):
-
-| Image Size | Extraction | Bg Removal | Recolor | **Total** | Memory |
-|------------|------------|------------|---------|-----------|--------|
-| Small (300x300) | 2.87s | 1.63s | 0.01s | **4.51s** | 262 MB |
-| Medium (800x800) | 2.63s | 1.56s | 0.01s | **4.20s** | 271 MB |
-| Large (1920x1080) | 7.34s | 1.70s | 0.04s | **9.09s** | 293 MB |
-
-**Bottleneck Analysis:**
-
-| Size | Bottleneck | % of Total |
-|------|------------|------------|
-| Small | Color Extraction | 63.7% |
-| Medium | Color Extraction | 62.5% |
-| Large | Color Extraction | 80.8% |
-
-**Key Findings:**
-- **Color Extraction** was the clear bottleneck (K-means clustering scales with pixel count)
-- **Background Removal** stays constant (~1.6s locally) due to fixed model inference time
-- **Garment Recoloring** is negligible (<0.05s)
-
-### Previous Production Performance (Railway Free Tier, historical)
-
-The numbers below were measured on Railway's free tier after the April 2026 optimizations. The backend has since moved to HuggingFace Spaces (see [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md)). HF Spaces adds a 30 to 60 second cold-start on the first request after a long idle period, but warm-request performance is broadly comparable. Re-benchmarking on HF Spaces is pending.
-
-| Operation | Before | After | Improvement |
-|-----------|--------|-------|-------------|
-| Color Extraction | 72s | 487–711ms | **~100-150x faster** |
-| Garment Recoloring | 34s | 1.8–37s | **~1-19x faster** |
-
-> **Note:** Recoloring has a wide range because rembg's neural network is lazy-loaded to keep idle memory under 512MB. The first recolor after idle (~37s) pays the model loading cost. Every subsequent request is fast (~1.8s). This is a deliberate trade-off — low idle memory vs. cold-start latency.
-
-**Optimizations applied:**
-1. **Frontend image resize** - yarn to 400x400, garment to 500x500 before uploading
-2. **MiniBatchKMeans** - samples batches instead of processing all pixels, n_init reduced from 10 to 3
-3. **Lightweight rembg model** - `u2netp` uses ~50% less memory than default `u2net`
-4. **Server-side downscale safety net** - caps image dimensions before processing
-
-**See full benchmarks:** [benchmarks/](./benchmarks/) | **See optimization details:** [ADR 005](docs/decisions/005-performance-optimization-strategy.md)
-
-## ⚠️ Known Limitations
-
-- **Foreground Detection:** Currently recolors all detected foreground objects (may include person, not just garment)
-- **Best Results:** Works optimally with solid-colored garments on simple backgrounds
-- **Processing Time:** (see [Performance Benchmarks](#-performance-benchmarks) for details)
-  - Color extraction: 487–711ms on Railway free tier (optimized with MiniBatchKMeans + frontend resize)
-  - Background removal + recoloring: 1.8–37s on Railway free tier (first request loads model ~37s, subsequent ~1.8s)
-  - Total workflow: ~2.3s warm, ~38s cold
-- **Color Distribution:** Simple brightness-based mapping (future: more sophisticated algorithms)
-- **File Size Limit:** 5MB maximum for API uploads
-- **Mobile UI:** Basic responsive breakpoint at 600px, but not fully polished for small screens
-
-## 🗺️ Roadmap
-
-### ✅ Phase 1: Core Processing (Complete)
-
-- ✅ Color extraction from yarn images
-- ✅ Garment recoloring with texture preservation
-- ✅ Comprehensive test suite
-- ✅ Performance benchmarks
-- ✅ CI/CD pipeline
-
-### ✅ Phase 2: Backend API (Complete)
-
-- ✅ FastAPI REST endpoints
-- ✅ File upload handling
-- ✅ Request/response validation
-- ✅ API documentation (Swagger/ReDoc)
-- ✅ Error handling with helpful messages
-- ✅ Flexible input format support
-- ✅ CORS configuration
-
-### ✅ Phase 3: Frontend Interface (Complete)
-
-- ✅ React + TypeScript + Vite setup
-- ✅ Image upload component with validation
-- ✅ Real-time color extraction
-- ✅ Visual color palette with distribution bar
-- ✅ Garment upload workflow
-- ✅ Garment recoloring integration
-- ✅ Draggable before/after comparison slider
-- ✅ Start Over reset functionality
-- ✅ UI redesign: frosted glass header, tabbed workspace, petal animations
-- ✅ Fanned yarn sample cards with hover/select animations
-- ✅ Sample garment images in upload zones
-- ✅ Cat + yarn ball loading animation
-- ✅ Collapsible builder notes and info panels
-- ✅ Custom design system (Cormorant Garamond + DM Sans, 9-token colour palette)
-- ✅ In-app issue reporting via GitHub Issues
-
-### ✅ Phase 4: Polish & Deployment (Complete)
-
-- ✅ Backend deployment (HuggingFace Spaces) - https://charlyx125-chromaknit-backend.hf.space
-- ✅ Frontend deployment (Vercel) - https://chromaknit.vercel.app
-- ✅ Lazy loading optimization for memory-constrained hosting
-- ✅ CORS configuration for production
-- ✅ Static-first sample flow (no backend involvement for sample yarns/garments) — see [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md)
-- ✅ Platform pivot from Railway to HuggingFace Spaces (May 2026) for sleep-on-idle billing — see [ADR 011](docs/decisions/011-cost-discipline-and-static-first.md)
-- Drag-and-drop upload with drag events (future)
-- Mobile responsive polish (future)
-- Performance optimizations (future)
-- More whimsical interactive elements (future)
-
-## 🤝 Contributing
-
-This is a personal learning project, but feedback and suggestions are welcome!
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is open source and available under the MIT License.
-
-## 👤 Author
-
-**Joyce Chong**
-
-- GitHub: [@charlyx125](https://github.com/charlyx125)
-- Project: [ChromaKnit](https://github.com/charlyx125/chromaknit)
-
-## 🙏 Acknowledgments
-
-- [scikit-learn](https://scikit-learn.org/) - K-means clustering implementation
-- [rembg](https://github.com/danielgatis/rembg) - U²-Net-based background removal
-- [OpenCV](https://opencv.org/) - Computer vision tools
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [React](https://react.dev/) - UI library
-- [Vite](https://vitejs.dev/) - Next generation frontend tooling
-- Inspiration from the knitting and maker community
-
-## 📚 Documentation
-
-For detailed technical decisions and architecture documentation, see:
-
-- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design, data flow, component interaction
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production URLs, cold start info, troubleshooting
-- [ADR 001: Yarn Color Extraction](docs/decisions/001-yarn-color-extraction.md) - K-means clustering selection
-- [ADR 002: Recoloring Strategy](docs/decisions/002-recoloring-strategy.md) - rembg/U²-Net selection
-- [ADR 003: API Design](docs/decisions/003-api-design.md) - FastAPI REST endpoints
-- [ADR 004: Frontend Architecture](docs/decisions/004-react-frontend-architecture.md) - React + TypeScript decisions
-- [ADR 005: Performance Optimization](docs/decisions/005-performance-optimization-strategy.md) - Bottleneck analysis and optimization strategies
-- [ADR 006: UI Redesign](docs/decisions/006-ui-redesign.md) - Frosted glass header, step-based workflow, design system
-- [ADR 007: Scaling Strategy](docs/decisions/007-scaling-strategy.md) - Single-worker CPU-bound bottleneck, race conditions, and when to escalate to a task queue
-
----
-
-Built with ❤️ for knitters and designers
-_Last updated: April 12, 2026 - Tabbed workspace, yarn sample cards, in-app issue reporting_
+MIT. Open source, attribution appreciated.

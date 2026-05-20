@@ -1,152 +1,296 @@
+/* ============================================================
+   REPORT ISSUE — Floating action button + report dialog
+   Matches the romantic portrait-book design language: cream
+   paper card, editorial typography, red accent for action.
+   ============================================================ */
+
+/* === Floating action button === */
 .report-fab {
-  position: fixed; bottom: 24px; right: 24px; z-index: 100;
-  width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(30, 15, 25, 0.45);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.75);
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.25s;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 60;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--hair-strong);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-soft);
 }
-
 .report-fab:hover {
-  background: rgba(30, 15, 25, 0.65);
-  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--bg);
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 22px rgba(184, 36, 45, 0.28);
 }
 
+/* === Scrim === */
 .report-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(30, 15, 25, 0.4);
-  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: rgba(42, 37, 34, 0.5);
+  background-image:
+    linear-gradient(to bottom, rgba(42, 37, 34, 0.32), rgba(42, 37, 34, 0.32)),
+    radial-gradient(ellipse at 30% 20%, rgba(184, 145, 92, 0.18), transparent 60%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  overflow-y: auto;
   animation: reportFadeIn 0.2s ease;
 }
 
+/* === Modal card === */
 .report-modal {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 24px;
-  padding: 36px 32px 28px;
-  max-width: 400px; width: 90%;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  box-shadow: var(--shadow-warm);
   position: relative;
+  padding: 36px 36px 28px;
+  max-width: 480px;
+  width: 100%;
   animation: reportSlideUp 0.3s ease-out;
+}
+.report-modal::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--hair);
+  pointer-events: none;
 }
 
 .report-close {
-  position: absolute; top: 14px; right: 18px;
-  background: none; border: none; font-size: 22px;
-  color: #8a6870; cursor: pointer; line-height: 1;
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  color: var(--ink-soft);
+  z-index: 2;
+  cursor: pointer;
+  background: none;
+  border: none;
   transition: color 0.2s;
 }
+.report-close:hover { color: var(--red); }
 
-.report-close:hover { color: var(--dark); }
+/* === Heading === */
+.report-eyebrow {
+  display: block;
+  text-align: center;
+  margin-bottom: 10px;
+}
 
 .report-title {
-  font-family: "Cormorant Garamond", serif;
-  font-size: 26px; font-style: italic; font-weight: 600;
-  color: #C4707A; margin-bottom: 4px;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--ink);
+  line-height: 1.05;
+  margin-bottom: 6px;
+  text-align: center;
+}
+.report-title em {
+  color: var(--red-deep);
+  font-style: italic;
+  font-weight: 600;
 }
 
 .report-subtitle {
-  font-size: 14px; color: #8a6870; margin-bottom: 20px;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-soft);
+  margin-bottom: 22px;
+  text-align: center;
 }
 
+/* === Category radios === */
 .report-options {
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
 .report-option {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; border-radius: 12px;
-  border: 1.5px solid #f0dde2;
-  background: rgba(255, 255, 255, 0.6);
-  cursor: pointer; transition: all 0.2s;
-  font-family: "DM Sans", sans-serif;
-  font-size: 14px; color: var(--dark);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+  border-radius: 2px;
+  position: relative;
 }
-
 .report-option:hover {
-  border-color: var(--rose); background: #fff4f6;
+  border-color: var(--hair-strong);
 }
-
 .report-option.selected {
-  border-color: var(--rose); background: #fff4f6;
+  border-color: var(--red);
+  background: rgba(184, 36, 45, 0.04);
 }
 
 .report-option input[type="radio"] {
-  display: none;
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
 .report-option-radio {
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid #d0b0b8; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hair-strong);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s;
 }
-
 .report-option.selected .report-option-radio {
-  border-color: var(--rose);
+  border-color: var(--red);
 }
-
 .report-option.selected .report-option-radio::after {
   content: "";
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--rose);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
 }
 
+/* === Details textarea === */
 .report-textarea {
-  width: 100%; box-sizing: border-box;
-  border: 1.5px solid #f0dde2; border-radius: 12px;
-  padding: 10px 14px; font-family: "DM Sans", sans-serif;
-  font-size: 14px; color: var(--dark);
-  background: rgba(255, 255, 255, 0.6);
-  resize: vertical; margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--hair-strong);
+  border-radius: 2px;
+  padding: 12px 14px;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--paper);
+  resize: vertical;
+  margin-bottom: 16px;
   transition: border-color 0.2s;
   animation: reportFadeIn 0.2s ease;
 }
+.report-textarea::placeholder { color: var(--ink-faint); }
+.report-textarea:focus {
+  outline: none;
+  border-color: var(--red);
+}
 
-.report-textarea::placeholder { color: #c0a0a8; }
-.report-textarea:focus { outline: none; border-color: var(--rose); }
+/* === Inline error === */
+.report-error {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--red);
+  background: rgba(184, 36, 45, 0.06);
+  border: 1px solid rgba(184, 36, 45, 0.2);
+  padding: 10px 14px;
+  border-radius: 2px;
+  text-align: center;
+  margin-bottom: 14px;
+}
 
+/* === Submit button === */
 .report-submit {
-  width: 100%; text-align: center;
+  width: 100%;
+  font-family: "Playfair Display", serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--red);
+  padding: 14px 22px;
+  border: 1px solid var(--red);
+  border-radius: 2px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(184, 36, 45, 0.18);
 }
-
+.report-submit:hover:not(:disabled) {
+  background: var(--red-deep);
+  border-color: var(--red-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(184, 36, 45, 0.26);
+}
 .report-submit:disabled {
-  opacity: 0.4; cursor: default;
+  opacity: 0.4;
+  cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-.report-submit:disabled:hover {
-  background: #fff; transform: none;
-}
-
+/* === Success view === */
 .report-success {
   text-align: center;
   padding: 12px 0;
 }
-
 .report-success-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 48px; height: 48px; border-radius: 50%;
-  background: #e8f5e9; color: #4caf50;
-  font-size: 24px; margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--red);
+  color: var(--bg);
+  font-size: 26px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 26px rgba(184, 36, 45, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.report-error {
-  font-family: "DM Sans", sans-serif;
-  font-size: 13px; color: #c0392b;
-  text-align: center; margin-bottom: 12px;
+/* === Focus rings === */
+.report-fab:focus-visible,
+.report-close:focus-visible,
+.report-submit:focus-visible,
+.report-option:focus-within {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
 
-@keyframes reportFadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* === Animations === */
+@keyframes reportFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes reportSlideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .report-modal {
+    padding: 28px 22px 22px;
+  }
+  .report-overlay {
+    padding: 24px 12px;
+  }
 }

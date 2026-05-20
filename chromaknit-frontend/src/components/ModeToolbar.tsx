@@ -20,58 +20,69 @@ const MODES: ModeOption[] = [
   {
     mode: "auto",
     label: "Auto",
-    description: "Recolour the whole garment with the active yarn",
+    description: "Recolour the whole garment in the active yarn.",
     ready: true,
   },
   {
     mode: "paint",
     label: "Paint",
-    description: "Drag on the garment to paint a region with the active yarn",
+    description: "Brush a region with the loaded yarn.",
     ready: true,
   },
   {
     mode: "select",
     label: "Select",
-    description: "Click a region to fill it with the active yarn (Phase 3)",
+    description: "Tap a region of the garment to recolour.",
     ready: false,
   },
 ];
 
 /**
- * Minimal mockup toolbar for Phase 2. Three buttons stacked vertically; the
- * canvas sits to the right of this rail. Auto is wired and works as it did
- * in Phase 1. Paint and Select are visible so the affordance is discoverable
- * but disabled until their modes ship; clicking shows the description as a
- * tooltip.
+ * Left rail in the garment stage. Three editorial tiles stacked vertically:
+ * Auto (shipped), Paint (shipped, Phase 2.B), Select (phase 3, shown muted
+ * with a gold "Soon" tag and disabled).
  */
 function ModeToolbar({ activeMode, onChange, visible }: ModeToolbarProps) {
   if (!visible) return null;
 
   return (
-    <div className="mode-toolbar" role="group" aria-label="Recolour mode">
+    <aside className="mode-rail" aria-label="Recolour modes">
+      <div className="mode-rail-head">
+        <span className="caps">Mode</span>
+      </div>
       {MODES.map((opt) => {
-        const isActive = activeMode === opt.mode;
+        const isActive = opt.ready && activeMode === opt.mode;
+        const isComingSoon = !opt.ready;
+        const classes = [
+          "mode-tile",
+          isActive ? "is-active" : "",
+          isComingSoon ? "is-coming-soon" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
         return (
           <button
             key={opt.mode}
             type="button"
-            className={[
-              "mode-toolbar-btn",
-              isActive ? "mode-toolbar-btn--active" : "",
-              opt.ready ? "" : "mode-toolbar-btn--disabled",
-            ].filter(Boolean).join(" ")}
+            className={classes}
             onClick={() => opt.ready && onChange(opt.mode)}
             aria-pressed={isActive}
             aria-disabled={!opt.ready}
             disabled={!opt.ready}
             title={opt.description}
           >
-            {opt.label}
-            {!opt.ready && <span className="mode-toolbar-pending" aria-hidden="true">soon</span>}
+            <span className="mode-tile-text">
+              <span className="mode-tile-name">{opt.label}</span>
+              <span className="mode-tile-desc">{opt.description}</span>
+            </span>
+            {isComingSoon && (
+              <span className="mode-tile-soon" aria-hidden="true">Soon</span>
+            )}
           </button>
         );
       })}
-    </div>
+    </aside>
   );
 }
 
