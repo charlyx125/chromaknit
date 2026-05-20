@@ -1,66 +1,127 @@
-.mode-toolbar {
+/* ============================================================
+   MODE TOOLBAR — Sits above the garment image inside the main
+   column. A small caps "Mode" label on the left, then three
+   horizontal segments. Active segment fills with ink; muted
+   "Soon" tag denotes a not-yet-built mode. Only appears once a
+   garment session is loaded.
+   ============================================================ */
+.mode-rail {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 18px;
-  border: 1.5px solid rgba(232, 200, 206, 0.35);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
-  width: fit-content;
-  align-self: flex-start;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 2px;
+  overflow: hidden;
 }
 
-.mode-toolbar-btn {
-  font-family: "DM Sans", sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: 1.5px solid transparent;
-  background: rgba(245, 237, 232, 0.4);
-  color: #6a4a52;
-  cursor: pointer;
-  transition: all 0.18s ease;
+.mode-rail-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 110px;
+  padding: 0 18px 0 16px;
+  border-right: 1px solid var(--hair);
+  background: var(--bg);
+}
+.mode-rail-head .caps { color: var(--ink-soft); }
+
+.mode-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
   text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 0.2s, color 0.2s;
+  position: relative;
+  flex: 1;
+  min-height: 52px;
 }
 
-.mode-toolbar-btn:hover:not(:disabled) {
-  background: rgba(232, 123, 139, 0.08);
-  color: var(--rose);
-  border-color: rgba(232, 123, 139, 0.3);
+.mode-tile + .mode-tile {
+  border-left: 1px solid var(--hair);
 }
 
-.mode-toolbar-btn--active {
-  background: var(--rose);
-  color: #fff;
-  border-color: var(--rose);
-  box-shadow: 0 2px 8px rgba(232, 123, 139, 0.3);
+.mode-tile-text {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
-.mode-toolbar-btn--active:hover:not(:disabled) {
-  background: var(--rose);
-  color: #fff;
+.mode-tile-name {
+  display: inline-block;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
-.mode-toolbar-btn--disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.mode-tile-desc {
+  display: inline-block;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.mode-toolbar-pending {
+.mode-tile:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.mode-tile.is-active {
+  background: var(--ink);
+}
+.mode-tile.is-active .mode-tile-name { color: var(--bg); }
+.mode-tile.is-active .mode-tile-desc { color: rgba(244, 237, 224, 0.7); }
+
+.mode-tile.is-coming-soon {
+  cursor: default;
+}
+.mode-tile.is-coming-soon .mode-tile-name,
+.mode-tile.is-coming-soon .mode-tile-desc {
+  color: var(--ink-faint);
+}
+.mode-tile.is-coming-soon:hover {
+  background: transparent;
+}
+
+.mode-tile-soon {
+  font-family: "DM Sans", sans-serif;
   font-size: 10px;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  font-weight: 600;
-  color: #8a6870;
-  background: rgba(138, 104, 112, 0.12);
-  padding: 2px 6px;
-  border-radius: 6px;
+  color: var(--gold);
+  margin-left: auto;
+  padding-left: 8px;
+  flex: 0 0 auto;
+}
+
+.mode-tile:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+/* Narrow viewports: hide the descriptions, keep just the labels. */
+@media (max-width: 1180px) {
+  .mode-tile-desc { display: none; }
+  .mode-tile { padding: 12px 14px; }
+}
+
+@media (max-width: 720px) {
+  .mode-rail-head { padding: 0 12px; }
+  .mode-tile { padding: 10px 12px; min-height: 44px; }
+  .mode-tile-name { font-size: 15px; }
 }

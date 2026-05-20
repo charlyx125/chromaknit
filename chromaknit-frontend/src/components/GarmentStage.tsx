@@ -3,11 +3,13 @@ import type { GarmentSession, Mode, Region, Yarn } from "../hooks/useAppState";
 import { recolourLocal, stampCircle, stampLine } from "../lib/recolourLocal";
 import "./GarmentStage.css";
 
-// Brush radius bounds (canvas pixels). The slider in the UI maps to this
-// range. Default sits in the middle, suitable for most flat-lay garments.
-const BRUSH_MIN = 4;
-const BRUSH_MAX = 60;
-const BRUSH_DEFAULT = 18;
+// Five discrete brush sizes for the editorial dot picker. Index 2 is the
+// default. Replaces the continuous range slider with the 5-dot affordance
+// from the mockup. Loses fine-grained control in exchange for a refined
+// look; for the audience (knitters trying colourways) five presets are
+// plenty.
+const BRUSH_SIZES = [6, 12, 18, 36, 60];
+const BRUSH_DEFAULT_INDEX = 2;
 
 // Decode a base64-encoded PNG mask back to a 1-channel Uint8Array (R channel).
 async function decodeMaskPng(base64: string): Promise<Uint8Array> {
@@ -52,7 +54,6 @@ async function encodeMaskAsBase64Png(
   );
   if (!blob) throw new Error("Could not encode mask as PNG");
   const buffer = await blob.arrayBuffer();
-  // Convert ArrayBuffer to base64. btoa handles binary strings.
   let binary = "";
   const bytes = new Uint8Array(buffer);
   const chunk = 0x8000;
@@ -60,6 +61,10 @@ async function encodeMaskAsBase64Png(
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   return btoa(binary);
+}
+
+function titleCase(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 interface GarmentSample {
@@ -80,38 +85,16 @@ interface GarmentStageProps {
   isRecoloring: boolean;
   currentRecolorUrl: string | null;
   error: string | null;
-  // Returns a promise so the stage can show its own loading state on the
-  // upload button while the parent's handler is in flight (rembg can take a
-  // couple of seconds, so visible feedback matters).
   onUpload: (file: File) => Promise<void> | void;
-  // Sample path: the parent loads precomputed mask + metadata from
-  // /samples/precomputed/garments/. Fast (no rembg), but still async, so the
-  // tile shows its spinner while in flight.
   onSampleSelect: (label: string, src: string) => Promise<void> | void;
-  onClear: () => void;
-  // Phase 2 paint mode plumbing.
   activeMode: Mode;
   activeYarn: Yarn | null;
-  // All yarns, so the canvas can look up each region's yarn by id when
-  // compositing the persisted regions on top of the base.
   yarns: Yarn[];
   regions: Region[];
   onCommitRegion: (region: Region) => void;
-  // Undo affordance. Removes the most recently committed region. Mirrors
-  // the Ctrl+Z keyboard shortcut wired in App.tsx.
   onUndoLastRegion: () => void;
 }
 
-/**
- * Garment area beneath the yarn palette.
- *
- * No session yet: shows an upload zone (drag-and-drop or click to pick).
- * Session in flight: shows the original alongside the in-progress recolour.
- * Session with a result: shows a before/after slider with a download link.
- *
- * Picking a yarn in the parent palette is what triggers recolour. This
- * component is purely a view onto state.garmentSession + state.currentRecolorUrl.
- */
 function GarmentStage({
   session,
   isRecoloring,
@@ -119,7 +102,6 @@ function GarmentStage({
   error,
   onUpload,
   onSampleSelect,
-  onClear,
   activeMode,
   activeYarn,
   yarns,
@@ -131,33 +113,21 @@ function GarmentStage({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  // Paint brush radius in canvas pixels. Slider visible only when paint
-  // mode is active; persists across mode switches in the same session.
-  const [brushRadius, setBrushRadius] = useState(BRUSH_DEFAULT);
-  // Cached decoded base image (whichever URL we're showing right now). We
-  // hold onto the HTMLImageElement so the paint redraw can blit it
-  // synchronously instead of re-decoding the URL per stroke move.
+  const [brushIndex, setBrushIndex] = useState(BRUSH_DEFAULT_INDEX);
+  const brushRadius = BRUSH_SIZES[brushIndex];
+
   const baseImageRef = useRef<HTMLImageElement | null>(null);
-  // Decoded foreground masks for each persisted region, keyed by region id.
-  // Populated lazily from region.maskPngBase64 in the regions effect.
   const regionMasksRef = useRef<Map<string, Uint8Array>>(new Map());
-  // The mask currently being painted by an active stroke, plus tracking refs
-  // for the pointer-down state and last stamped point.
   const strokeMaskRef = useRef<Uint8Array | null>(null);
   const isStrokingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  // strokeTick bumps on every pointermove to force a re-render so the draw
-  // effect runs. Mutating refs alone wouldn't trigger React.
   const [strokeTick, setStrokeTick] = useState(0);
-  // Tracks which sample is currently uploading so we can show a per-tile
-  // spinner. The whole sample grid disables while one is in flight to
-  // prevent confused multi-click states.
+
   const [uploadingSampleLabel, setUploadingSampleLabel] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   // Cold-start signal: the HuggingFace Spaces backend sleeps when idle and
   // takes ~30-60 seconds to wake on first request. If the upload is still in
-  // flight after 5 seconds we swap the spinner copy so the user knows it
-  // isn't broken. The warm path (request finishes in <5s) never trips this.
+  // flight after 5 seconds we swap the copy so the user knows it isn't broken.
   const [isWarming, setIsWarming] = useState(false);
   const warmingTimerRef = useRef<number | null>(null);
 
@@ -203,10 +173,6 @@ function GarmentStage({
   const handleSampleClick = async (sample: GarmentSample) => {
     setUploadingSampleLabel(sample.label);
     try {
-      // Hand off to the parent's static-asset path. The parent reads the
-      // precomputed JSON + mask under /samples/precomputed/garments/ and
-      // dispatches a sentinel session that the auto-recolour effect handles
-      // entirely client-side.
       await onSampleSelect(sample.label, sample.src);
     } catch (err) {
       const errorMessage =
@@ -224,7 +190,6 @@ function GarmentStage({
   useEffect(() => {
     let cancelled = false;
     const cache = regionMasksRef.current;
-    // Drop cached masks for regions that no longer exist.
     const currentIds = new Set(regions.map((r) => r.id));
     for (const id of cache.keys()) {
       if (!currentIds.has(id)) cache.delete(id);
@@ -237,7 +202,6 @@ function GarmentStage({
         if (cancelled) return;
         cache.set(region.id, mask);
       }
-      // Trigger a redraw once any new mask lands.
       setStrokeTick((t) => t + 1);
     };
     decode();
@@ -247,7 +211,7 @@ function GarmentStage({
   }, [regions]);
 
   // Composite the canvas: base image, then each persisted region recoloured,
-  // then the active paint stroke (if any). Runs whenever an input changes.
+  // then the active paint stroke (if any).
   useEffect(() => {
     if (!session) return;
     const canvas = canvasRef.current;
@@ -256,17 +220,7 @@ function GarmentStage({
     if (!ctx) return;
 
     // Paint mode always composites against the ORIGINAL garment, never
-    // against an Auto-mode recolour. Two reasons:
-    //   1. UX: Paint should show "the original garment with my brush
-    //      strokes on it", not "the auto-recoloured garment with my
-    //      strokes on top". Otherwise switching Auto -> Paint shows the
-    //      auto-recolour bleeding through.
-    //   2. Math: recolourLocal reads V from whatever's underneath. If the
-    //      underneath is an Auto-recoloured garment, the V values are
-    //      from that recolour, not from the original — so a stroke on
-    //      top of a white auto-recolour gets mapped to the lightest
-    //      colour of its target palette (often near-white) and
-    //      effectively disappears.
+    // against an Auto-mode recolour. See note in previous version.
     const useOriginal =
       showOriginal || activeMode === "paint" || !currentRecolorUrl;
     const targetUrl = useOriginal ? session.previewUrl : currentRecolorUrl;
@@ -282,21 +236,9 @@ function GarmentStage({
     return () => {
       cancelled = true;
     };
-    // drawComposite is referenced lexically; we want to redraw on these inputs
-    // changing. The function itself reads refs that hold the latest stroke.
-    // activeMode is included because the targetUrl computation depends on it
-    // (Paint mode always uses the original; Auto uses currentRecolorUrl).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, currentRecolorUrl, showOriginal, activeMode]);
 
-  // Re-composite (without re-loading the base image) when regions or the
-  // stroke tick change. The base image is already cached in baseImageRef.
-  // activeMode is included so Paint -> Auto and Auto -> Paint redraw the
-  // overlay correctly: Auto hides regions, Paint shows them. The first
-  // effect also reloads the base image when activeMode changes (Paint uses
-  // the original; Auto uses currentRecolorUrl), which calls drawComposite
-  // via img.onload — so this dep is technically redundant but defends
-  // against a future refactor that might decouple the two effects.
   useEffect(() => {
     drawComposite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -312,31 +254,13 @@ function GarmentStage({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
 
-    // "Hold to see original" reveals the unmodified upload. Skip persisted
-    // regions and the in-flight stroke so the user sees the true source
-    // photo, not the source plus paint composited.
     if (showOriginal) return;
-
-    // Regions and the active stroke only render in Paint mode. In Auto mode
-    // the canvas shows the whole-garment recolour from currentRecolorUrl
-    // unmodified — overlaying regions on top would mix two semantically
-    // different views (whole-garment Auto + per-region Paint) and confuse
-    // the user. Regions stay in state.regions across mode switches; they're
-    // just hidden in Auto mode and re-shown when Paint comes back.
     if (activeMode !== "paint") return;
 
-    // We're going to apply HSV remaps in-place on a single ImageData buffer.
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let dirty = false;
-
-    // The garment-wide brightness range was computed once when the session
-    // loaded. Pass it to every recolourLocal call so adjacent strokes share
-    // the same shadow-to-highlight normalisation and don't show seams.
     const range = session?.brightnessRange ?? null;
 
-    // Persisted regions, in commit order. Each region carries the yarn id it
-    // was painted with; we look that yarn up in the full yarns prop. If the
-    // yarn was removed since (or its extraction never finished), skip.
     const yarnsById = new Map(yarns.map((y) => [y.id, y]));
     for (const region of regions) {
       const mask = regionMasksRef.current.get(region.id);
@@ -355,7 +279,6 @@ function GarmentStage({
       dirty = true;
     }
 
-    // Active in-flight stroke.
     const stroke = strokeMaskRef.current;
     if (stroke && activeYarn && activeYarn.palette.length > 0) {
       recolourLocal(
@@ -375,7 +298,6 @@ function GarmentStage({
     if (dirty) ctx.putImageData(imageData, 0, 0);
   }
 
-  // === Paint mode pointer handlers ===
   const paintEnabled =
     activeMode === "paint" && session !== null && activeYarn !== null && activeYarn.status === "ready";
 
@@ -440,25 +362,8 @@ function GarmentStage({
     isStrokingRef.current = false;
     lastPointRef.current = null;
 
-    // Capture the mask + region id synchronously. We need stable references
-    // for two reasons:
-    //   1. To pre-populate the decoded-mask cache below (so drawComposite
-    //      can render the new region the instant COMMIT_REGION lands,
-    //      without waiting for the async base64 decode in the regions
-    //      effect to round-trip).
-    //   2. To identity-check before clearing strokeMaskRef in the .then()
-    //      callback. The user may have already started a new stroke by the
-    //      time encoding finishes; nulling strokeMaskRef unconditionally
-    //      would clobber the new stroke's buffer and silently lose its
-    //      pointermove stamps.
     const strokeMask = strokeMaskRef.current;
     const newRegionId = crypto.randomUUID();
-
-    // Pre-cache so drawComposite has the mask without waiting for the
-    // regions effect's base64 -> Uint8Array decode round-trip. Without
-    // this, between COMMIT_REGION and decode-complete there's a frame
-    // where neither the active stroke nor the persisted region is drawn,
-    // and the user sees the stroke flash off and back on.
     regionMasksRef.current.set(newRegionId, strokeMask);
 
     encodeMaskAsBase64Png(strokeMask, canvas.width, canvas.height)
@@ -470,18 +375,12 @@ function GarmentStage({
           maskPngBase64,
           createdAt: Date.now(),
         });
-        // Only clear if the stroke ref still points to the mask we just
-        // encoded. A new pointerDown may have replaced it with a fresh
-        // buffer mid-encode; nulling that would lose the in-flight stroke.
         if (strokeMaskRef.current === strokeMask) {
           strokeMaskRef.current = null;
         }
         setStrokeTick((t) => t + 1);
       })
       .catch((err) => {
-        // Encoding shouldn't fail under normal circumstances. If it does,
-        // surface as a local error so the user knows the stroke was lost,
-        // and clean up the cache entry that won't have a region to belong to.
         regionMasksRef.current.delete(newRegionId);
         setLocalError(
           err instanceof Error ? err.message : "Could not save the paint stroke.",
@@ -493,64 +392,82 @@ function GarmentStage({
       });
   }
 
+  // ============== Empty state ==============
   if (!session) {
     return (
-      <section className="garment-stage" aria-label="Garment workspace">
-        <div className="garment-empty-card">
-          <button
-            type="button"
-            className={`garment-upload-tile${isUploadingFile ? " garment-upload-tile--loading" : ""}`}
-            onClick={() => inputRef.current?.click()}
-            aria-label="Upload a garment image"
-            disabled={anyUploadInFlight}
-          >
-            {isUploadingFile ? (
-              <>
-                <span className="garment-upload-spinner" aria-hidden="true" />
-                {isWarming ? (
-                  <>
-                    <span className="garment-upload-title">warming up the backend</span>
-                    <span className="garment-upload-hint">give it about 30 seconds, this only happens once</span>
-                  </>
-                ) : (
-                  <span className="garment-upload-title">uploading...</span>
-                )}
-              </>
-            ) : (
-              <>
-                <span className="garment-upload-plus" aria-hidden="true">+</span>
-                <span className="garment-upload-title">upload a garment</span>
-                <span className="garment-upload-hint">flat-lay or worn, jpg or png, up to 5MB</span>
-              </>
-            )}
-          </button>
-          <p className="garment-samples-label">or try a sample</p>
-          <div
-            className="garment-samples-grid"
-            role="group"
-            aria-label="Garment samples"
-          >
+      <article className="garment-card garment-card--empty" aria-label="Garment workspace">
+        <div className="garment-fig-meta">
+          <span className="caps">Awaiting garment</span>
+          <span className="italic">no photograph yet</span>
+        </div>
+
+        <div
+          className={`upload-zone garment-upload${anyUploadInFlight ? " garment-upload--loading" : ""}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => !anyUploadInFlight && inputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (anyUploadInFlight) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          aria-disabled={anyUploadInFlight}
+        >
+          {isUploadingFile ? (
+            <>
+              <span className="garment-upload-spinner" aria-hidden="true" />
+              <h5>{isWarming ? "Stretching its legs" : "Reading the photograph"}</h5>
+              <p>
+                {isWarming
+                  ? "ChromaKnit runs on a free tier, so the engine takes a moment after a quiet stretch."
+                  : "A moment please."}
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="upload-mark">+</div>
+              <h5>Drop a garment photograph</h5>
+              <p>
+                A flat lay, a hung shot, or a finished piece you have knit. Even
+                lighting and a quiet background help the engine read the texture.
+              </p>
+              <span className="upload-button">Choose a file</span>
+              <small className="upload-fineprint">JPG or PNG, up to 5 MB</small>
+            </>
+          )}
+        </div>
+
+        <div className="garment-sample-strip">
+          <p className="garment-sample-strip-label">
+            <span className="caps">Or try a sample</span>
+          </p>
+          <div className="garment-sample-grid" role="group" aria-label="Garment samples">
             {GARMENT_SAMPLES.map((sample) => {
               const isThisLoading = uploadingSampleLabel === sample.label;
               return (
                 <button
                   key={sample.label}
                   type="button"
-                  className={`garment-sample-card${isThisLoading ? " garment-sample-card--loading" : ""}`}
+                  className="garment-sample-tile"
                   onClick={() => handleSampleClick(sample)}
                   aria-label={`Use ${sample.label} sample`}
                   disabled={anyUploadInFlight}
                 >
-                  <img src={sample.src} alt="" />
-                  <span className="garment-sample-label">{sample.label}</span>
-                  {isThisLoading && (
-                    <span className="garment-sample-spinner" role="status" aria-label="Uploading" />
-                  )}
+                  <div className="garment-sample-thumb">
+                    <img src={sample.src} alt="" />
+                    {isThisLoading && (
+                      <span className="garment-sample-spinner" role="status" aria-label="Loading" />
+                    )}
+                  </div>
+                  <div className="garment-sample-name">{titleCase(sample.label)}</div>
                 </button>
               );
             })}
           </div>
         </div>
+
         <input
           ref={inputRef}
           type="file"
@@ -562,114 +479,136 @@ function GarmentStage({
         {(localError || error) && (
           <p className="garment-stage-error" role="alert">{localError || error}</p>
         )}
-      </section>
+      </article>
     );
   }
 
-  // Session present. Render onto a real <canvas> so paint mode (Phase 2.D)
-  // has a writeable surface. The canvas always shows either the original or
-  // the recoloured composite based on showOriginal; the toggle replaces the
-  // before/after slider that lived here in slice 1.C.
+  // ============== Loaded state ==============
+  const yarnDisplay = activeYarn ? titleCase(activeYarn.label) : "";
+  const metaCapsText = paintEnabled ? "Painting" : isRecoloring ? "Steeping" : "In revision";
+  const metaItalicText = activeYarn
+    ? `${paintEnabled ? "in" : "recoloured in"} ${yarnDisplay.toLowerCase()}`
+    : "pick a yarn from the palette";
+
   return (
-    <section className="garment-stage" aria-label="Garment workspace">
-      <div className="garment-card">
-        <div className="garment-canvas-wrap">
-          <canvas
-            ref={canvasRef}
-            className={`garment-canvas${paintEnabled ? " garment-canvas--paint" : ""}`}
-            width={session.width}
-            height={session.height}
-            aria-label={
-              showOriginal
-                ? "Original garment"
-                : currentRecolorUrl
-                  ? "Recoloured garment"
-                  : "Garment"
-            }
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-          />
-          {isRecoloring && (
-            <div className="garment-recoloring-overlay" role="status">
-              <span className="garment-recoloring-spinner" aria-hidden="true" />
-              <span>recolouring...</span>
+    <article className="garment-card" aria-label="Garment workspace">
+      <div className="garment-fig-meta">
+        <span className="caps">{metaCapsText}</span>
+        <span className="italic">{metaItalicText}</span>
+      </div>
+
+      <div className="garment-image garment-image-corners">
+        <canvas
+          ref={canvasRef}
+          className={`garment-canvas${paintEnabled ? " garment-canvas--paint" : ""}`}
+          width={session.width}
+          height={session.height}
+          aria-label={
+            showOriginal
+              ? "Original garment"
+              : currentRecolorUrl
+                ? "Recoloured garment"
+                : "Garment"
+          }
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        />
+        {isRecoloring && (
+          <div className="loading-veil" role="status" aria-label="Recolouring">
+            <div className="loading-pulse"><span>&#x2726;</span></div>
+            <div className="loading-title">Steeping the <em>wool</em></div>
+            <div className="loading-sub">
+              The engine is reading the texture and blending in the new colour.
+              <span className="loading-dots"><span /><span /><span /></span>
             </div>
-          )}
-        </div>
-        {paintEnabled && (
-          <div className="garment-brush" role="group" aria-label="Brush controls">
-            <label className="garment-brush-label">
-              <span>brush size</span>
-              <input
-                type="range"
-                min={BRUSH_MIN}
-                max={BRUSH_MAX}
-                value={brushRadius}
-                onChange={(e) => setBrushRadius(Number(e.target.value))}
-                aria-valuemin={BRUSH_MIN}
-                aria-valuemax={BRUSH_MAX}
-                aria-valuenow={brushRadius}
-              />
-              <span
-                className="garment-brush-preview"
-                style={{
-                  width: brushRadius * 2,
-                  height: brushRadius * 2,
-                  background: activeYarn?.palette[0] ?? "rgba(138, 104, 112, 0.5)",
-                }}
-                aria-hidden="true"
-              />
-            </label>
-            <button
-              type="button"
-              className="garment-brush-undo"
-              onClick={onUndoLastRegion}
-              disabled={regions.length === 0}
-              title="Remove last paint stroke (Ctrl+Z)"
-            >
-              undo
-            </button>
           </div>
         )}
-        {(currentRecolorUrl || regions.length > 0) && (
-          <button
-            type="button"
-            className="garment-toggle"
-            onMouseDown={() => setShowOriginal(true)}
-            onMouseUp={() => setShowOriginal(false)}
-            onMouseLeave={() => setShowOriginal(false)}
-            onTouchStart={() => setShowOriginal(true)}
-            onTouchEnd={() => setShowOriginal(false)}
-            aria-pressed={showOriginal}
-          >
-            {showOriginal ? "showing original" : "hold to see original"}
-          </button>
-        )}
-        <div className="garment-actions">
-          {currentRecolorUrl && (
-            <a
-              href={currentRecolorUrl}
-              download="chromaknit-recoloured.png"
-              className="garment-action-link"
-            >
-              download
-            </a>
+      </div>
+
+      <div className="garment-caption">
+        <div className="garment-caption-main">
+          {activeYarn && (currentRecolorUrl || regions.length > 0) ? (
+            <>
+              Lifted from black and white into <em>{yarnDisplay.toLowerCase()}</em>.
+            </>
+          ) : (
+            <>Choose a yarn from the palette to begin.</>
           )}
+        </div>
+        <div className="garment-caption-side">
+          {session.width} &times; {session.height}
+        </div>
+      </div>
+
+      {paintEnabled ? (
+        <div className="paint-tools" role="group" aria-label="Brush controls">
+          <div className="paint-active">
+            <span
+              className="paint-active-swatch"
+              style={{ background: activeYarn?.palette[0] ?? "transparent" }}
+              aria-hidden="true"
+            />
+            <span className="paint-active-label">
+              Painting in {yarnDisplay.toLowerCase()}
+            </span>
+          </div>
+          <div className="brush-size">
+            <span className="brush-size-label">Brush</span>
+            <div className="brush-size-slider" role="radiogroup" aria-label="Brush size">
+              {BRUSH_SIZES.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`dot${i === brushIndex ? " is-active" : ""}`}
+                  onClick={() => setBrushIndex(i)}
+                  role="radio"
+                  aria-checked={i === brushIndex}
+                  aria-label={`Brush size ${i + 1} of ${BRUSH_SIZES.length}`}
+                />
+              ))}
+            </div>
+          </div>
           <button
             type="button"
-            className="garment-action-link garment-action-link--secondary"
-            onClick={onClear}
+            className="paint-undo"
+            onClick={onUndoLastRegion}
+            disabled={regions.length === 0}
+            title="Remove last paint stroke (Ctrl+Z)"
           >
-            change garment
+            Undo
           </button>
         </div>
-        {error && (
-          <p className="garment-stage-error" role="alert">{error}</p>
-        )}
-      </div>
-    </section>
+      ) : (currentRecolorUrl || regions.length > 0) ? (
+        <div className="stage-tool-row">
+          <div className="toggle-pill" role="tablist" aria-label="Comparison toggle">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!showOriginal}
+              className={!showOriginal ? "is-active" : ""}
+              onClick={() => setShowOriginal(false)}
+            >
+              Recoloured
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={showOriginal}
+              className={showOriginal ? "is-active" : ""}
+              onClick={() => setShowOriginal(true)}
+            >
+              Original
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {(localError || error) && (
+        <p className="garment-stage-error" role="alert">{localError || error}</p>
+      )}
+    </article>
   );
 }
 

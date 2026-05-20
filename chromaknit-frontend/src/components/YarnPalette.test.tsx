@@ -50,7 +50,7 @@ describe("YarnPalette", () => {
 
     expect(screen.getByRole("button", { name: /select plum/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /select mint/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^add a yarn$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add another yarn/i })).toBeInTheDocument();
   });
 
   it("calls onSelect with the yarn id when its chip is clicked", () => {

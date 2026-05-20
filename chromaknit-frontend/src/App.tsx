@@ -4,8 +4,8 @@ import { useAppState, type GarmentSession, type Yarn } from "./hooks/useAppState
 import { computeGarmentBrightnessRange, recolourLocal } from "./lib/recolourLocal";
 import "./App.css";
 
-import PetalBackground from "./components/PetalBackground";
-import Header from "./components/Header";
+import Masthead from "./components/Masthead";
+import Hero from "./components/Hero";
 import YarnPalette from "./components/YarnPalette";
 import YarnPicker from "./components/YarnPicker";
 import GarmentStage from "./components/GarmentStage";
@@ -200,6 +200,12 @@ function App() {
     setTimeout(() => {
       stageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
+  };
+
+  const handleHome = () => {
+    setPickerOpen(false);
+    dispatch({ type: "HIDE_STRIP" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Upload path: user-supplied yarn file. Hits /api/colors/extract because
@@ -588,17 +594,9 @@ function App() {
       <a href="#main-content" className="sr-only focus-visible-only">
         Skip to main content
       </a>
-      <PetalBackground />
-      <Header onStart={handleStart} />
-      {state.showSampleStrip && (
-        <main id="main-content" className="palette-stage" ref={stageRef}>
-          <YarnPalette
-            yarns={state.yarns}
-            activeYarnId={state.activeYarnId}
-            onSelect={(id) => dispatch({ type: "SET_ACTIVE_YARN", id })}
-            onRemove={handleYarnRemove}
-            onAdd={() => setPickerOpen(true)}
-          />
+      <Masthead onStart={handleStart} onHome={handleHome} />
+      {state.showSampleStrip ? (
+        <main id="main-content" className="stage-section" ref={stageRef}>
           {pickerOpen && (
             <YarnPicker
               onYarnUpload={handleYarnUpload}
@@ -606,33 +604,72 @@ function App() {
               onClose={() => setPickerOpen(false)}
             />
           )}
-          <div className="garment-row">
-            <ModeToolbar
-              activeMode={state.activeMode}
-              onChange={(mode) => dispatch({ type: "SET_MODE", mode })}
-              visible={state.garmentSession !== null}
-            />
-            <GarmentStage
-              session={state.garmentSession}
-              isRecoloring={state.isRecoloring}
-              currentRecolorUrl={state.currentRecolorUrl}
-              error={state.error}
-              onUpload={handleGarmentUpload}
-              onSampleSelect={handleGarmentSampleSelect}
-              onClear={handleClearGarment}
-              activeMode={state.activeMode}
-              activeYarn={
-                state.yarns.find((y) => y.id === state.activeYarnId) ?? null
-              }
-              yarns={state.yarns}
-              regions={state.regions}
-              onCommitRegion={(region) =>
-                dispatch({ type: "COMMIT_REGION", region })
-              }
-              onUndoLastRegion={handleUndoLastRegion}
-            />
+          <div className="stage-container">
+            <div className="stage-grid">
+              <div className="stage-main">
+                <ModeToolbar
+                  activeMode={state.activeMode}
+                  onChange={(mode) => dispatch({ type: "SET_MODE", mode })}
+                  visible={state.garmentSession !== null}
+                />
+                <GarmentStage
+                  session={state.garmentSession}
+                  isRecoloring={state.isRecoloring}
+                  currentRecolorUrl={state.currentRecolorUrl}
+                  error={state.error}
+                  onUpload={handleGarmentUpload}
+                  onSampleSelect={handleGarmentSampleSelect}
+                  activeMode={state.activeMode}
+                  activeYarn={
+                    state.yarns.find((y) => y.id === state.activeYarnId) ?? null
+                  }
+                  yarns={state.yarns}
+                  regions={state.regions}
+                  onCommitRegion={(region) =>
+                    dispatch({ type: "COMMIT_REGION", region })
+                  }
+                  onUndoLastRegion={handleUndoLastRegion}
+                />
+              </div>
+              <aside className="stage-side" aria-label="Palette and save actions">
+                <YarnPalette
+                  yarns={state.yarns}
+                  activeYarnId={state.activeYarnId}
+                  onSelect={(id) => dispatch({ type: "SET_ACTIVE_YARN", id })}
+                  onRemove={handleYarnRemove}
+                  onAdd={() => setPickerOpen(true)}
+                />
+                {state.garmentSession && (
+                  <div className="side-block">
+                    <div className="side-block-label">
+                      <span className="caps">Keep the revision</span>
+                    </div>
+                    <div className="side-actions">
+                      {state.currentRecolorUrl && (
+                        <a
+                          className="side-action"
+                          href={state.currentRecolorUrl}
+                          download="chromaknit-recoloured.png"
+                        >
+                          Download
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className="side-action side-action--secondary"
+                        onClick={handleClearGarment}
+                      >
+                        Change garment
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </aside>
+            </div>
           </div>
         </main>
+      ) : (
+        <Hero onStart={handleStart} />
       )}
       <ReportIssue />
     </>

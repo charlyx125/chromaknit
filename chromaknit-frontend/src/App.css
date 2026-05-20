@@ -17,59 +17,171 @@
   position: fixed; top: 12px; left: 12px; z-index: 9999;
   width: auto; height: auto; clip: auto; overflow: visible;
   padding: 12px 24px; margin: 0;
-  background: var(--dark); color: #fff;
-  font-family: "DM Sans", sans-serif; font-size: 14px; font-weight: 500;
-  border-radius: 8px; text-decoration: none;
+  background: var(--ink); color: var(--bg);
+  font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 500;
+  border-radius: 2px; text-decoration: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Global focus-visible ring for keyboard users */
 :focus-visible {
-  outline: 2px solid var(--rose);
+  outline: 2px solid var(--red);
   outline-offset: 2px;
 }
 
 /* ============================================================
-   PALETTE STAGE (slice 1.A)
-   Container that holds the YarnPalette and the YarnPicker once
-   the user has clicked "try it now". Stacks vertically on mobile,
-   leaves room for the petal background to breathe.
+   STAGE SECTION — Screen III host
+   Two-column editorial grid: garment workspace on the left
+   (≈65%), yarn palette + save rail on the right (≈35%). A faint
+   hairline runs down the gap so the two columns read as a
+   book-spread recto/verso. Collapses to a single stacked column
+   on tablet/mobile.
    ============================================================ */
-.palette-stage {
+.stage-section {
   position: relative;
   z-index: 5;
+  /* The editor is its own full-viewport block. The masthead is NOT sticky,
+     so when the user clicks Try It Now we scroll this section into view
+     and the masthead scrolls out of frame. Scrolling up reveals the
+     masthead again. min-height: 100vh anchors the editor to exactly one
+     screen; padding stays modest so the garment, mode rail and palette
+     all fit without internal scrolling. */
+  min-height: 100vh;
+  padding: 24px 0 24px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.stage-container {
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 0 56px;
+}
+
+.stage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
+  column-gap: 56px;
+  row-gap: 32px;
+  align-items: start;
+}
+
+/* Stage main — the 65% column. Stacks the optional ModeToolbar (only
+   visible once a garment is loaded) above the GarmentStage card. The
+   ::after pseudo-element is the faint vertical rule that runs down the
+   centre of the column gap, giving the layout its book-spread feel. */
+.stage-main {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  padding: 60px 20px 80px;
-  max-width: 820px;
-  margin: 0 auto;
-  width: 100%;
+  gap: 10px;
+  min-width: 0;
+  position: relative;
+}
+.stage-main::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: -28px;
+  width: 1px;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    var(--hair-strong) 18%,
+    var(--hair-strong) 82%,
+    transparent 100%);
+  pointer-events: none;
 }
 
-/* Phase 2 mockup: ModeToolbar sits to the left of the GarmentStage when a
-   garment is loaded. On narrow viewports the row stacks vertically so the
-   toolbar lives above the garment instead of squeezing the canvas.
-*/
-.garment-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  width: 100%;
-  justify-content: center;
-}
-
-.garment-row > .garment-stage {
-  flex: 1;
-  max-width: 720px;
-}
-
-@media (max-width: 720px) {
-  .garment-row {
-    flex-direction: column;
-    align-items: center;
+@media (max-width: 1024px) {
+  .stage-container { padding: 0 32px; }
+  .stage-grid {
+    grid-template-columns: 1fr;
+    column-gap: 24px;
+    row-gap: 24px;
   }
+  .stage-main::after { display: none; }
+}
+
+@media (max-width: 640px) {
+  .stage-container { padding: 0 20px; }
+  .stage-section { padding: 32px 0 40px; }
+}
+
+/* ============================================================
+   STAGE SIDE — Right rail (palette + save block)
+   Stacks the YarnPalette and the "Keep the revision" card.
+   ============================================================ */
+.stage-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 1024px) {
+  .stage-side { position: static; }
+}
+
+.side-block {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  padding: 14px 16px 16px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-soft);
+}
+.side-block-label {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hair);
+  margin-bottom: 10px;
+}
+
+.side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.side-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--ink);
+  padding: 13px 16px;
+  text-align: center;
+  border-radius: 2px;
+  min-height: 44px;
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, color 0.2s;
+}
+.side-action:hover {
+  background: var(--red);
+  border-color: var(--red);
+  transform: translateY(-1px);
+}
+.side-action--secondary {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--hair-strong);
+}
+.side-action--secondary:hover {
+  border-color: var(--ink);
+  background: transparent;
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.side-action:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
 
 /* Remove outline for mouse clicks */
@@ -144,7 +256,7 @@
    SHARED / GLOBAL
    ============================================================ */
 .btn-primary {
-  font-family: "DM Sans", sans-serif; font-size: 14px; font-weight: 500;
+  font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 500;
   background: #fff; color: var(--dark); border: none; border-radius: 30px;
   padding: 14px 32px; cursor: pointer;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
@@ -171,7 +283,7 @@
   background: rgba(232, 123, 139, 0.1);
   border: 1px solid rgba(232, 123, 139, 0.3);
   border-radius: 12px; padding: 10px 16px;
-  font-size: 14px; color: var(--rose); margin-top: 16px;
+  font-size: 15px; color: var(--rose); margin-top: 16px;
   text-align: center;
 }
 

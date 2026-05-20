@@ -117,16 +117,23 @@ function ReportIssue() {
             {submitted ? (
               <div className="report-success">
                 <span className="report-success-icon" aria-hidden="true">&#x2714;</span>
-                <h3 className="report-title" id="report-dialog-title">thanks!</h3>
-                <p className="report-subtitle">your report has been sent</p>
-                <button className="btn-primary report-submit" onClick={handleClose}>
-                  close
+                <h3 className="report-title" id="report-dialog-title">
+                  Sent, with <em>thanks</em>
+                </h3>
+                <p className="report-subtitle">We will read every word.</p>
+                <button type="button" className="report-submit" onClick={handleClose}>
+                  Close
                 </button>
               </div>
             ) : (
               <>
-                <h3 className="report-title" id="report-dialog-title">report an issue</h3>
-                <p className="report-subtitle">what went wrong?</p>
+                <span className="report-eyebrow caps">Found a problem</span>
+                <h3 className="report-title" id="report-dialog-title">
+                  Report an <em>issue</em>
+                </h3>
+                <p className="report-subtitle">
+                  Tell us what went wrong, in as much or as little detail as you like.
+                </p>
 
                 <div className="report-options">
                   {ISSUE_CATEGORIES.map((cat) => (
@@ -141,7 +148,7 @@ function ReportIssue() {
                         checked={selected === cat.id}
                         onChange={() => setSelected(cat.id)}
                       />
-                      <span className="report-option-radio" />
+                      <span className="report-option-radio" aria-hidden="true" />
                       <span>{cat.label}</span>
                     </label>
                   ))}
@@ -150,7 +157,7 @@ function ReportIssue() {
                 {selected && (
                   <textarea
                     className="report-textarea"
-                    placeholder={selected === "other" ? "describe the issue..." : "any extra details? (optional)"}
+                    placeholder={selected === "other" ? "Describe the issue..." : "Any extra details? (optional)"}
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
                     rows={3}
@@ -159,16 +166,17 @@ function ReportIssue() {
 
                 {submitError && (
                   <p className="report-error" role="alert">
-                    something went wrong, please try again
+                    Something went wrong. Please try again.
                   </p>
                 )}
 
                 <button
-                  className="btn-primary report-submit"
+                  type="button"
+                  className="report-submit"
                   disabled={submitting || !selected || (selected === "other" && !details.trim())}
                   onClick={handleSubmit}
                 >
-                  {submitting ? "sending..." : "report"}
+                  {submitting ? "Sending..." : "Send report"}
                 </button>
               </>
             )}

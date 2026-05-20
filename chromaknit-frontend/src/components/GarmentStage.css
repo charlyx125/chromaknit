@@ -1,115 +1,444 @@
-.garment-stage {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+/* ============================================================
+   GARMENT STAGE — Screen III centre column
+   Editorial card with a fig-meta header, the photograph (canvas
+   in real use) with corner crops, an italic caption + dimensions,
+   and a tool row (toggle pill for compare, or brush controls in
+   paint mode).
+   ============================================================ */
+.garment-card {
+  background: var(--bg);
+  padding: 14px 18px 16px;
+  border: 1px solid var(--hair);
+  box-shadow: var(--shadow-warm);
+  position: relative;
 }
 
-/* === Empty state: upload tile + sample garments === */
-.garment-empty-card {
-  width: 100%;
-  max-width: 640px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 24px;
-  border: 1.5px solid rgba(232, 200, 206, 0.35);
-  box-shadow: 0 6px 32px rgba(0, 0, 0, 0.06);
-  padding: 24px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.garment-card--empty {
+  padding: 20px 22px 22px;
 }
 
-.garment-upload-tile {
+.garment-fig-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hair);
+  margin-bottom: 12px;
+}
+.garment-fig-meta .caps { color: var(--ink); }
+.garment-fig-meta .italic {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* === The photograph (or canvas) === */
+.garment-image {
+  position: relative;
+  display: block;
   width: 100%;
-  min-height: 132px;
-  border-radius: 18px;
-  border: 1.5px dashed rgba(138, 104, 112, 0.4);
-  background: rgba(245, 237, 232, 0.5);
-  color: #6a4a52;
+  background: var(--bg);
+  overflow: hidden;
+  margin: 0 auto;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 6px 22px rgba(42, 37, 34, 0.16);
+}
+
+.garment-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* The editor lives inside .stage-section { min-height: 100vh } and the
+     masthead is NOT sticky, so the canvas needs to fit between the section
+     padding (24+24), mode bar (~52), card chrome (14+16), fig meta (~44)
+     and the caption + tool row (~78). Budget ≈ 250px → cap canvas at
+     100vh - 250px. object-fit: contain letterboxes within the capped box
+     so the photograph's intrinsic aspect ratio is preserved. */
+  max-height: calc(100vh - 250px);
+  object-fit: contain;
+  margin: 0 auto;
+  touch-action: none; /* allow pointermove during drag without scrolling */
+  user-select: none;
+}
+.garment-canvas--paint {
+  cursor: crosshair;
+}
+
+/* Decorative corner marks. mix-blend-mode: difference keeps them legible
+   over whatever the canvas is showing. */
+.garment-image-corners::before,
+.garment-image-corners::after {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--bg);
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+.garment-image-corners::before {
+  top: 10px;
+  left: 10px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.garment-image-corners::after {
+  bottom: 10px;
+  right: 10px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* === Caption: italic main + dimensions on the right === */
+.garment-caption {
+  padding: 12px 4px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+}
+.garment-caption-main {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.garment-caption-main em {
+  color: var(--red-deep);
+  font-weight: 500;
+}
+.garment-caption-side {
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* === Tool row (auto mode): Recoloured / Original toggle === */
+.stage-tool-row {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  padding-bottom: 6px;
+  border-top: 1px solid var(--hair);
+}
+.toggle-pill {
+  display: inline-flex;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  padding: 3px;
+  border-radius: 2px;
+}
+.toggle-pill button {
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  min-height: 36px;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
   cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.toggle-pill button.is-active {
+  background: var(--ink);
+  color: var(--bg);
+}
+.toggle-pill button:not(.is-active):hover { color: var(--red); }
+
+/* === Paint mode tool row === */
+.paint-tools {
+  margin-top: 12px;
+  padding-top: 12px;
+  padding-bottom: 6px;
+  border-top: 1px solid var(--hair);
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.paint-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 2px;
+  min-height: 36px;
+}
+.paint-active-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex: 0 0 14px;
+}
+.paint-active-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.brush-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.brush-size-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.brush-size-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.brush-size-slider .dot {
+  border-radius: 50%;
+  background: var(--ink-faint);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  flex: 0 0 auto;
+  border: none;
+  padding: 0;
+}
+.brush-size-slider .dot:nth-child(1) { width: 6px;  height: 6px; }
+.brush-size-slider .dot:nth-child(2) { width: 8px;  height: 8px; }
+.brush-size-slider .dot:nth-child(3) { width: 10px; height: 10px; }
+.brush-size-slider .dot:nth-child(4) { width: 14px; height: 14px; }
+.brush-size-slider .dot:nth-child(5) { width: 18px; height: 18px; }
+.brush-size-slider .dot.is-active { background: var(--red); }
+.brush-size-slider .dot:hover:not(.is-active) {
+  background: var(--ink-soft);
+}
+
+.paint-undo {
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  min-height: 36px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--hair-strong);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.paint-undo:hover:not(:disabled) {
+  color: var(--red);
+  border-color: var(--red);
+}
+.paint-undo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* === Loading veil over the canvas (recolour in flight) === */
+.loading-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(244, 237, 224, 0.78);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 16px;
+  z-index: 5;
   padding: 24px;
-  transition: all 0.18s ease;
-  font-family: "DM Sans", sans-serif;
+  text-align: center;
 }
-
-.garment-upload-tile:hover:not(:disabled) {
-  background: rgba(232, 123, 139, 0.06);
-  border-color: var(--rose);
-  color: var(--rose);
-  transform: translateY(-2px);
-}
-
-.garment-upload-tile:disabled {
-  cursor: progress;
-  opacity: 0.7;
-}
-
-.garment-upload-tile--loading {
-  border-style: solid;
-  border-color: var(--rose);
-  color: var(--rose);
-}
-
-.garment-upload-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(232, 123, 139, 0.25);
-  border-top-color: var(--rose);
+.loading-pulse {
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  animation: garment-spin 0.9s linear infinite;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(184, 36, 45, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: garment-pulse-soft 2.4s ease-in-out infinite;
 }
-
-.garment-samples-label {
+.loading-pulse span {
+  font-family: "Playfair Display", serif;
+  font-style: italic;
+  font-size: 31px;
+  color: var(--bg);
+  line-height: 1;
+}
+@keyframes garment-pulse-soft {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+.loading-title {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 23px;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.loading-title em {
+  color: var(--red-deep);
+  font-style: italic;
+  font-weight: 600;
+}
+.loading-sub {
   font-family: "Cormorant Garamond", serif;
   font-style: italic;
   font-size: 16px;
-  color: #8a6870;
-  text-align: center;
-  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.4;
+  max-width: 320px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.loading-dots {
+  display: inline-flex;
+  gap: 6px;
+}
+.loading-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  animation: garment-dot-pulse 1.4s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.18s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes garment-dot-pulse {
+  0%, 60%, 100% { background: var(--ink-faint); }
+  30%           { background: var(--red); }
 }
 
-.garment-samples-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 12px;
+/* === Empty state: upload zone + samples ===
+   Reuses .upload-zone, .upload-mark, .upload-button from YarnPicker.css,
+   with garment-specific size adjustments below. The drop zone deliberately
+   takes most of the column so the empty state reads as the page's
+   centrepiece, not a placeholder. */
+.garment-upload {
+  min-height: 380px;
+  margin-bottom: 18px;
+  padding: 40px 24px;
+}
+.garment-upload h5 {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.garment-upload p {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  max-width: 380px;
+}
+.garment-upload .upload-mark {
+  font-size: 60px;
+  margin-bottom: 4px;
 }
 
-.garment-sample-card {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 14px;
-  border: 1.5px solid rgba(232, 200, 206, 0.4);
-  background: rgba(245, 237, 232, 0.3);
-  cursor: pointer;
-  overflow: hidden;
-  padding: 0;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+@media (max-width: 1024px) {
+  .garment-upload { min-height: 300px; padding: 28px 18px; }
+  .garment-upload h5 { font-size: 22px; }
 }
-
-.garment-sample-card:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: var(--rose);
-  box-shadow: 0 6px 18px rgba(232, 123, 139, 0.18);
-}
-
-.garment-sample-card:disabled {
+.garment-upload--loading {
   cursor: progress;
+}
+.garment-upload-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(184, 36, 45, 0.18);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: garment-spin 0.9s linear infinite;
+}
+@keyframes garment-spin {
+  to { transform: rotate(360deg); }
+}
+
+.garment-sample-strip {
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hair);
+}
+.garment-sample-strip-label {
+  text-align: center;
+  margin: 0 0 14px;
+}
+.garment-sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+.garment-sample-tile {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  padding: 8px 8px 10px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  min-height: 44px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.garment-sample-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+  border-color: var(--hair-strong);
+}
+.garment-sample-tile:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
 }
-
-.garment-sample-card--loading {
-  opacity: 1;
-  border-color: var(--rose);
-  box-shadow: 0 0 0 2px var(--rose);
+.garment-sample-thumb {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
+.garment-sample-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  /* contain (not cover) so the whole garment is visible — a cropped
+     sleeve or hat brim is worse than a sliver of cream paper around
+     the photo. The flex parent above centres the image inside the
+     fixed-height box. */
+  object-fit: contain;
+  filter: saturate(0.95) contrast(1.02);
+  display: block;
+}
 .garment-sample-spinner {
   position: absolute;
   top: 50%;
@@ -117,251 +446,39 @@
   width: 24px;
   height: 24px;
   margin: -12px 0 0 -12px;
-  border: 3px solid rgba(250, 246, 240, 0.6);
-  border-top-color: var(--rose);
+  border: 3px solid rgba(244, 237, 224, 0.4);
+  border-top-color: var(--red);
   border-radius: 50%;
   animation: garment-spin 0.9s linear infinite;
-  background: rgba(42, 31, 40, 0.35);
+  background: rgba(42, 37, 34, 0.45);
+}
+.garment-sample-name {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.15;
 }
 
-.garment-sample-card img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.garment-sample-label {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 4px 6px;
-  background: linear-gradient(to top, rgba(42, 31, 40, 0.85), rgba(42, 31, 40, 0));
-  color: var(--cream);
-  font-family: "DM Sans", sans-serif;
-  font-size: 11px;
-  text-align: center;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.garment-sample-card:hover .garment-sample-label,
-.garment-sample-card:focus-visible .garment-sample-label {
-  opacity: 1;
-}
-
-.garment-upload-plus {
-  font-size: 36px;
-  font-weight: 300;
-  line-height: 1;
-}
-
-.garment-upload-title {
+/* === Error message === */
+.garment-stage-error {
+  margin-top: 10px;
   font-family: "Cormorant Garamond", serif;
   font-style: italic;
-  font-size: 22px;
+  font-size: 15px;
+  color: var(--red);
+  background: rgba(184, 36, 45, 0.06);
+  border: 1px solid rgba(184, 36, 45, 0.2);
+  padding: 10px 14px;
+  border-radius: 2px;
+  text-align: center;
 }
 
-.garment-upload-hint {
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: #8a6870;
-}
-
-/* === Loaded session: card with comparison === */
-.garment-card {
-  width: 100%;
-  max-width: 720px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 24px;
-  border: 1.5px solid rgba(232, 200, 206, 0.35);
-  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.08);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.garment-canvas-wrap {
-  position: relative;
-  width: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(245, 237, 232, 0.5);
-  user-select: none;
-  /* The canvas's intrinsic size is the image dimensions; CSS scales it down
-     to fit the card width while keeping aspect ratio. */
-}
-
-.garment-canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  touch-action: none; /* allow pointermove during drag without scrolling */
-}
-
-.garment-canvas--paint {
-  cursor: crosshair;
-}
-
-.garment-recoloring-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(42, 31, 40, 0.45);
-  color: var(--cream);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  font-family: "DM Sans", sans-serif;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  border-radius: 16px;
-}
-
-.garment-recoloring-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid rgba(250, 246, 240, 0.4);
-  border-top-color: var(--cream);
-  border-radius: 50%;
-  animation: garment-spin 0.9s linear infinite;
-}
-
-@keyframes garment-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* === Brush controls (paint mode only) === */
-.garment-brush {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.garment-brush-label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: #6a4a52;
-}
-
-.garment-brush-label input[type="range"] {
-  flex: 1;
-  max-width: 200px;
-  accent-color: var(--rose);
-  cursor: pointer;
-}
-
-.garment-brush-preview {
-  display: inline-block;
-  border-radius: 50%;
-  border: 1.5px solid rgba(232, 200, 206, 0.6);
-  background-clip: padding-box;
-  flex-shrink: 0;
-  /* Cap so a max brush doesn't dominate the row visually. */
-  max-width: 36px;
-  max-height: 36px;
-  transform-origin: center;
-}
-
-.garment-brush-undo {
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1.5px solid rgba(232, 200, 206, 0.5);
-  background: rgba(255, 255, 255, 0.6);
-  color: #6a4a52;
-  cursor: pointer;
-  margin-left: 12px;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.garment-brush-undo:hover:not(:disabled) {
-  background: rgba(232, 123, 139, 0.08);
-  border-color: var(--rose);
-  color: var(--rose);
-}
-
-.garment-brush-undo:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* === Show-original toggle (replaces the legacy compare slider) === */
-.garment-toggle {
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1.5px solid rgba(232, 200, 206, 0.5);
-  background: rgba(255, 255, 255, 0.6);
-  color: #6a4a52;
-  cursor: pointer;
-  align-self: center;
-  user-select: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.garment-toggle:hover {
-  border-color: var(--rose);
-  color: var(--rose);
-}
-
-.garment-toggle[aria-pressed="true"] {
-  background: var(--rose);
-  color: var(--cream);
-  border-color: var(--rose);
-}
-
-/* === Actions === */
-.garment-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-}
-
-.garment-action-link {
-  font-family: "DM Sans", sans-serif;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: var(--rose);
-  text-decoration: none;
-  border: none;
-  background: none;
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 8px;
-  transition: background 0.15s ease;
-}
-
-.garment-action-link:hover {
-  background: rgba(232, 123, 139, 0.1);
-}
-
-.garment-action-link--secondary {
-  color: #8a6870;
-}
-
-.garment-action-link--secondary:hover {
-  background: rgba(138, 104, 112, 0.1);
-}
-
-/* === Error === */
-.garment-stage-error {
-  font-family: "DM Sans", sans-serif;
-  font-size: 13px;
-  color: #b34556;
-  background: rgba(232, 123, 139, 0.12);
-  padding: 8px 16px;
-  border-radius: 12px;
+/* Focus styles */
+.toggle-pill button:focus-visible,
+.brush-size-slider .dot:focus-visible,
+.paint-undo:focus-visible,
+.garment-sample-tile:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
