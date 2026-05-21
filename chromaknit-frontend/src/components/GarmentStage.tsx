@@ -3,10 +3,10 @@ import type { GarmentSession, Mode, Region, Yarn } from "../hooks/useAppState";
 import { recolourLocal, stampCircle, stampLine } from "../lib/recolourLocal";
 import "./GarmentStage.css";
 
-// Continuous brush radius in canvas pixels. Range covers fine detail
-// (BRUSH_MIN) up to fully chunky strokes (BRUSH_MAX); step is 2 to keep the
-// value space tidy without making the slider feel snappy. BRUSH_DEFAULT is
-// the same mid-range value the old 5-dot picker used at index 2.
+// Continuous brush radius in display (CSS) pixels so the visible brush size
+// stays constant across photos with different intrinsic resolutions. The
+// stamp call sites convert to bitmap pixels via brushRadiusInCanvasPixels()
+// using the same object-fit: contain scale that pointerToCanvas applies.
 const BRUSH_MIN = 4;
 const BRUSH_MAX = 60;
 const BRUSH_STEP = 2;
@@ -301,13 +301,70 @@ function GarmentStage({
   const paintEnabled =
     activeMode === "paint" && session !== null && activeYarn !== null && activeYarn.status === "ready";
 
-  function pointerToCanvas(clientX: number, clientY: number): { x: number; y: number } | null {
+  // Returns the rendered photo rectangle inside the canvas's CSS box plus
+  // the bitmap-to-display scale. The canvas uses `object-fit: contain` so
+  // whenever the bitmap aspect ratio differs from the CSS box's, the photo
+  // is letterboxed. Anything that maps pointer position or brush radius
+  // between display and bitmap space must account for this.
+  function getCanvasRenderInfo(): {
+    rect: DOMRect;
+    padX: number;
+    padY: number;
+    renderedWidth: number;
+    renderedHeight: number;
+    scale: number;
+  } | null {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((clientY - rect.top) / rect.height) * canvas.height;
+    const canvasAspect = canvas.width / canvas.height;
+    const rectAspect = rect.width / rect.height;
+    let renderedWidth: number;
+    let renderedHeight: number;
+    let padX: number;
+    let padY: number;
+    if (canvasAspect > rectAspect) {
+      renderedWidth = rect.width;
+      renderedHeight = rect.width / canvasAspect;
+      padX = 0;
+      padY = (rect.height - renderedHeight) / 2;
+    } else {
+      renderedHeight = rect.height;
+      renderedWidth = rect.height * canvasAspect;
+      padX = (rect.width - renderedWidth) / 2;
+      padY = 0;
+    }
+    // Bitmap pixels per CSS pixel. Both axes use the same scale because
+    // object-fit: contain preserves aspect ratio.
+    const scale = canvas.width / renderedWidth;
+    return { rect, padX, padY, renderedWidth, renderedHeight, scale };
+  }
+
+  function pointerToCanvas(clientX: number, clientY: number): { x: number; y: number } | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const info = getCanvasRenderInfo();
+    if (!info) return null;
+    const { rect, padX, padY, renderedWidth, renderedHeight } = info;
+
+    const x = ((clientX - rect.left - padX) / renderedWidth) * canvas.width;
+    const y = ((clientY - rect.top - padY) / renderedHeight) * canvas.height;
+
+    // Reject points inside the letterbox bars: stroking there would write
+    // to indices outside the visible image (which the stamp would clamp,
+    // but the user expectation is that clicks on cream do nothing).
+    if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) return null;
     return { x, y };
+  }
+
+  // The slider's brushRadius is in display (CSS) pixels so the visible brush
+  // size feels the same regardless of the photo's intrinsic resolution. Stamps
+  // need bitmap pixels, so multiply by the same display-to-bitmap scale that
+  // pointerToCanvas uses.
+  function brushRadiusInCanvasPixels(): number {
+    const info = getCanvasRenderInfo();
+    if (!info) return brushRadius;
+    return brushRadius * info.scale;
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -321,13 +378,14 @@ function GarmentStage({
     strokeMaskRef.current = new Uint8Array(canvas.width * canvas.height);
     isStrokingRef.current = true;
     lastPointRef.current = pt;
+    const radius = brushRadiusInCanvasPixels();
     stampCircle(
       strokeMaskRef.current,
       canvas.width,
       canvas.height,
       pt.x,
       pt.y,
-      brushRadius,
+      radius,
       session?.foregroundMask,
     );
     setStrokeTick((t) => t + 1);
@@ -339,6 +397,7 @@ function GarmentStage({
     if (!canvas || !strokeMaskRef.current || !lastPointRef.current) return;
     const pt = pointerToCanvas(e.clientX, e.clientY);
     if (!pt) return;
+    const radius = brushRadiusInCanvasPixels();
     stampLine(
       strokeMaskRef.current,
       canvas.width,
@@ -347,7 +406,7 @@ function GarmentStage({
       lastPointRef.current.y,
       pt.x,
       pt.y,
-      brushRadius,
+      radius,
       session?.foregroundMask,
     );
     lastPointRef.current = pt;
