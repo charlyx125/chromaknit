@@ -1,19 +1,11 @@
----
-title: ChromaKnit Backend
-emoji: 🧶
-colorFrom: pink
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
+
 ---
 
-# Chromaknit
+# 🧶 Chromaknit
 
 Try the yarn before you cast on. Upload yarn, pick a garment, recolour it with the texture intact. Multi-yarn palette, paint mode for colourwork, all running on free tiers.
 
-**[Try it live](https://chromaknit.vercel.app)** &nbsp;·&nbsp; **[Read the decisions](docs/decisions/)** &nbsp;·&nbsp; **[Architecture overview](docs/ARCHITECTURE.md)**
+**[Try it live with sample yarns & garments available](https://chromaknit.vercel.app)** &nbsp;·&nbsp; **[Read the decisions](docs/decisions/)** &nbsp;·&nbsp; **[Architecture overview](docs/ARCHITECTURE.md)**
 
 > The backend sleeps on idle (HuggingFace Spaces free tier). The first upload after a long quiet period takes 30 to 60 seconds while the container wakes. Sample yarns and garments run entirely in the browser and never hit the backend, so clicking around the demo is always instant.
 
@@ -28,8 +20,6 @@ Try the yarn before you cast on. Upload yarn, pick a garment, recolour it with t
 ### Paint mode: brush regions for colourwork and stripes
 
 ![Paint mode demo](examples/paint-mode.gif)
-
-> The GIFs above are recorded against the real app. Replace with fresh captures after each major UI change.
 
 ---
 
@@ -50,7 +40,7 @@ The recolouring algorithm is solid but not novel. The interesting work was getti
 
 ## How it is built
 
-**One engine, three modes.** `core/garment_recolor.py` takes a list of regions, each `{mask, yarn, weights?}`, and composites them. Auto is one region covering the rembg foreground. Paint is brush strokes that produce sub-region masks. Select (queued) will use flood-fill on Lab distance. Adding a new mode does not touch the colour math.
+**One region model, three modes.** Auto, Paint, and Select (queued) all reduce to a list of `{mask, yarn}` regions on the frontend. Auto is one region covering the rembg foreground. Paint is brush strokes producing sub-region masks. Select (queued) will use flood-fill on Lab distance. The composite happens client-side in [GarmentStage.tsx](chromaknit-frontend/src/components/GarmentStage.tsx) using the JS HSV port in [recolourLocal.ts](chromaknit-frontend/src/lib/recolourLocal.ts). The backend's `core/garment_recolor.py` handles only the whole-foreground Auto case for uploaded garments; multi-region composition stays in the browser so it costs zero backend cycles per stroke.
 
 **Session-keyed API.** Garment uploads run rembg once and cache the mask in an in-memory session store with 30-minute idle-TTL eviction. Subsequent recolour calls send only the session id plus the yarn palette, and a per-(session, palette) result cache means resending the same palette returns the cached PNG without re-running the HSV pipeline. Switching between cached yarns is a blob URL lookup on the frontend, no network at all. See [ADR 010](docs/decisions/010-session-storage.md).
 
@@ -60,7 +50,7 @@ The recolouring algorithm is solid but not novel. The interesting work was getti
 
 **Persistence that survives a refresh.** Yarn palettes (small, user-owned, durable) live in `localStorage` with a versioned schema so future changes can be detected and dropped instead of crashing. Garment sessions (large, expensive to recompute, ephemeral) live in the server session store. The two are deliberately not conflated. See [ADR 009](docs/decisions/009-frontend-persistence-strategy.md).
 
-**Tested at both layers.** 99 backend tests (`tests/`) cover the recolour engine, session store, TTL eviction, and every endpoint validation branch. 33 frontend tests (`vitest` + Testing Library) cover the reducer, `localStorage` hydration, components, an end-to-end smoke flow, and the pixel-diff parity test against the Python reference. See [ADR 008](docs/decisions/008-frontend-testing-strategy.md).
+**Tested at both layers.** 113 backend tests (`tests/`) cover the recolour engine, session store, TTL eviction, and every endpoint validation branch. 34 frontend tests (`vitest` + Testing Library) cover the reducer, `localStorage` hydration, components, an end-to-end smoke flow, and the pixel-diff parity test against the Python reference. See [ADR 008](docs/decisions/008-frontend-testing-strategy.md).
 
 ## Architecture
 
@@ -68,7 +58,7 @@ The recolouring algorithm is solid but not novel. The interesting work was getti
 chromaknit/
 ├── core/
 │   ├── yarn_color_extractor.py    K-means palette extraction
-│   ├── garment_recolor.py         Region-based HSV recolour engine
+│   ├── garment_recolor.py         HSV recolour engine (whole-foreground Auto path)
 │   ├── utils.py
 │   └── log_config.py
 ├── api/
@@ -88,7 +78,7 @@ chromaknit/
 │       │   ├── Hero.tsx           Landing hero with before/after demo
 │       │   ├── YarnPicker.tsx     Sample tiles + upload tile
 │       │   ├── YarnPalette.tsx    Persistent multi-yarn rail
-│       │   ├── GarmentStage.tsx   Canvas, paint mode, before/after slider
+│       │   ├── GarmentStage.tsx   Canvas, paint mode, region compositor
 │       │   ├── ModeToolbar.tsx    Auto / Paint / Select toggle
 │       │   ├── ReportIssue.tsx    In-app GitHub Issues reporter
 │       │   └── ErrorBoundary.tsx
@@ -168,7 +158,7 @@ Interactive docs: `/docs` (Swagger) and `/redoc`.
 
 ## Roadmap
 
-- **Phase 1: Multi-yarn Auto.** Shipped. Multi-yarn palette with `localStorage` persistence, session-keyed API, per-yarn recolour cache. Switching cached yarns is under 100ms.
+- **Phase 1: Multi-yarn Auto.** Shipped. Multi-yarn palette with `localStorage` persistence, session-keyed API, per-yarn recolour cache. Switching between cached yarns is a blob URL swap with no network call.
 - **Phase 2: Paint mode.** Shipped. Brush strokes commit regions to the canvas. Live preview uses the JS port of the HSV pipeline; commit is the source of truth. Ctrl+Z removes the last region. Foreground clipping prevents background bleed. Soft brush edges anti-alias the stroke boundary.
 - **Vintage editorial redesign.** In progress on this branch. Calmer typography, less performative chrome, more breathing room. Logic untouched; presentation only.
 - **Phase 3: Select mode.** Click-to-fill on Lab-distance flood fill with a tolerance slider. Server-side `/api/garments/segment` endpoint, reuses the existing region pipeline. SAM is out of scope (does not fit free-tier memory).
@@ -205,4 +195,4 @@ Joyce Chong &middot; [@charlyx125](https://github.com/charlyx125) &middot; [Proj
 
 ## License
 
-MIT. Open source, attribution appreciated.
+MIT. Open source, attribution appreciated. Sample garment and yarn photographs are sourced from Pinterest and Wool and the Gang and used for non-commercial demonstration only.
