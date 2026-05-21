@@ -2,8 +2,10 @@ opencv-python-headless>=4.8.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
 matplotlib>=3.8.0
+pillow>=10.0.0
 rembg
 onnxruntime
 fastapi
 uvicorn[standard]
 python-multipart
+slowapi>=0.1.9

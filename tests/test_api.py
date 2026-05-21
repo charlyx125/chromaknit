@@ -46,6 +46,53 @@ def test_unknown_endpoint_returns_custom_404(client):
 
 
 # ============================================================================
+# CORS origin policy (SECURITY.md section 9)
+# ============================================================================
+# These tests inspect the Access-Control-Allow-Origin header to verify that
+# the allowlist regex accepts our Vercel preview/branch URLs and rejects
+# unknown origins. They use /health because it's a fast GET that exercises
+# the CORS middleware without touching any of the slower image pipelines.
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://chromaknit.vercel.app",                                   # bare production alias
+        "https://chromaknit-charlyx125.vercel.app",                        # account-level alias
+        "https://chromaknit-git-main-charlyx125.vercel.app",               # per-branch preview
+        "https://chromaknit-git-multi-yarn-charlyx125.vercel.app",         # another branch
+        "https://chromaknit-abc123-charlyx125.vercel.app",                 # per-commit preview
+        "http://localhost:5173",                                           # dev frontend
+        "https://charlyx125-chromaknit-backend.hf.space",                  # the Space itself
+    ],
+)
+def test_cors_accepts_known_origins(client, origin):
+    """Each known shape gets an exact-match Access-Control-Allow-Origin echo."""
+    response = client.get("/health", headers={"Origin": origin})
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == origin
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://evil.com",
+        "https://chromaknit.com",                            # wrong TLD
+        "http://chromaknit.vercel.app",                      # wrong scheme
+        "https://chromaknit-evil.vercel.app",                # no -charlyx125 anchor
+        "https://chromaknit-anything-other-user.vercel.app", # different account
+        "https://evil-chromaknit-charlyx125.vercel.app",     # prefix injection
+    ],
+)
+def test_cors_rejects_unknown_origins(client, origin):
+    """Unknown origins must not receive an echo of their Origin header."""
+    response = client.get("/health", headers={"Origin": origin})
+    # The request itself still completes (CORS is enforced by browsers, not the server)
+    # but the response must not contain the origin echo that would unblock cross-site fetches.
+    assert response.headers.get("access-control-allow-origin") != origin
+
+
+# ============================================================================
 # POST /api/colors/extract
 # ============================================================================
 
@@ -107,16 +154,192 @@ def test_extract_colors_rejects_oversized_file(client):
     assert "too large" in response.json()["detail"].lower()
 
 
+def test_extract_colors_returns_408_on_operation_timeout(
+    client, yarn_image_bytes, monkeypatch
+):
+    """A pathologically slow CPU operation returns 408 rather than blocking the worker.
+
+    Guards SECURITY.md section 5: one hostile or unlucky upload must not be
+    able to pin the only Uvicorn worker indefinitely. We tighten the timeout
+    to 200ms and patch downscale_image to sleep 1s so the timeout fires
+    deterministically. Asserts the handler returns 408 with a timed-out
+    detail message.
+    """
+    import time
+    from api import main as api_main
+
+    monkeypatch.setattr(api_main, "DEFAULT_OPERATION_TIMEOUT_SECONDS", 0.2)
+
+    def slow_downscale(*args, **kwargs):
+        time.sleep(1.0)
+
+    monkeypatch.setattr(api_main, "downscale_image", slow_downscale)
+
+    response = client.post(
+        "/api/colors/extract",
+        files={"file": ("yarn.png", yarn_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 408
+    assert "timed out" in response.json()["detail"].lower()
+
+
+def test_extract_colors_enforces_per_ip_rate_limit(client, yarn_image_bytes):
+    """61st upload from the same client within the rate window returns 429.
+
+    Guards SECURITY.md section 5: shared-worker availability protection. The
+    cap (60/minute) is sized to be invisible to normal use but stop a runaway
+    client from saturating the only Uvicorn worker. The yarn_image_bytes
+    fixture is a 100x100 PNG so each request completes in well under 100ms;
+    60 iterations run in a few seconds.
+    """
+    for i in range(60):
+        response = client.post(
+            "/api/colors/extract",
+            files={"file": ("yarn.png", yarn_image_bytes, "image/png")},
+            data={"n_colors": 3},
+        )
+        assert response.status_code != 429, f"hit 429 too early at iteration {i}"
+
+    response = client.post(
+        "/api/colors/extract",
+        files={"file": ("yarn.png", yarn_image_bytes, "image/png")},
+        data={"n_colors": 3},
+    )
+    assert response.status_code == 429
+
+
+def test_extract_colors_rejects_decompression_bomb(client, dimension_bomb_image_bytes):
+    """A small file with huge declared dimensions returns 413 before cv2 decodes.
+
+    Guards SECURITY.md section 3: a uniform-content PNG with 27.5 megapixels
+    of declared size compresses to well under the 5 MB upload cap but would
+    decode to ~140 MB of raw pixels and risks OOMing the container. The
+    validate_image_dimensions header-only check must reject it before cv2.imread
+    is called.
+    """
+    response = client.post(
+        "/api/colors/extract",
+        files={"file": ("bomb.png", dimension_bomb_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 413
+    detail = response.json()["detail"].lower()
+    assert "dimensions" in detail
+    assert "megapixels" in detail
+
+
 # ============================================================================
-# POST /api/garments/recolor
+# POST /api/garments/session
+# ============================================================================
+# v2 splits the legacy "upload + recolour in one shot" endpoint into two
+# stages. Tests below exercise both halves and the cache between them.
+
+
+def _create_session(client, image_bytes):
+    """Helper: upload a garment and return the parsed session response body."""
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("garment.png", image_bytes, "image/png")},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_create_session_happy_path(client, garment_image_bytes, mock_rembg):
+    """Valid garment upload returns 200 with a session_id, dimensions, and mask."""
+    body = _create_session(client, garment_image_bytes)
+
+    assert isinstance(body["session_id"], str) and body["session_id"]
+    assert body["width"] > 0
+    assert body["height"] > 0
+    # Foreground mask is a base64 string; the frontend uses it to clip paint
+    # strokes to the garment outline.
+    assert isinstance(body["mask_png_b64"], str)
+    assert len(body["mask_png_b64"]) > 0
+
+
+def test_create_session_rejects_non_image_content_type(client, mock_rembg):
+    """Non-image content type returns 400 before any processing."""
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("notes.txt", b"hello", "text/plain")},
+    )
+    assert response.status_code == 400
+    assert "text/plain" in response.json()["detail"]
+
+
+def test_create_session_rejects_oversized_file(client):
+    """A garment file larger than MAX_FILE_SIZE (5MB) returns 413."""
+    oversized_payload = b"\x00" * (6 * 1024 * 1024)
+
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("huge.png", oversized_payload, "image/png")},
+    )
+    assert response.status_code == 413
+
+
+def test_create_session_returns_408_on_operation_timeout(
+    client, garment_image_bytes, mock_rembg, monkeypatch
+):
+    """A pathologically slow rembg call returns 408 rather than blocking the worker.
+
+    Guards SECURITY.md section 5. Parallels the timeout test on /api/colors/extract:
+    tighten the deadline to 200ms, patch downscale_image to sleep 1s, assert 408.
+    """
+    import time
+    from api import main as api_main
+
+    monkeypatch.setattr(api_main, "DEFAULT_OPERATION_TIMEOUT_SECONDS", 0.2)
+
+    def slow_downscale(*args, **kwargs):
+        time.sleep(1.0)
+
+    monkeypatch.setattr(api_main, "downscale_image", slow_downscale)
+
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("garment.png", garment_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 408
+    assert "timed out" in response.json()["detail"].lower()
+
+
+def test_create_session_rejects_decompression_bomb(
+    client, dimension_bomb_image_bytes, mock_rembg
+):
+    """A garment upload with huge declared dimensions returns 413 before rembg runs.
+
+    Guards SECURITY.md section 3. Parallels test_extract_colors_rejects_decompression_bomb
+    for the second upload endpoint.
+    """
+    response = client.post(
+        "/api/garments/session",
+        files={"file": ("bomb.png", dimension_bomb_image_bytes, "image/png")},
+    )
+
+    assert response.status_code == 413
+    detail = response.json()["detail"].lower()
+    assert "dimensions" in detail
+    assert "megapixels" in detail
+
+
+# ============================================================================
+# POST /api/garments/recolor (session-keyed)
 # ============================================================================
 
 def test_recolor_garment_happy_path(client, garment_image_bytes, mock_rembg):
-    """Valid garment + colors returns 200 with a PNG body."""
+    """Session + colors returns 200 with a PNG body."""
+    session = _create_session(client, garment_image_bytes)
+
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": '["#FF0000", "#00FF00", "#0000FF"]'},
+        data={
+            "session_id": session["session_id"],
+            "colors": '["#FF0000", "#00FF00", "#0000FF"]',
+        },
     )
 
     assert response.status_code == 200
@@ -125,61 +348,81 @@ def test_recolor_garment_happy_path(client, garment_image_bytes, mock_rembg):
     assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
 
 
-def test_recolor_garment_rejects_malformed_json_colors(client, garment_image_bytes, mock_rembg):
-    """A colors value shaped like a JSON array but not parseable returns 400 from the JSON branch."""
+def test_recolor_garment_returns_404_for_unknown_session(client, mock_rembg):
+    """A session_id that was never created (or has been evicted) returns 404."""
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": "[not valid json]"},
+        data={
+            "session_id": "definitely-not-a-real-session-id",
+            "colors": '["#FF0000"]',
+        },
+    )
+
+    assert response.status_code == 404
+    assert "session" in response.json()["detail"].lower()
+
+
+def test_recolor_garment_caches_identical_inputs(client, garment_image_bytes, mock_rembg):
+    """Same session + same colours returns identical bytes from the cache."""
+    session = _create_session(client, garment_image_bytes)
+    payload = {
+        "session_id": session["session_id"],
+        "colors": '["#FF0000", "#00FF00", "#0000FF"]',
+    }
+
+    first = client.post("/api/garments/recolor", data=payload)
+    second = client.post("/api/garments/recolor", data=payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.content == second.content
+
+
+def test_recolor_garment_rejects_malformed_json_colors(
+    client, garment_image_bytes, mock_rembg
+):
+    """A colors value shaped like a JSON array but not parseable returns 400."""
+    session = _create_session(client, garment_image_bytes)
+    response = client.post(
+        "/api/garments/recolor",
+        data={
+            "session_id": session["session_id"],
+            "colors": "[not valid json]",
+        },
     )
 
     assert response.status_code == 400
     assert "invalid color format" in response.json()["detail"].lower()
 
 
-def test_recolor_garment_rejects_invalid_hex_colors(client, garment_image_bytes, mock_rembg):
-    """A parseable colors value with non-hex strings returns 400 from the hex-validation branch."""
+def test_recolor_garment_rejects_invalid_hex_colors(
+    client, garment_image_bytes, mock_rembg
+):
+    """A parseable colors value with non-hex strings returns 400."""
+    session = _create_session(client, garment_image_bytes)
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": '["not-a-hex", "also-not-hex"]'},
+        data={
+            "session_id": session["session_id"],
+            "colors": '["not-a-hex", "also-not-hex"]',
+        },
     )
 
     assert response.status_code == 400
     assert "invalid hex color format" in response.json()["detail"].lower()
 
 
-def test_recolor_garment_rejects_non_image_content_type(client, mock_rembg):
-    """Uploading a non-image content type to recolor returns 400."""
-    response = client.post(
-        "/api/garments/recolor",
-        files={"file": ("notes.txt", b"hello", "text/plain")},
-        data={"colors": '["#FF0000"]'},
-    )
-
-    assert response.status_code == 400
-    assert "text/plain" in response.json()["detail"]
-
-
-def test_recolor_garment_rejects_oversized_file(client):
-    """A garment file larger than MAX_FILE_SIZE (5MB) returns 413."""
-    oversized_payload = b"\x00" * (6 * 1024 * 1024)
-
-    response = client.post(
-        "/api/garments/recolor",
-        files={"file": ("huge.png", oversized_payload, "image/png")},
-        data={"colors": '["#FF0000"]'},
-    )
-
-    assert response.status_code == 413
-
-
-def test_recolor_garment_rejects_empty_color_list(client, garment_image_bytes, mock_rembg):
+def test_recolor_garment_rejects_empty_color_list(
+    client, garment_image_bytes, mock_rembg
+):
     """An empty JSON color array returns 400."""
+    session = _create_session(client, garment_image_bytes)
     response = client.post(
         "/api/garments/recolor",
-        files={"file": ("garment.png", garment_image_bytes, "image/png")},
-        data={"colors": "[]"},
+        data={
+            "session_id": session["session_id"],
+            "colors": "[]",
+        },
     )
 
     assert response.status_code == 400

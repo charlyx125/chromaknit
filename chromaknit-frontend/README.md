@@ -96,6 +96,15 @@ Opens at `http://localhost:5173`
 npm run build
 ```
 
+### Running tests
+
+```bash
+npm run test                # watch mode
+npm run test -- --run       # one-shot run, exits after first pass
+```
+
+See [ADR 008](../docs/decisions/008-frontend-testing-strategy.md) for the testing strategy and tool rationale.
+
 ## API Endpoints Used
 
 | Endpoint | Method | Description |

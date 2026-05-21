@@ -1,0 +1,10 @@
+{
+  "label": "cardigan",
+  "width": 940,
+  "height": 599,
+  "brightnessRange": {
+    "minV": 108.0,
+    "maxV": 238.0
+  },
+  "maskPath": "/samples/precomputed/garments/cardigan-mask.png"
+}

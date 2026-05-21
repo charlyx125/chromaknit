@@ -1,0 +1,128 @@
+/* ============================================================
+   MODE TOOLBAR — Sits above the garment image inside the main
+   column. A small caps "Mode" label on the left, then three
+   horizontal segments. Active segment fills with ink; muted
+   "Soon" tag denotes a not-yet-built mode. Only appears once a
+   garment session is loaded.
+   ============================================================ */
+.mode-rail {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mode-rail-head {
+  display: flex;
+  align-items: center;
+  padding: 0 18px 0 16px;
+  border-right: 1px solid var(--hair);
+  background: var(--bg);
+}
+.mode-rail-head .caps { color: var(--ink-soft); }
+
+.mode-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 0.2s, color 0.2s;
+  position: relative;
+  flex: 1;
+  min-height: 52px;
+}
+
+.mode-tile + .mode-tile {
+  border-left: 1px solid var(--hair);
+}
+
+.mode-tile-text {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mode-tile-name {
+  display: inline-block;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.mode-tile-desc {
+  display: inline-block;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-tile:hover:not(:disabled):not(.is-active) {
+  background: var(--bg);
+}
+
+.mode-tile.is-active,
+.mode-tile.is-active:hover {
+  background: var(--ink);
+}
+.mode-tile.is-active .mode-tile-name { color: var(--bg); }
+.mode-tile.is-active .mode-tile-desc { color: rgba(244, 237, 224, 0.7); }
+
+.mode-tile.is-coming-soon {
+  cursor: default;
+}
+.mode-tile.is-coming-soon .mode-tile-name,
+.mode-tile.is-coming-soon .mode-tile-desc {
+  color: var(--ink-faint);
+}
+.mode-tile.is-coming-soon:hover {
+  background: transparent;
+}
+
+.mode-tile-soon {
+  font-family: "DM Sans", sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-left: auto;
+  padding-left: 8px;
+  flex: 0 0 auto;
+}
+
+.mode-tile:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+/* Narrow viewports: hide the descriptions, keep just the labels. */
+@media (max-width: 1180px) {
+  .mode-tile-desc { display: none; }
+  .mode-tile { padding: 12px 14px; }
+}
+
+@media (max-width: 720px) {
+  .mode-rail-head { padding: 0 12px; }
+  .mode-tile { padding: 10px 12px; min-height: 44px; }
+  .mode-tile-name { font-size: 15px; }
+}

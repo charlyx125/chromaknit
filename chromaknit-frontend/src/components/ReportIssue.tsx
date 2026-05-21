@@ -10,6 +10,12 @@ const ISSUE_CATEGORIES = [
 
 const FORMSPREE_URL = "https://formspree.io/f/mqewplpo";
 
+// After a successful submission, the Send button stays disabled for this
+// many milliseconds. UX guard against the impatient-user case (clicking Send
+// again immediately after the success animation). Scripted abuse is handled
+// upstream by Formspree's CAPTCHA + honeypot.
+const COOLDOWN_MS = 30_000;
+
 function ReportIssue() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -17,7 +23,22 @@ function ReportIssue() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(false);
+  const [lastSubmittedAt, setLastSubmittedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Tick once per second only while a cooldown is active. The interval is
+  // torn down as soon as the cooldown elapses, so we don't rerender forever.
+  useEffect(() => {
+    if (lastSubmittedAt === 0) return;
+    if (Date.now() - lastSubmittedAt >= COOLDOWN_MS) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [lastSubmittedAt, now]);
+
+  const cooldownMs = Math.max(0, COOLDOWN_MS - (now - lastSubmittedAt));
+  const inCooldown = lastSubmittedAt > 0 && cooldownMs > 0;
+  const cooldownSeconds = Math.ceil(cooldownMs / 1000);
 
   // Focus trap and Escape key handling
   useEffect(() => {
@@ -69,6 +90,8 @@ function ReportIssue() {
 
       if (!res.ok) throw new Error();
       setSubmitted(true);
+      setLastSubmittedAt(Date.now());
+      setNow(Date.now());
     } catch {
       setSubmitError(true);
     } finally {
@@ -117,16 +140,23 @@ function ReportIssue() {
             {submitted ? (
               <div className="report-success">
                 <span className="report-success-icon" aria-hidden="true">&#x2714;</span>
-                <h3 className="report-title" id="report-dialog-title">thanks!</h3>
-                <p className="report-subtitle">your report has been sent</p>
-                <button className="btn-primary report-submit" onClick={handleClose}>
-                  close
+                <h3 className="report-title" id="report-dialog-title">
+                  Sent, with <em>thanks</em>
+                </h3>
+                <p className="report-subtitle">We will read every word.</p>
+                <button type="button" className="report-submit" onClick={handleClose}>
+                  Close
                 </button>
               </div>
             ) : (
               <>
-                <h3 className="report-title" id="report-dialog-title">report an issue</h3>
-                <p className="report-subtitle">what went wrong?</p>
+                <span className="report-eyebrow caps">Found a problem</span>
+                <h3 className="report-title" id="report-dialog-title">
+                  Report an <em>issue</em>
+                </h3>
+                <p className="report-subtitle">
+                  Tell us what went wrong, in as much or as little detail as you like.
+                </p>
 
                 <div className="report-options">
                   {ISSUE_CATEGORIES.map((cat) => (
@@ -141,7 +171,7 @@ function ReportIssue() {
                         checked={selected === cat.id}
                         onChange={() => setSelected(cat.id)}
                       />
-                      <span className="report-option-radio" />
+                      <span className="report-option-radio" aria-hidden="true" />
                       <span>{cat.label}</span>
                     </label>
                   ))}
@@ -150,7 +180,7 @@ function ReportIssue() {
                 {selected && (
                   <textarea
                     className="report-textarea"
-                    placeholder={selected === "other" ? "describe the issue..." : "any extra details? (optional)"}
+                    placeholder={selected === "other" ? "Describe the issue..." : "Any extra details? (optional)"}
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
                     rows={3}
@@ -159,16 +189,27 @@ function ReportIssue() {
 
                 {submitError && (
                   <p className="report-error" role="alert">
-                    something went wrong, please try again
+                    Something went wrong. Please try again.
+                  </p>
+                )}
+
+                {inCooldown && (
+                  <p className="report-cooldown" role="status">
+                    Sent. You can send another in {cooldownSeconds}s.
                   </p>
                 )}
 
                 <button
-                  className="btn-primary report-submit"
-                  disabled={submitting || !selected || (selected === "other" && !details.trim())}
+                  type="button"
+                  className="report-submit"
+                  disabled={submitting || inCooldown || !selected || (selected === "other" && !details.trim())}
                   onClick={handleSubmit}
                 >
-                  {submitting ? "sending..." : "report"}
+                  {submitting
+                    ? "Sending..."
+                    : inCooldown
+                      ? `Wait ${cooldownSeconds}s`
+                      : "Send report"}
                 </button>
               </>
             )}
