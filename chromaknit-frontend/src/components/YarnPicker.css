@@ -1,0 +1,283 @@
+/* ============================================================
+   YARN PICKER — Screen II
+   Fixed-position scrim with a centred editorial modal card.
+   Two-column body: "From our collection" sample grid, vertical
+   hairline rule, "Or from your studio" upload zone.
+   ============================================================ */
+
+/* Fixed-position scrim that covers the viewport while the picker is open. */
+.modal-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background-color: rgba(42, 37, 34, 0.5);
+  background-image:
+    linear-gradient(to bottom, rgba(42, 37, 34, 0.32), rgba(42, 37, 34, 0.32)),
+    radial-gradient(ellipse at 30% 20%, rgba(184, 145, 92, 0.18), transparent 60%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  overflow-y: auto;
+  animation: pickerFadeIn 0.2s ease;
+}
+@keyframes pickerFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Cream card with a faint inner hairline border, like a printed page. */
+.modal {
+  max-width: 1080px;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  box-shadow: var(--shadow-warm);
+  position: relative;
+  padding: 32px 40px 28px;
+}
+.modal::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--hair);
+  pointer-events: none;
+}
+
+.modal-close {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  color: var(--ink-soft);
+  z-index: 2;
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: color 0.2s;
+}
+.modal-close:hover { color: var(--red); }
+
+.modal-head {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.modal-head .caps { margin-bottom: 10px; }
+.modal-head h3 {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 32px;
+  color: var(--ink);
+  line-height: 1.05;
+  margin-bottom: 6px;
+}
+.modal-head h3 em {
+  color: var(--red-deep);
+  font-style: italic;
+  font-weight: 600;
+}
+.modal-head p {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-soft);
+}
+
+.modal-body {
+  display: grid;
+  grid-template-columns: 2fr 1px 1fr;
+  gap: 32px;
+  align-items: stretch;
+}
+
+.modal-rule {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--hair) 12%,
+    var(--hair) 88%,
+    transparent
+  );
+}
+
+.modal-section-label {
+  margin-bottom: 18px;
+}
+.modal-section-label h4 {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.sample-tile {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  padding: 8px 8px 10px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  min-height: 44px;
+  text-align: left;
+  font: inherit;
+}
+.sample-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+  border-color: var(--hair-strong);
+}
+.sample-tile-thumb {
+  height: 92px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  background: #ccc;
+}
+.sample-tile-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.95) contrast(1.02);
+  display: block;
+}
+.sample-tile-name {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.15;
+  margin-bottom: 2px;
+}
+.sample-tile-sub {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.upload-zone {
+  border: 1px dashed var(--hair-strong);
+  background:
+    repeating-linear-gradient(135deg, rgba(184, 145, 92, 0.04) 0 8px, transparent 8px 16px),
+    var(--paper);
+  padding: 22px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 100%;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.upload-zone:hover {
+  border-color: var(--red);
+  background:
+    repeating-linear-gradient(135deg, rgba(184, 36, 45, 0.05) 0 8px, transparent 8px 16px),
+    var(--paper);
+}
+.upload-mark {
+  font-family: "Playfair Display", serif;
+  font-style: italic;
+  font-size: 48px;
+  color: var(--gold);
+  line-height: 0.7;
+}
+.upload-zone h5 {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ink);
+}
+.upload-zone p {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  max-width: 220px;
+}
+.upload-button {
+  margin-top: 6px;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--ink);
+  padding: 14px 22px;
+  border-radius: 2px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.upload-zone:hover .upload-button { background: var(--red); }
+.upload-fineprint {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin-top: 8px;
+}
+
+.modal-foot {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hair);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-foot small {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.modal-cancel {
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 14px 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.modal-cancel:hover { color: var(--red); }
+
+@media (max-width: 1024px) {
+  .modal-body {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .modal-rule { display: none; }
+  .sample-grid { grid-template-columns: repeat(3, 1fr); }
+  .modal { padding: 44px 32px 32px; }
+}
+
+@media (max-width: 640px) {
+  .modal { padding: 32px 22px 24px; }
+  .modal-head h3 { font-size: 26px; }
+  .sample-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .modal-stage { padding: 24px 12px; }
+  .modal-foot { flex-direction: column; gap: 10px; align-items: flex-start; }
+}

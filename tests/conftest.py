@@ -1,8 +1,11 @@
 """Shared fixtures for the test suite."""
 
+from io import BytesIO
+
 import pytest
 import numpy as np
 import cv2
+from PIL import Image as PILImage
 from fastapi.testclient import TestClient
 from api.main import app
 
@@ -11,6 +14,23 @@ from api.main import app
 def client():
     """FastAPI TestClient bound to the app, for in-process HTTP calls."""
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset slowapi limiter state before each test.
+
+    The limiter is module-level state in api.main; without this reset the
+    request counter persists across tests and the same client IP eventually
+    trips the 60/minute cap mid-suite, causing flaky 429s in unrelated tests.
+    """
+    from api.main import limiter
+
+    try:
+        limiter._storage.reset()
+    except (AttributeError, NotImplementedError):
+        pass
+    yield
 
 
 @pytest.fixture
@@ -33,6 +53,21 @@ def garment_image_bytes():
     success, buffer = cv2.imencode(".png", img)
     assert success, "Failed to encode test image"
     return buffer.tobytes()
+
+
+@pytest.fixture
+def dimension_bomb_image_bytes():
+    """Small file, huge declared dimensions.
+
+    5500x5000 grayscale (27.5 MP) is just over MAX_IMAGE_PIXELS (25 MP). PIL
+    encodes uniform palette content very compactly so the resulting PNG fits
+    well under the 5 MB upload cap, isolating the dimension check from the
+    size check.
+    """
+    img = PILImage.new("L", (5500, 5000), color=255)
+    buf = BytesIO()
+    img.save(buf, format="PNG", optimize=False)
+    return buf.getvalue()
 
 
 @pytest.fixture

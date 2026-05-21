@@ -1,0 +1,129 @@
+# .dockerignore controls what gets sent from your local machine to the Docker
+# daemon as the "build context" when you run `docker build`. Anything matched
+# here is invisible to the Dockerfile's COPY instructions.
+#
+# Why this matters:
+#   - Build speed. Without a .dockerignore, `docker build .` scans every file
+#     in the repo (including node_modules, venv, .git, etc.) and ships them
+#     to the Docker daemon. For ChromaKnit that means several hundred MB
+#     extra per build.
+#   - Image size. A loose COPY (e.g. `COPY . .`) without .dockerignore would
+#     bake the frontend, tests, and venv into the image. Slower pulls on
+#     HuggingFace Spaces, slower cold starts.
+#   - Security. Files like .env or local credentials should never end up in a
+#     container image. .dockerignore is the first line of defence.
+#
+# Pattern syntax mirrors .gitignore (with a few quirks):
+#   foo/        - exclude the directory foo at any depth
+#   *.log       - exclude all .log files
+#   !keep.log   - re-include keep.log even if matched above
+
+
+# === Frontend (the entire React app) ===
+#
+# The backend image does not need any frontend code, build artefacts, or
+# Node tooling. The frontend is deployed separately to Vercel.
+chromaknit-frontend/
+
+
+# === Python virtual environment ===
+#
+# Local venv is huge (hundreds of MB) and useless inside the image because
+# the image creates its own clean Python install. Always exclude.
+venv/
+.venv/
+env/
+
+
+# === Python bytecode and caches ===
+#
+# Compiled .pyc files are platform-specific. They will be regenerated inside
+# the container as needed.
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+
+# === Tests ===
+#
+# Test files are run on the developer's machine and in CI, not inside the
+# production container. Excluding keeps the image smaller and the surface
+# area smaller (an attacker reaching the container should not find test
+# fixtures with sample data).
+tests/
+test_*.py
+*_test.py
+
+
+# === Build / dev tooling outputs ===
+node_modules/
+dist/
+build/
+*.egg-info/
+
+
+# === IDE / editor metadata ===
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+
+
+# === Git ===
+#
+# .git is huge and useless inside the container. Excluding saves time and
+# space.
+.git/
+.gitignore
+.gitattributes
+
+
+# === GitHub config ===
+.github/
+
+
+# === Documentation and examples ===
+#
+# Not needed at runtime. Keep README.md (HuggingFace Spaces reads its
+# frontmatter), exclude the rest.
+docs/
+examples/
+benchmarks/
+photos/
+results/
+
+
+# === Build / deploy config not relevant to this image ===
+#
+# render.yaml was for an earlier migration plan. Keep on disk for rollback
+# reference, but no need inside the container.
+render.yaml
+
+
+# === Large reference files ===
+#
+# The interview-reference PDF and Python reference are historical artefacts,
+# not used by the runtime backend.
+chromaknit-interview-reference.pdf
+chromaknit-interview-reference.py
+
+
+# === Scripts ===
+#
+# scripts/ contains build-time tools (precompute_samples.py,
+# generate_parity_fixture.py). Their outputs are committed under the
+# frontend's public/ directory; the backend itself does not run them at
+# runtime.
+scripts/
+
+
+# === Misc ===
+*.log
+.env
+.env.*
+!.env.example

@@ -1,7 +1,7 @@
 # Decision 007: Scaling Strategy
 
 **Date:** April 2026
-**Status:** Documented (not yet needed)
+**Status:** Documented (not yet needed). Deployment platform pivoted from Railway to HuggingFace Spaces in May 2026 (see [ADR 011](011-cost-discipline-and-static-first.md)). The scaling principles below still apply; only the Railway-specific commands need substituting for whatever the active host uses if scaling becomes necessary.
 **Author:** Joyce Chong
 
 ---
@@ -29,11 +29,11 @@ Think of a restaurant:
 
 - **Server** = the kitchen. It's the physical space where food gets made (CPU, memory, disk). You can have one kitchen or open multiple locations.
 - **Worker** = a cook in the kitchen. Each cook can prepare one dish at a time. More cooks means more dishes prepared at the same time. But too many cooks in a small kitchen and they get in each other's way (too many workers on too few CPU cores).
-- **API** = the menu and ordering system. It defines what customers can order and how they place orders. Every kitchen follows the same menu. The menu doesn't scale — kitchens and cooks do.
+- **API** = the menu and ordering system. It defines what customers can order and how they place orders. Every kitchen follows the same menu. The menu doesn't scale; kitchens and cooks do.
 
 ### Why One Worker Is a Bottleneck
 
-FastAPI supports async I/O, which helps with lightweight tasks (receiving uploads, sending responses). But the actual image processing (OpenCV, NumPy, K-means) is CPU-bound. While one request is crunching pixels, the CPU is fully occupied. Async doesn't help here because there's nothing to "wait on" — the CPU is just doing math. Other requests queue up behind it.
+FastAPI supports async I/O, which helps with lightweight tasks (receiving uploads, sending responses). But the actual image processing (OpenCV, NumPy, K-means) is CPU-bound. While one request is crunching pixels, the CPU is fully occupied. Async doesn't help here because there's nothing to "wait on"; the CPU is just doing math. Other requests queue up behind it.
 
 ---
 

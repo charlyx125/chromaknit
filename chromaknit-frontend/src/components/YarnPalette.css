@@ -1,0 +1,281 @@
+/* ============================================================
+   YARN PALETTE — Right rail in the garment stage
+   Cream paper card with a scrollable list of yarn cards and a
+   pinned "Add another yarn" tile outside the scroll.
+   ============================================================ */
+.palette-rail {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+}
+
+.palette-rail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--hair);
+}
+.palette-rail-head .caps { color: var(--ink); }
+
+/* Scrolling container: caps height at ~4 cards, hides the scrollbar by
+   default, reveals a thin one on hover. The fade at the bottom is a sibling
+   pseudo-element so it stays put while the content scrolls under it. */
+.yarn-row {
+  display: grid;
+  gap: 8px;
+  /* Budget = palette chrome (head ~46px + padding 36px) + side-block
+     (~140px) + section padding (48). Cap so the side rail fits in 100vh
+     alongside the masthead being scrolled away. */
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+.yarn-row:hover { scrollbar-color: var(--hair-strong) transparent; }
+.yarn-row::-webkit-scrollbar { width: 6px; }
+.yarn-row::-webkit-scrollbar-track { background: transparent; }
+.yarn-row::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+.yarn-row:hover::-webkit-scrollbar-thumb { background: var(--hair-strong); }
+
+.yarn-scroll-wrap {
+  position: relative;
+}
+.yarn-scroll-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 4px;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(239, 230, 213, 0), var(--paper));
+}
+
+.palette-rail > .yarn-card.is-add { margin-top: 10px; }
+
+/* Individual yarn card: thumb on the left, label/sub/swatches stacked on
+   the right via grid. Whole card is selectable; the × is a separate button
+   overlaid in the top-right corner, hover-revealed. */
+.yarn-card {
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  border-radius: 3px;
+  position: relative;
+  transition: box-shadow 0.2s;
+}
+.yarn-card:hover {
+  box-shadow: var(--shadow-soft);
+}
+.yarn-card.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.yarn-card.is-error {
+  border-color: rgba(184, 36, 45, 0.5);
+}
+
+.yarn-card-select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 8px 12px 8px 8px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  min-height: 80px;
+}
+.yarn-card-select:hover {
+  transform: translateX(3px);
+}
+.yarn-card.is-active .yarn-card-select:hover { transform: none; }
+
+.yarn-thumb {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, var(--shadow-soft);
+  background: #ccc;
+  align-self: center;
+  position: relative;
+}
+.yarn-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.92) contrast(1.03);
+  display: block;
+}
+
+.yarn-thumb-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 3px solid rgba(244, 237, 224, 0.4);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: yarn-thumb-spin 0.9s linear infinite;
+  background: rgba(42, 37, 34, 0.45);
+  box-shadow: 0 0 0 2px rgba(42, 37, 34, 0.2) inset;
+}
+@keyframes yarn-thumb-spin {
+  to { transform: rotate(360deg); }
+}
+
+.yarn-label {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.1;
+  padding-right: 32px;  /* leave space for the absolutely-positioned × */
+}
+.yarn-card.is-active .yarn-label { color: var(--bg); }
+
+.yarn-sub {
+  grid-column: 2;
+  grid-row: 2;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+.yarn-card.is-active .yarn-sub { color: rgba(244, 237, 224, 0.7); }
+.yarn-card.is-error .yarn-sub { color: var(--red); }
+
+.yarn-swatches {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+}
+.yarn-swatches span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(42, 37, 34, 0.12);
+  box-shadow: 0 1px 2px rgba(42, 37, 34, 0.08);
+}
+
+/* Remove × in the top-right, hover-revealed. On active cards the dark
+   ink background makes the default cream-on-cream too low contrast, so
+   we invert the chip. */
+.yarn-card-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: rgba(244, 237, 224, 0.92);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+}
+.yarn-card:hover .yarn-card-remove,
+.yarn-card:focus-within .yarn-card-remove,
+.yarn-card-remove:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.yarn-card-remove:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+.yarn-card.is-active .yarn-card-remove {
+  background: rgba(42, 37, 34, 0.6);
+  border-color: rgba(244, 237, 224, 0.25);
+  color: var(--bg);
+}
+.yarn-card.is-active .yarn-card-remove:hover {
+  color: var(--bg);
+  border-color: var(--bg);
+}
+
+/* Dashed "add another yarn" tile, sits below the scroll. */
+.yarn-card.is-add {
+  background: transparent;
+  border: 1px dashed var(--hair-strong);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  cursor: pointer;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+}
+.yarn-add-mark {
+  font-family: "Playfair Display", serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 31px;
+  color: var(--gold);
+  line-height: 0.8;
+}
+.yarn-add-label {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.yarn-card.is-add:hover { border-color: var(--red); }
+.yarn-card.is-add:hover .yarn-add-mark,
+.yarn-card.is-add:hover .yarn-add-label {
+  color: var(--red);
+}
+
+/* Empty-state add card sits in place of the scroll list, taller and
+   centered so the prompt reads as a deliberate first-step invitation. */
+.yarn-add--empty {
+  flex-direction: column;
+  padding: 36px 24px;
+  min-height: 120px;
+}
+.yarn-add--empty .yarn-add-mark { font-size: 43px; }
+.yarn-add--empty .yarn-add-label { font-size: 17px; }
+
+.yarn-card-select:focus-visible,
+.yarn-card-remove:focus-visible,
+.yarn-card.is-add:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}

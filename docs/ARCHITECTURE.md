@@ -14,7 +14,7 @@ ChromaKnit is a full-stack application for visualizing yarn colors on garments. 
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     FastAPI Backend (Python)                     │
-│                     localhost:8000 / Railway                     │
+│           localhost:8000 (dev) / HuggingFace Spaces (prod)       │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -292,7 +292,7 @@ chromaknit/
 
 ### Lazy Loading for Memory Efficiency
 
-The `rembg` library (with onnxruntime) requires ~300-400MB of memory. To reduce startup memory on memory-constrained hosts (e.g., Railway with 512MB):
+The `rembg` library (with onnxruntime) requires ~300-400MB of memory. To reduce startup memory on memory-constrained hosts (relevant when running on a free 512MB-class tier; less critical on HuggingFace Spaces which has 16 GB RAM but still useful for fast startup):
 
 ```python
 # Instead of top-level import:
@@ -317,7 +317,7 @@ def remove_background(self):
 
 - **File uploads:** Validated by type (image/*) and size (5MB max)
 - **Temp files:** Cleaned up after processing
-- **No user data storage:** Stateless API, no database
+- **Session storage:** In-memory only, per-process, sliding 30-minute TTL. See [ADR 010](decisions/010-session-storage.md). No database, no disk persistence.
 - **CORS:** Configured for frontend origin only
 
 ---
@@ -330,7 +330,12 @@ def remove_background(self):
 - [ADR 004: Frontend Architecture](decisions/004-react-frontend-architecture.md)
 - [ADR 005: Performance Optimization](decisions/005-performance-optimization-strategy.md)
 - [ADR 006: UI Redesign](decisions/006-ui-redesign.md)
+- [ADR 007: Scaling Strategy](decisions/007-scaling-strategy.md)
+- [ADR 008: Frontend Testing Strategy](decisions/008-frontend-testing-strategy.md)
+- [ADR 009: Frontend Persistence Strategy](decisions/009-frontend-persistence-strategy.md)
+- [ADR 010: Session Storage](decisions/010-session-storage.md)
+- [ADR 011: Cost Discipline and Static-First](decisions/011-cost-discipline-and-static-first.md)
 
 ---
 
-**Last Updated:** April 12, 2026
+**Last Updated:** May 17, 2026 — Backend host updated to HuggingFace Spaces. The component list and directory tree above predate v2 (multi-yarn, paint mode, session storage) and need a separate refresh.

@@ -4,10 +4,13 @@
 
 ChromaKnit provides a REST API for extracting dominant colors from yarn images and recoloring garment images with those colors. The API is built with FastAPI and designed for easy integration with frontend applications.
 
-- **Base URL:** `http://localhost:8000` (development)
+- **Base URL (development):** `http://localhost:8000`
+- **Base URL (production):** `https://charlyx125-chromaknit-backend.hf.space` (HuggingFace Spaces; sleeps when idle, cold-start ~30 to 60 seconds on first request after a long idle period)
 - **Authentication:** None (currently open access)
 - **API Version:** 2.0.0
-- **Interactive Docs:** `http://localhost:8000/docs`
+- **Interactive Docs:** `http://localhost:8000/docs` (development) or `https://charlyx125-chromaknit-backend.hf.space/docs` (production)
+
+> **v2 endpoint changes (May 2026).** The recolour flow was split into two endpoints to avoid re-running the expensive rembg background removal on every yarn swap. The old single-step `POST /api/garments/recolor` (file + colours) no longer exists. Use `POST /api/garments/session` once to register the garment, then `POST /api/garments/recolor` repeatedly with the returned `session_id` and any colours you want to try. See [ADR 010](../docs/decisions/010-session-storage.md) for the session-storage rationale.
 
 ---
 
@@ -150,20 +153,50 @@ print(f"Extracted {len(colors)} colors: {colors}")
 
 ---
 
-### 2. Recolor Garment
+### 2. Create Garment Session (v2)
 
-Apply yarn colors to a garment image while preserving texture, shadows, and lighting.
+Register a garment image with the backend. Background removal runs once here; the resulting mask is cached for subsequent recolour calls. Returns a `session_id` plus the foreground mask so the frontend can use it for client-side preview.
 
-**Endpoint:** `POST /api/garments/recolor`
+**Endpoint:** `POST /api/garments/session`
 
-**Description:** Recolors a garment image using provided colors. Automatically removes the background, then applies colors using HSV color space transformation to maintain realistic texture and lighting effects.
+**Description:** Loads the image, runs rembg once, stores the loaded image and mask under a server-side session id. Use the returned id with `POST /api/garments/recolor` to recolour without re-running rembg.
 
 #### Request Parameters
 
-| Parameter | Type   | Required | Description                                                                              |
-| --------- | ------ | -------- | ---------------------------------------------------------------------------------------- |
-| `file`    | File   | ✅ Yes   | Garment image file (JPG, PNG)                                                            |
-| `colors`  | string | ✅ Yes   | Target colors - JSON array `["#142a68", "#23438d"]` or comma-separated `#142a68,#23438d` |
+| Parameter | Type | Required | Description                   |
+| --------- | ---- | -------- | ----------------------------- |
+| `file`    | File | ✅ Yes   | Garment image file (JPG, PNG) |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "session_id": "9c2f7c2a-...",
+  "width": 800,
+  "height": 1067,
+  "mask_png_b64": "iVBORw0KGgoAAAA..."
+}
+```
+
+The session is valid for 30 minutes after the last access (sliding TTL). Idle sessions are evicted on the next request. See [ADR 010](../docs/decisions/010-session-storage.md) for details.
+
+---
+
+### 3. Recolor Garment (v2)
+
+Apply yarn colors to a garment image while preserving texture, shadows, and lighting. Uses a previously-created session so rembg does not have to re-run on every call.
+
+**Endpoint:** `POST /api/garments/recolor`
+
+**Description:** Recolours the garment registered under `session_id` using the provided colours and optional weights. Results are cached per (session, colour palette) so re-sending the same palette returns the cached PNG without re-running the recolour algorithm.
+
+#### Request Parameters
+
+| Parameter    | Type   | Required | Description                                                                              |
+| ------------ | ------ | -------- | ---------------------------------------------------------------------------------------- |
+| `session_id` | string | ✅ Yes   | Session id from `POST /api/garments/session`                                             |
+| `colors`     | string | ✅ Yes   | Target colors - JSON array `["#142a68", "#23438d"]` or comma-separated `#142a68,#23438d` |
+| `weights`    | string | ❌ No    | JSON array of floats matching colours, summing to ~1.0. Defaults to equal weighting.     |
 
 #### Request Format
 
@@ -172,7 +205,7 @@ POST /api/garments/recolor HTTP/1.1
 Host: localhost:8000
 Content-Type: multipart/form-data
 
-file=@sweater.jpg
+session_id=9c2f7c2a-...
 colors=["#142a68","#23438d","#0c153b"]
 ```
 
@@ -535,6 +568,6 @@ Clean, three-panel documentation:
 - **Issues:** https://github.com/charlyx125/chromaknit/issues
 - **Author:** Joyce Chong (@charlyx125)
 
-**Last Updated:** December 2024  
+**Last Updated:** May 17, 2026 — Added `/api/garments/session` endpoint, updated `/api/garments/recolor` signature for v2 (now session-based), added HuggingFace Spaces production base URL. The downstream example code further below in this doc still uses the v1 single-step recolor signature and needs a follow-up refresh.  
 **API Version:** 2.0.0  
 **Status:** Phase 2 Complete - Backend Development

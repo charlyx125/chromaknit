@@ -187,22 +187,84 @@ recolored_hsv[self.mask > 0, 1] = new_saturation
 
 ---
 
+## The Algorithm in Plain English (Read This First)
+
+The sections below ("The HSV Breakthrough" and "Recoloring Accuracy Iterations") capture the colour-space reasoning, the iteration history, and the formal maths. They are the source of truth for the why and the how.
+
+This section gives the same algorithm in the plainest possible language so a future reader (including future-me) does not have to assemble the mental model from the technical sections. If you only read one part of this ADR, read this one.
+
+### The whole thing is two operations chained together
+
+After background removal, every garment pixel has a brightness value (V in HSV). Yarn extraction has produced 10 yarn colours each with their own brightness value and a percentage (e.g. "this yarn is 40% dark navy, 30% medium navy, 20% light navy, 10% highlight"). The recolour combines these in two steps.
+
+**Step A: Slice the garment by yarn proportions.** Sort every garment pixel by brightness, darkest first. Cut the sorted queue into chunks sized by the yarn's percentages. The darkest 40% of pixels go into the dark-navy chunk, the next 30% into the medium-navy chunk, and so on. Each pixel ends up stamped with one yarn colour. Implemented in `_get_color_mapping`.
+
+**Step B: Inside each chunk, run a basic ratio to translate brightness from the garment's range into the yarn colour's narrow window.** For each pixel, find where it sat in the garment's brightness range as a percentage ("this pixel is 14% of the way from the deepest fold to the brightest highlight"), then place it at the same percentage inside its yarn colour's destination window. Then overwrite the pixel's hue and saturation with the yarn colour's. Implemented in `_apply_hsv_recoloring`.
+
+That is the whole algorithm. Step A controls **which** yarn colour each pixel becomes. Step B controls **how bright** that pixel ends up.
+
+### The ratio in plain words
+
+> "If a pixel was 14% of the way from the garment's darkest to its brightest, then in the recolour it should be 14% of the way from its yarn band's window floor to its yarn band's window ceiling."
+
+That sentence is the entire ratio formula. The "normalisation" and "rescaling" lines in the code (`normalized = (v - garment_min) / garment_range; remapped = low + normalized * (high - low)`) are just the maths form of "preserve relative position when changing the unit of measurement". The same shape as Celsius-to-Fahrenheit conversion, or any unit conversion: find the source-relative position, place it at the same destination-relative position.
+
+### The lime-green bug, in one sentence
+
+V1 left V values in garment-units while pretending they were yarn-units. A dark green yarn applied to a bright yellow cardigan came out lime green because the garment's brightness was being preserved when it should have been converted. The current algorithm does the unit conversion explicitly. See "Recoloring Accuracy Iterations" below for the full four-iteration debug trail.
+
+### A worked example
+
+Yarn proportions: 50% dark, 30% medium, 20% light.
+
+Garment: 20% super-dark, 20% dark, 20% medium, 20% light, 20% white pixels (sorted by brightness; 20% in each natural shade).
+
+**Step A — slice the queue:**
+
+| Position in queue | Garment shade at this position | Goes to band |
+|---|---|---|
+| 0% to 20% | super-dark | dark yarn |
+| 20% to 40% | dark | dark yarn |
+| 40% to 50% | darker half of medium | dark yarn |
+| 50% to 60% | brighter half of medium | medium yarn |
+| 60% to 80% | light | medium yarn |
+| 80% to 100% | white | light yarn |
+
+50% of the garment ends up dark, 30% medium, 20% light. The yarn's character wins regardless of the garment's brightness distribution. The garment's white pixels still become the lightest yarn colour available, even though "white" is brighter than the yarn's brightest colour.
+
+**Step B — ratio inside each band:**
+
+For each pixel in the dark band, find its position in the garment's full brightness range, then place it at the same relative position inside the dark yarn's narrow V window. Same for the medium band. Same for the light band. Within each band, the relative ordering is preserved (a fold pixel that was darker than a flat-panel pixel in the garment is still darker than that flat-panel pixel in the recolour), so the texture of the original garment survives the unit conversion.
+
+### Two design properties that fall out of this
+
+1. **The yarn's character is faithfully reproduced regardless of the garment.** A 50%-dark yarn produces a 50%-dark recolour even on a balanced or bright garment. This is what makes substitution previews look honest to the knitter who knows what the yarn looks like.
+2. **The garment's relative texture survives.** Because the ratio inside each band preserves relative position, folds stay darker than highlights, stitches keep their light-and-shadow pattern. The recoloured cardigan still looks like a knitted cardigan, not a paint-bucket fill.
+
+### Where to go from here
+
+- **"The HSV Breakthrough"** below: why HSV over LAB or HLS, the colour-space reasoning, and the formal min-max normalisation maths.
+- **"Recoloring Accuracy Iterations (April 2026)"** below: the four-iteration debug trail that produced the current algorithm. The lime-green bug story lives here.
+- **`core/garment_recolor.py`**: the actual code. `_get_color_mapping` is step A; `_apply_hsv_recoloring` is step B.
+
+---
+
 ## The HSV Breakthrough
 
 > **Realistic coloring: HSV transformation preserves texture, shadows, and lighting**
 
 ### The Initial Problem
 
-The first attempt at recoloring painted the entire garment a single flat color — it looked like someone had used the paint bucket tool. All texture, shadows, stitching detail, and depth were completely destroyed. The garment looked fake and unusable.
+The first attempt at recoloring painted the entire garment a single flat color. It looked like someone had used the paint bucket tool. All texture, shadows, stitching detail, and depth were completely destroyed. The garment looked fake and unusable.
 
 ### The Insight
 
-Think of it like an Instagram filter that changes colours but keeps the texture intact. The key breakthrough was realising that **color and brightness are independent properties** — and we only need to change the color while keeping the brightness exactly as it was.
+Think of it like an Instagram filter that changes colours but keeps the texture intact. The key breakthrough was realising that **color and brightness are independent properties**, and we only need to change the color while keeping the brightness exactly as it was.
 
 This is what **HSV color space** enables:
-- **H (Hue)** — the actual color (red, blue, green...)
-- **S (Saturation)** — how vivid or washed-out the color is
-- **V (Value)** — the brightness/darkness of the pixel
+- **H (Hue):** the actual color (red, blue, green...)
+- **S (Saturation):** how vivid or washed-out the color is
+- **V (Value):** the brightness/darkness of the pixel
 
 By converting the image to HSV, we can **replace H and S** (change the color) while **preserving V** (keep the original brightness). Since all the texture, shadows, and stitching detail live in the brightness channel, everything stays intact.
 
@@ -225,13 +287,13 @@ During early research, three color spaces were evaluated: **HSV**, **LAB**, and 
 
 | Color Space | Separates Color from Brightness? | OpenCV Support | Complexity | Verdict |
 |-------------|----------------------------------|----------------|------------|---------|
-| **HSV** | Yes — H and S are color, V is brightness | Native, fast `cvtColor` | Simple — swap 2 channels, keep 1 | **Selected** |
-| **CIELAB** | Partially — L is lightness, but a/b are perceptual axes not hue/saturation | Native, but a* and b* don't map to intuitive "change this to red" | Would need to compute target a*/b* from a hex code, and LAB gamut mapping is non-trivial | Too complex for the gain |
-| **HLS** | Yes — H is hue, L is lightness, S is saturation | Native `cvtColor` | Very similar to HSV in theory | L channel blends brightness *and* color info differently — whites and blacks both have L extremes, which can clip highlight detail when you swap H/S. HSV's V channel preserves highlight texture more cleanly |
+| **HSV** | Yes; H and S are color, V is brightness | Native, fast `cvtColor` | Simple; swap 2 channels, keep 1 | **Selected** |
+| **CIELAB** | Partially; L is lightness, but a/b are perceptual axes not hue/saturation | Native, but a* and b* don't map to intuitive "change this to red" | Would need to compute target a*/b* from a hex code, and LAB gamut mapping is non-trivial | Too complex for the gain |
+| **HLS** | Yes; H is hue, L is lightness, S is saturation | Native `cvtColor` | Very similar to HSV in theory | L channel blends brightness *and* color info differently. Whites and blacks both have L extremes, which can clip highlight detail when you swap H/S. HSV's V channel preserves highlight texture more cleanly |
 
 **Why HSV wins for this use case:**
 - The mental model is intuitive: "change the colour, keep the light and dark." That maps directly to replacing H+S and preserving V.
-- LAB is more perceptually uniform (better for measuring color *distance*), but we're not measuring distance — we're *replacing* color. HSV makes replacement trivial.
+- LAB is more perceptually uniform (better for measuring color *distance*), but we're not measuring distance; we're *replacing* color. HSV makes replacement trivial.
 - HLS is close, but its Lightness channel treats pure white and pure black as the same extreme (L=0 and L=1), which can cause clipping artifacts in bright highlights. HSV's Value channel is a straight brightness scale, so highlight detail survives the swap.
 
 ### Multi-Color Mapping via Brightness
@@ -243,7 +305,7 @@ A single target color would still look flat for variegated yarns. The solution m
 3. Map dark garment pixels → dark yarn colors, light pixels → light yarn colors
 4. Replace only H and S, keeping each pixel's original V
 
-This means a 5-color yarn palette creates natural colour variation across the garment, with dark yarn tones settling into shadows and light tones hitting the highlights — just like real dyed fabric.
+This means a 5-color yarn palette creates natural colour variation across the garment, with dark yarn tones settling into shadows and light tones hitting the highlights, just like real dyed fabric.
 
 ### The Normalization/Mapping Logic
 
@@ -260,20 +322,20 @@ normalized = (brightness_values - min_b) / (max_b - min_b)
 color_indices = (normalized * (num_colors - 1)).astype(int)
 ```
 
-**Why min-max over fixed thresholds?** The garment's actual brightness range varies wildly between images — a dark navy sweater might use V=20–80, while a white t-shirt uses V=180–250. Min-max normalization adapts to whatever range is present, ensuring all yarn colors get used regardless of the garment's overall brightness.
+**Why min-max over fixed thresholds?** The garment's actual brightness range varies wildly between images: a dark navy sweater might use V=20–80, while a white t-shirt uses V=180–250. Min-max normalization adapts to whatever range is present, ensuring all yarn colors get used regardless of the garment's overall brightness.
 
-**Edge case — flat brightness:** If `max_b == min_b` (a perfectly uniform garment, unlikely but possible), all pixels map to color index 0 to avoid division by zero. The garment gets the darkest yarn color uniformly.
+**Edge case (flat brightness):** If `max_b == min_b` (a perfectly uniform garment, unlikely but possible), all pixels map to color index 0 to avoid division by zero. The garment gets the darkest yarn color uniformly.
 
 ### Known Limitations of the HSV Approach
 
 | Limitation | Why It Happens | Impact | Potential Future Fix |
 |------------|---------------|--------|---------------------|
 | **Colour banding** | With few yarn colors (2-3), the discrete brightness zones can create visible "steps" between color regions instead of smooth gradients | Noticeable on large smooth areas, less visible on textured knits | Blend between adjacent zones using interpolation instead of hard cutoffs |
-| **Saturation override on near-white/grey areas** | Replacing S forces vivid color onto pixels that were originally desaturated (e.g., white highlights, grey shadows) | Highlights can look unnaturally vivid; grey shadows pick up color they shouldn't have | Blend target S with original S based on original saturation — low-saturation pixels should stay muted |
-| **Hue wrapping at red boundary** | In OpenCV HSV, hue wraps at 180 (0° and 360° are both red). Reds near the boundary can produce unexpected jumps | Only affects red/magenta target colors — blues, greens, yellows are fine | Handle hue arithmetic with modular wrapping |
-| **Single V channel carries all texture** | V encodes *both* real texture (stitch pattern, fuzz) and lighting artifacts (harsh shadows, specular highlights) — no way to distinguish them | Strong directional lighting gets "baked in" as colour variation | Pre-process with histogram equalization or use a lighting estimation model |
-| **Uniform zone sizes** | The linear mapping gives equal brightness range to each yarn color, but the actual brightness distribution may be skewed (e.g., mostly dark with a few highlights) | Some yarn colors may only appear on a tiny number of pixels | ✅ **Fixed (April 2026)** — distribution-weighted mapping uses extraction percentages to assign pixels proportionally |
-| **Brightness not remapped** | Preserving V entirely means dark yarn on bright garment stays bright, and vice versa | Recolored garment doesn't match yarn's actual brightness | ✅ **Fixed (April 2026)** — brightness range remapping shifts garment V to match yarn V while preserving relative texture |
+| **Saturation override on near-white/grey areas** | Replacing S forces vivid color onto pixels that were originally desaturated (e.g., white highlights, grey shadows) | Highlights can look unnaturally vivid; grey shadows pick up color they shouldn't have | Blend target S with original S based on original saturation, so low-saturation pixels stay muted |
+| **Hue wrapping at red boundary** | In OpenCV HSV, hue wraps at 180 (0° and 360° are both red). Reds near the boundary can produce unexpected jumps | Only affects red/magenta target colors; blues, greens, yellows are fine | Handle hue arithmetic with modular wrapping |
+| **Single V channel carries all texture** | V encodes *both* real texture (stitch pattern, fuzz) and lighting artifacts (harsh shadows, specular highlights), with no way to distinguish them | Strong directional lighting gets "baked in" as colour variation | Pre-process with histogram equalization or use a lighting estimation model |
+| **Uniform zone sizes** | The linear mapping gives equal brightness range to each yarn color, but the actual brightness distribution may be skewed (e.g., mostly dark with a few highlights) | Some yarn colors may only appear on a tiny number of pixels | ✅ **Fixed (April 2026):** distribution-weighted mapping uses extraction percentages to assign pixels proportionally |
+| **Brightness not remapped** | Preserving V entirely means dark yarn on bright garment stays bright, and vice versa | Recolored garment doesn't match yarn's actual brightness | ✅ **Fixed (April 2026):** brightness range remapping shifts garment V to match yarn V while preserving relative texture |
 
 ### Result
 
@@ -289,8 +351,8 @@ After deploying to production, expanded testing with diverse yarn/garment bright
 ### The Root Problem
 
 The original approach preserved the garment's V channel entirely. This meant:
-- Dark yarn + bright garment → bright garment (wrong — should be dark)
-- Bright yarn + dark garment → dark garment (wrong — should be bright)
+- Dark yarn + bright garment → bright garment (wrong; should be dark)
+- Bright yarn + dark garment → dark garment (wrong; should be bright)
 - The garment's brightness was treated as sacred, but it should match the **yarn's** brightness
 
 ### Iteration 1: Fixed Brightness Blending (35%)
@@ -309,7 +371,7 @@ The original approach preserved the garment's V channel entirely. This meant:
 
 **Approach:** Instead of splitting garment pixels into equal brightness bands (20% each for 5 colors), use the actual extraction percentages as weights. If the yarn is 30% darkest-shade, 22% second-darkest, etc., assign garment pixels proportionally.
 
-**Result:** Combined with adaptive blending, improved the distribution but the fundamental problem remained — preserving the garment's V channel meant brightness couldn't shift enough.
+**Result:** Combined with adaptive blending, improved the distribution but the fundamental problem remained: preserving the garment's V channel meant brightness couldn't shift enough.
 
 ### Iteration 4: Brightness Range Remapping (Current)
 
@@ -317,6 +379,8 @@ The original approach preserved the garment's V channel entirely. This meant:
 1. Find the garment's brightness range (2nd–98th percentile to avoid outliers)
 2. Normalize each pixel's position within that range (0.0 = darkest, 1.0 = brightest)
 3. Map to the yarn color's brightness ± a small spread (15% of yarn range) for texture variation
+
+> Plain-English version: the V remap is a unit conversion. Each garment pixel's brightness is expressed as a percentage of the garment's range, then placed at the same percentage inside the yarn band's narrow window. Same shape as Celsius-to-Fahrenheit. See "The Algorithm in Plain English" near the top of this ADR for the full walkthrough with a worked example.
 
 This preserves the garment's **relative** lighting pattern (folds stay darker than flat areas) while shifting the **absolute** brightness to match the yarn.
 
@@ -328,9 +392,9 @@ Tested 9 combinations across 3 yarn types (dark, vivid, muted) and 3 garment typ
 
 | | Light garment (baby knit) | Vivid garment (cardigan) | Dark garment (black bag) |
 |---|---|---|---|
-| **Dark yarn** (dark green, V=45) | Dark green — accurate | Dark green — accurate | Dark green — visible, not just tinted black |
-| **Vivid yarn** (pink, V=210) | Vivid pink — accurate | Vivid pink — accurate | Pink — visible, bag is recoloured not just highlighted |
-| **Muted yarn** (purple, V=179) | Soft purple — accurate | Purple — slightly lighter than yarn | Purple — visible |
+| **Dark yarn** (dark green, V=45) | Dark green, accurate | Dark green, accurate | Dark green, visible (not just tinted black) |
+| **Vivid yarn** (pink, V=210) | Vivid pink, accurate | Vivid pink, accurate | Pink, visible (bag is recoloured, not just highlighted) |
+| **Muted yarn** (purple, V=179) | Soft purple, accurate | Purple, slightly lighter than yarn | Purple, visible |
 
 ### Key Insight
 
@@ -338,9 +402,9 @@ The original "preserve V" approach was correct for same-brightness combos but fu
 
 ### Files Changed
 
-- `core/garment_recolor.py` — `_apply_hsv_recoloring` now remaps brightness; `_get_color_mapping` uses extraction percentages as weights; `apply_colors` accepts and passes weights
-- `api/main.py` — extract endpoint returns percentages; recolor endpoint accepts and passes them
-- `chromaknit-frontend/src/App.tsx` — captures percentages from extract, sends to recolor
+- `core/garment_recolor.py`: `_apply_hsv_recoloring` now remaps brightness; `_get_color_mapping` uses extraction percentages as weights; `apply_colors` accepts and passes weights
+- `api/main.py`: extract endpoint returns percentages; recolor endpoint accepts and passes them
+- `chromaknit-frontend/src/App.tsx`: captures percentages from extract, sends to recolor
 
 ---
 
@@ -464,6 +528,7 @@ Large (1920x1080) 1.766s
 
 - **2025-11-14:** Initial decision - Selected rembg
 - **2026-02-05:** Updated with current benchmark results
+- **2026-05-06:** Added "The Algorithm in Plain English" section near the top so the recolour walkthrough does not require reading the technical sections first. Added pointer from Iteration 4 to the new section.
 - **Future:** May revisit with SAM or custom garment segmentation model
 
 ---

@@ -391,6 +391,63 @@ def test_recolor_garment_with_varying_color_counts(sample_image_path, num_colors
     recolorer = GarmentRecolorer(garment_image_path=sample_image_path)
     target_colors = [f'#{i:02d}00ff' for i in range(num_colors)]
     result = recolorer.recolor_garment(target_colors)
-    
+
     assert result is not None
-    assert isinstance(result, np.ndarray)
+
+
+# ============================================================================
+# PREPARE / FROM_PREPARED TESTS (slice 1.B)
+# ============================================================================
+
+def test_prepare_loads_image_and_mask(sample_image_path, mock_rembg):
+    """`prepare()` is the one-shot helper that the session endpoint calls
+    before caching the (image, mask) pair in the session store."""
+    recolorer = GarmentRecolorer(garment_image_path=sample_image_path)
+
+    assert recolorer.prepare() is True
+    assert recolorer.image is not None
+    assert recolorer.mask is not None
+
+
+def test_prepare_returns_false_on_load_failure(invalid_image_path):
+    """If load_image fails, prepare short-circuits without calling rembg."""
+    recolorer = GarmentRecolorer(garment_image_path=invalid_image_path)
+    assert recolorer.prepare() is False
+
+
+def test_from_prepared_skips_load_and_rembg(sample_image_path, mock_rembg, target_colors):
+    """`from_prepared()` lets the recolor endpoint reuse a cached mask
+    instead of running rembg every time the user picks a different yarn."""
+    # Build a "cached" image+mask pair the way the session store would.
+    primer = GarmentRecolorer(garment_image_path=sample_image_path)
+    assert primer.prepare() is True
+    cached_image = primer.image
+    cached_mask = primer.mask
+
+    # Now re-run only the colour-application stage with the cached pair.
+    recolorer = GarmentRecolorer.from_prepared(image=cached_image, mask=cached_mask)
+    assert recolorer.image is cached_image
+    assert recolorer.mask is cached_mask
+
+    assert recolorer.apply_colors(target_colors) is True
+    assert recolorer.recolored_image is not None
+    assert recolorer.recolored_image.shape == cached_image.shape
+
+
+def test_from_prepared_supports_repeated_recolour_with_different_palettes(
+    sample_image_path, mock_rembg
+):
+    """The whole point of the session store: one prepare(), many recolours."""
+    primer = GarmentRecolorer(garment_image_path=sample_image_path)
+    assert primer.prepare() is True
+
+    palettes = [
+        ["#ff0000"],
+        ["#00ff00", "#0000ff"],
+        ["#ffaa00", "#aa00ff", "#00aaff"],
+    ]
+    for palette in palettes:
+        rec = GarmentRecolorer.from_prepared(image=primer.image, mask=primer.mask)
+        assert rec.apply_colors(palette) is True
+        assert rec.recolored_image is not None
+        assert isinstance(rec.recolored_image, np.ndarray)

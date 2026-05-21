@@ -1,0 +1,10 @@
+{
+  "label": "beanie",
+  "width": 940,
+  "height": 1200,
+  "brightnessRange": {
+    "minV": 30.0,
+    "maxV": 149.0
+  },
+  "maskPath": "/samples/precomputed/garments/beanie-mask.png"
+}

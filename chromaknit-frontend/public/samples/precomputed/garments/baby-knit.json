@@ -1,0 +1,10 @@
+{
+  "label": "baby knit",
+  "width": 940,
+  "height": 1200,
+  "brightnessRange": {
+    "minV": 111.0,
+    "maxV": 246.0
+  },
+  "maskPath": "/samples/precomputed/garments/baby-knit-mask.png"
+}

@@ -19,6 +19,29 @@ class GarmentRecolorer:
         self.recolored_image = None
         self.image_no_bg = None
 
+    @classmethod
+    def from_prepared(cls, image, mask) -> "GarmentRecolorer":
+        """Create a recolorer with image + mask already loaded.
+
+        Use this when the rembg mask has been computed previously and cached
+        (typically in a session store), so applying new colors does not require
+        re-running rembg or re-reading from disk. The constructor still wants a
+        path for save_result; pass an empty string when the caller will not be
+        writing to disk and instead handle the encoded bytes directly.
+        """
+        instance = cls(garment_image_path="")
+        instance.image = image
+        instance.mask = mask
+        return instance
+
+    def prepare(self) -> bool:
+        """Load image + remove background in one shot.
+
+        Convenience wrapper for callers that want to compute the expensive
+        artefacts once and cache them (e.g. session store flow).
+        """
+        return self.load_image() and self.remove_background()
+
     def load_image(self) -> bool:
         """Load an image from disk."""
         self.image = load_image(str(self.garment_image_path))
