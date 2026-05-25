@@ -8,12 +8,16 @@ import { useEffect, useState } from "react";
 export function useDelayedFlag(active: boolean, delayMs: number): boolean {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    if (!active) {
-      setShow(false);
-      return;
-    }
+    if (!active) return;
     const timer = window.setTimeout(() => setShow(true), delayMs);
-    return () => window.clearTimeout(timer);
+    // Reset on cleanup so the flag is false again the next time `active`
+    // flips. Doing this inside cleanup keeps setState out of the effect
+    // body, which the react-hooks lint rule disallows (it would cascade
+    // an extra render every time `active` went false).
+    return () => {
+      window.clearTimeout(timer);
+      setShow(false);
+    };
   }, [active, delayMs]);
   return show;
 }
