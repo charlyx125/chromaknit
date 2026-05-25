@@ -344,3 +344,61 @@
     padding: 40px 0 32px;
   }
 }
+
+/* Phone with motion allowed: collapse the two photos into one frame
+   that cross-fades coloured -> grey -> coloured on a loop. The phone
+   viewport is too narrow to show both photos side-by-side, and the
+   stacked column above pushes the recoloured photo below the fold,
+   so the value prop never reads in the visible area. Users with
+   prefers-reduced-motion fall through to the stacked column above. */
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  .hero-demo {
+    position: relative;
+    display: block;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+  .hero-demo .demo-photo.is-before {
+    margin: 0;
+  }
+  .hero-demo .demo-photo:not(.is-before) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    animation: hero-photo-fade 7s ease-in-out infinite;
+  }
+  .hero-demo .demo-caption {
+    display: none;
+  }
+  .demo-bridge {
+    margin-top: 16px;
+    gap: 12px;
+  }
+  .demo-bridge-line {
+    display: none;
+  }
+  .demo-bridge-stamp {
+    width: 36px;
+    height: 36px;
+    box-shadow:
+      0 6px 18px rgba(184, 36, 45, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .demo-bridge-stamp span {
+    font-size: 18px;
+  }
+}
+
+@keyframes hero-photo-fade {
+  0%, 40% {
+    opacity: 1;
+  }
+  50%, 80% {
+    opacity: 0;
+  }
+  90%, 100% {
+    opacity: 1;
+  }
+}

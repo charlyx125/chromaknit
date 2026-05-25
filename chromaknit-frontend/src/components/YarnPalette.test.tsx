@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import YarnPalette from "./YarnPalette";
 import type { Yarn } from "../hooks/useAppState";
@@ -89,23 +89,36 @@ describe("YarnPalette", () => {
     expect(onRemove).toHaveBeenCalledWith("xyz-789");
   });
 
-  it("renders a spinner inside the chip when yarn status is pending", () => {
-    const yarns = [
-      makeYarn({ status: "pending", palette: [], percentages: [] }),
-    ];
-    render(
-      <YarnPalette
-        yarns={yarns}
-        activeYarnId={null}
-        onSelect={vi.fn()}
-        onRemove={vi.fn()}
-        onAdd={vi.fn()}
-      />,
-    );
+  it("renders a spinner inside the chip after the 1s grace window when yarn status is pending", () => {
+    vi.useFakeTimers();
+    try {
+      const yarns = [
+        makeYarn({ status: "pending", palette: [], percentages: [] }),
+      ];
+      render(
+        <YarnPalette
+          yarns={yarns}
+          activeYarnId={null}
+          onSelect={vi.fn()}
+          onRemove={vi.fn()}
+          onAdd={vi.fn()}
+        />,
+      );
 
-    expect(
-      screen.getByRole("status", { name: /extracting colours/i }),
-    ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("status", { name: /extracting colours/i }),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(
+        screen.getByRole("status", { name: /extracting colours/i }),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks the chip aria-pressed when its yarn id matches activeYarnId", () => {

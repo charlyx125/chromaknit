@@ -76,12 +76,13 @@
   text-overflow: ellipsis;
 }
 
-.mode-tile:hover:not(:disabled):not(.is-active) {
-  background: var(--bg);
+@media (hover: hover) {
+  .mode-tile:hover:not(:disabled):not(.is-active) {
+    background: var(--bg);
+  }
 }
 
-.mode-tile.is-active,
-.mode-tile.is-active:hover {
+.mode-tile.is-active {
   background: var(--ink);
 }
 .mode-tile.is-active .mode-tile-name { color: var(--bg); }
@@ -94,8 +95,10 @@
 .mode-tile.is-coming-soon .mode-tile-desc {
   color: var(--ink-faint);
 }
-.mode-tile.is-coming-soon:hover {
-  background: transparent;
+@media (hover: hover) {
+  .mode-tile.is-coming-soon:hover {
+    background: transparent;
+  }
 }
 
 .mode-tile-soon {

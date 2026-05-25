@@ -74,8 +74,10 @@
   position: relative;
   transition: box-shadow 0.2s;
 }
-.yarn-card:hover {
-  box-shadow: var(--shadow-soft);
+@media (hover: hover) {
+  .yarn-card:hover {
+    box-shadow: var(--shadow-soft);
+  }
 }
 .yarn-card.is-active {
   background: var(--ink);
@@ -101,10 +103,12 @@
   align-items: center;
   min-height: 80px;
 }
-.yarn-card-select:hover {
-  transform: translateX(3px);
+@media (hover: hover) {
+  .yarn-card-select:hover {
+    transform: translateX(3px);
+  }
+  .yarn-card.is-active .yarn-card-select:hover { transform: none; }
 }
-.yarn-card.is-active .yarn-card-select:hover { transform: none; }
 
 .yarn-thumb {
   grid-column: 1;
@@ -207,24 +211,39 @@
   padding: 0;
   z-index: 2;
 }
-.yarn-card:hover .yarn-card-remove,
 .yarn-card:focus-within .yarn-card-remove,
 .yarn-card-remove:focus-visible {
   opacity: 1;
   transform: scale(1);
 }
-.yarn-card-remove:hover {
-  color: var(--red);
-  border-color: var(--red);
+@media (hover: hover) {
+  .yarn-card:hover .yarn-card-remove {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .yarn-card-remove:hover {
+    color: var(--red);
+    border-color: var(--red);
+  }
+}
+/* Touch devices have no hover to discover the remove button, so keep it
+   visible by default. Without this it would be entirely unreachable. */
+@media (hover: none) {
+  .yarn-card-remove {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 .yarn-card.is-active .yarn-card-remove {
   background: rgba(42, 37, 34, 0.6);
   border-color: rgba(244, 237, 224, 0.25);
   color: var(--bg);
 }
-.yarn-card.is-active .yarn-card-remove:hover {
-  color: var(--bg);
-  border-color: var(--bg);
+@media (hover: hover) {
+  .yarn-card.is-active .yarn-card-remove:hover {
+    color: var(--bg);
+    border-color: var(--bg);
+  }
 }
 
 /* Dashed "add another yarn" tile, sits below the scroll. */
@@ -257,10 +276,12 @@
   font-size: 15px;
   color: var(--ink-soft);
 }
-.yarn-card.is-add:hover { border-color: var(--red); }
-.yarn-card.is-add:hover .yarn-add-mark,
-.yarn-card.is-add:hover .yarn-add-label {
-  color: var(--red);
+@media (hover: hover) {
+  .yarn-card.is-add:hover { border-color: var(--red); }
+  .yarn-card.is-add:hover .yarn-add-mark,
+  .yarn-card.is-add:hover .yarn-add-label {
+    color: var(--red);
+  }
 }
 
 /* Empty-state add card sits in place of the scroll list, taller and

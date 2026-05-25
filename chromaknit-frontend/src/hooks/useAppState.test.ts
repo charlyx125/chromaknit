@@ -250,6 +250,7 @@ describe("appReducer", () => {
       height: 600,
       foregroundMask: new Uint8Array(800 * 600),
       brightnessRange: { minV: 30, maxV: 220 },
+      sourceV: new Uint8Array(800 * 600),
     };
 
     it("SET_GARMENT_SESSION stores the session and clears any prior recolour", () => {
@@ -327,6 +328,7 @@ describe("appReducer", () => {
           height: 600,
           foregroundMask: new Uint8Array(800 * 600),
           brightnessRange: { minV: 30, maxV: 220 },
+          sourceV: new Uint8Array(800 * 600),
         },
         activeMode: "paint" as const,
         regions: [

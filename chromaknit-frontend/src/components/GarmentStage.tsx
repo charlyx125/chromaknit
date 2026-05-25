@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { GarmentSession, Mode, Region, Yarn } from "../hooks/useAppState";
+import { useDelayedFlag } from "../hooks/useDelayedFlag";
 import { recolourLocal, stampCircle, stampLine } from "../lib/recolourLocal";
 import "./GarmentStage.css";
 
@@ -184,6 +185,9 @@ function GarmentStage({
   };
 
   const anyUploadInFlight = isUploadingFile || uploadingSampleLabel !== null;
+  const showUploadLoading = useDelayedFlag(anyUploadInFlight, 1000);
+  const showRecolorVeil = useDelayedFlag(isRecoloring, 1000);
+  const showSampleSpinner = useDelayedFlag(uploadingSampleLabel !== null, 1000);
 
   // Decode region masks lazily as new regions arrive. We cache decoded
   // Uint8Array masks so paint redraws don't re-parse base64 every frame.
@@ -260,6 +264,11 @@ function GarmentStage({
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let dirty = false;
     const range = session?.brightnessRange ?? null;
+    // Read brightness from the original photo's V buffer so a stroke that
+    // overlaps an earlier stroke still sees the untouched brightness. Without
+    // this, the second stroke would read V from the already-painted pixels
+    // and produce a different shade of the same yarn over the overlap.
+    const sourceV = session?.sourceV ?? null;
 
     const yarnsById = new Map(yarns.map((y) => [y.id, y]));
     for (const region of regions) {
@@ -275,6 +284,7 @@ function GarmentStage({
         yarn.palette,
         yarn.percentages.length === yarn.palette.length ? yarn.percentages : null,
         range,
+        sourceV,
       );
       dirty = true;
     }
@@ -291,6 +301,7 @@ function GarmentStage({
           ? activeYarn.percentages
           : null,
         range,
+        sourceV,
       );
       dirty = true;
     }
@@ -474,7 +485,7 @@ function GarmentStage({
           }}
           aria-disabled={anyUploadInFlight}
         >
-          {anyUploadInFlight ? (
+          {showUploadLoading ? (
             <>
               <span className="garment-upload-spinner" aria-hidden="true" />
               <h5>
@@ -508,7 +519,8 @@ function GarmentStage({
           </p>
           <div className="garment-sample-grid" role="group" aria-label="Garment samples">
             {GARMENT_SAMPLES.map((sample) => {
-              const isThisLoading = uploadingSampleLabel === sample.label;
+              const isThisLoading =
+                showSampleSpinner && uploadingSampleLabel === sample.label;
               return (
                 <button
                   key={sample.label}
@@ -548,7 +560,7 @@ function GarmentStage({
 
   // ============== Loaded state ==============
   const yarnDisplay = activeYarn ? titleCase(activeYarn.label) : "";
-  const metaCapsText = paintEnabled ? "Painting" : isRecoloring ? "Steeping" : "In revision";
+  const metaCapsText = paintEnabled ? "Painting" : showRecolorVeil ? "Steeping" : "In revision";
   const metaItalicText = activeYarn
     ? `${paintEnabled ? "in" : "recoloured in"} ${yarnDisplay.toLowerCase()}`
     : "pick a yarn from the palette";
@@ -578,7 +590,7 @@ function GarmentStage({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         />
-        {isRecoloring && (
+        {showRecolorVeil && (
           <div className="loading-veil" role="status" aria-label="Recolouring">
             <div className="loading-pulse"><span>&#x2726;</span></div>
             <div className="loading-title">Steeping the <em>wool</em></div>
