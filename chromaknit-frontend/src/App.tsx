@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "./config";
 import { useAppState, type GarmentSession, type Yarn } from "./hooks/useAppState";
-import { computeGarmentBrightnessRange, recolourLocal } from "./lib/recolourLocal";
+import { computeGarmentBrightnessRange, computeSourceV, recolourLocal } from "./lib/recolourLocal";
 import "./App.css";
 
 import Masthead from "./components/Masthead";
@@ -354,6 +354,7 @@ function App() {
         data.width,
         data.height,
       );
+      const sourceV = computeSourceV(originalRgba, data.width, data.height);
 
       // Wipe the recolour cache from any prior session: each session has
       // its own mask, so cached blobs from the previous garment are stale.
@@ -368,6 +369,7 @@ function App() {
           height: data.height,
           foregroundMask,
           brightnessRange,
+          sourceV,
         },
       });
     } catch (err) {
@@ -409,6 +411,13 @@ function App() {
       const foregroundMask = await decodeMaskPngFromUrl(data.maskPath);
       if (controller.signal.aborted) return;
 
+      // Decode the sample image once so paint mode has a read-only V buffer
+      // to source brightness from. img.decode() doesn't respect the abort
+      // signal, so we recheck after.
+      const sampleRgba = await readGarmentImageRgba(src, data.width, data.height);
+      if (controller.signal.aborted) return;
+      const sourceV = computeSourceV(sampleRgba, data.width, data.height);
+
       // A new session invalidates the per-yarn recolour cache (the cached
       // blobs were rendered against the previous garment's mask).
       revokeAllCachedRecolours();
@@ -422,6 +431,7 @@ function App() {
           height: data.height,
           foregroundMask,
           brightnessRange: data.brightnessRange,
+          sourceV,
         },
       });
     } catch (err) {

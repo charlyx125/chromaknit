@@ -53,6 +53,11 @@ export interface GarmentSession {
   // every paint stroke, so adjacent strokes normalise against the same
   // shadow-to-highlight span and don't produce visible seams.
   brightnessRange: { minV: number; maxV: number };
+  // V = max(R, G, B) for every pixel of the ORIGINAL photo. Read-only.
+  // Paint mode passes this to recolourLocal so an overlapping stroke reads
+  // V from the original (not from the already-painted canvas), which would
+  // otherwise produce a different shade of the same yarn in the overlap.
+  sourceV: Uint8Array;
 }
 
 // --- Modes and regions (Phase 2) ---

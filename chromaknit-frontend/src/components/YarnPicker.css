@@ -15,7 +15,6 @@
     linear-gradient(to bottom, rgba(42, 37, 34, 0.32), rgba(42, 37, 34, 0.32)),
     radial-gradient(ellipse at 30% 20%, rgba(184, 145, 92, 0.18), transparent 60%);
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 40px 24px;
   overflow-y: auto;
@@ -26,7 +25,11 @@
   to   { opacity: 1; }
 }
 
-/* Cream card with a faint inner hairline border, like a printed page. */
+/* Cream card with a faint inner hairline border, like a printed page.
+   margin-block: auto centres vertically when the modal fits, then evaluates
+   to 0 when it's taller than the viewport so the top stays inside the scroll
+   container and remains reachable. Replaces align-items: center on the stage,
+   which clipped the top off on iPhone/iPad. */
 .modal {
   max-width: 1080px;
   width: 100%;
@@ -35,6 +38,7 @@
   box-shadow: var(--shadow-warm);
   position: relative;
   padding: 32px 40px 28px;
+  margin-block: auto;
 }
 .modal::before {
   content: "";
@@ -62,7 +66,9 @@
   border: none;
   transition: color 0.2s;
 }
-.modal-close:hover { color: var(--red); }
+@media (hover: hover) {
+  .modal-close:hover { color: var(--red); }
+}
 
 .modal-head {
   text-align: center;
@@ -132,10 +138,12 @@
   text-align: left;
   font: inherit;
 }
-.sample-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
-  border-color: var(--hair-strong);
+@media (hover: hover) {
+  .sample-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+    border-color: var(--hair-strong);
+  }
 }
 .sample-tile-thumb {
   height: 92px;
@@ -181,11 +189,13 @@
   transition: border-color 0.2s, background 0.2s;
   cursor: pointer;
 }
-.upload-zone:hover {
-  border-color: var(--red);
-  background:
-    repeating-linear-gradient(135deg, rgba(184, 36, 45, 0.05) 0 8px, transparent 8px 16px),
-    var(--paper);
+@media (hover: hover) {
+  .upload-zone:hover {
+    border-color: var(--red);
+    background:
+      repeating-linear-gradient(135deg, rgba(184, 36, 45, 0.05) 0 8px, transparent 8px 16px),
+      var(--paper);
+  }
 }
 .upload-mark {
   font-family: "Playfair Display", serif;
@@ -223,7 +233,9 @@
   display: inline-flex;
   align-items: center;
 }
-.upload-zone:hover .upload-button { background: var(--red); }
+@media (hover: hover) {
+  .upload-zone:hover .upload-button { background: var(--red); }
+}
 .upload-fineprint {
   font-family: "Cormorant Garamond", serif;
   font-style: italic;
@@ -262,7 +274,9 @@
   cursor: pointer;
   transition: color 0.2s;
 }
-.modal-cancel:hover { color: var(--red); }
+@media (hover: hover) {
+  .modal-cancel:hover { color: var(--red); }
+}
 
 @media (max-width: 1024px) {
   .modal-body {

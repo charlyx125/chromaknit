@@ -153,7 +153,9 @@
   background: var(--ink);
   color: var(--bg);
 }
-.toggle-pill button:not(.is-active):hover { color: var(--red); }
+@media (hover: hover) {
+  .toggle-pill button:not(.is-active):hover { color: var(--red); }
+}
 
 /* === Paint mode tool row === */
 .paint-tools {
@@ -277,9 +279,11 @@
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
-.paint-undo:hover:not(:disabled) {
-  color: var(--red);
-  border-color: var(--red);
+@media (hover: hover) {
+  .paint-undo:hover:not(:disabled) {
+    color: var(--red);
+    border-color: var(--red);
+  }
 }
 .paint-undo:disabled {
   opacity: 0.4;
@@ -440,10 +444,12 @@
   font: inherit;
   color: inherit;
 }
-.garment-sample-tile:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
-  border-color: var(--hair-strong);
+@media (hover: hover) {
+  .garment-sample-tile:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+    border-color: var(--hair-strong);
+  }
 }
 .garment-sample-tile:disabled {
   opacity: 0.5;

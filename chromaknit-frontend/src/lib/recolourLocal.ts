@@ -62,6 +62,37 @@ export function hsvToRgb(h: number, s: number, v: number): [number, number, numb
   }
 }
 
+// === Brightness buffer ===
+
+/**
+ * Compute V = max(R, G, B) for every pixel of an RGBA buffer and return it as
+ * a 1-channel Uint8Array. Used by paint mode to give `recolourLocal` a
+ * read-only source of the ORIGINAL photo's brightness, so a stroke that
+ * overlaps an earlier stroke still reads V from the untouched photo rather
+ * than from the already-painted canvas. Without this, the second stroke
+ * normalises against an already-compressed V range and produces a different
+ * shade of the same yarn over the overlap (visible as a seam).
+ *
+ * 1 byte per pixel, contiguous, cache-friendly. The whole buffer for a
+ * 1024x1024 photo is 1 MB.
+ */
+export function computeSourceV(
+  rgba: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8Array {
+  const total = width * height;
+  const out = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    const px = i * 4;
+    let v = rgba[px];
+    if (rgba[px + 1] > v) v = rgba[px + 1];
+    if (rgba[px + 2] > v) v = rgba[px + 2];
+    out[i] = v;
+  }
+  return out;
+}
+
 // === Stats ===
 
 function percentile(sorted: Float32Array, p: number): number {
@@ -179,6 +210,15 @@ function getColorMapping(
  *                normalise consistently and don't show seams. When null,
  *                the function falls back to per-call percentile of the
  *                masked pixels (original whole-garment Auto-mode behaviour).
+ * @param sourceV optional 1-channel buffer of V values from the ORIGINAL
+ *                photo. When provided, brightness is read from here instead
+ *                of recomputed from `rgba`. Paint mode passes this so a
+ *                second stroke over an already-painted area still reads V
+ *                from the untouched original (otherwise the recolour reads
+ *                the already-compressed V written by the first stroke and
+ *                produces a different shade of the same yarn over the
+ *                overlap). When null, V is computed from `rgba` (Auto-mode
+ *                behaviour, where a single call mutates a fresh buffer).
  */
 export function recolourLocal(
   rgba: Uint8ClampedArray,
@@ -188,6 +228,7 @@ export function recolourLocal(
   hexPalette: string[],
   weights: number[] | null = null,
   precomputedRange: { minV: number; maxV: number } | null = null,
+  sourceV: Uint8Array | null = null,
 ): void {
   // 1. Palette in HSV, sorted by V (brightness), with weights aligned.
   const paletteHsv = hexPalette.map((h) => {
@@ -214,18 +255,31 @@ export function recolourLocal(
   const indices = new Int32Array(count);
   const brightness = new Float32Array(count);
   let j = 0;
-  for (let i = 0; i < total; i++) {
-    if (mask[i] > 0) {
-      indices[j] = i;
-      const px = i * 4;
-      const r = rgba[px];
-      const g = rgba[px + 1];
-      const b = rgba[px + 2];
-      let v = r;
-      if (g > v) v = g;
-      if (b > v) v = b;
-      brightness[j] = v;
-      j++;
+  if (sourceV) {
+    // Read V from the original-photo buffer so overlapping strokes always
+    // see the untouched brightness, not the canvas the previous stroke
+    // wrote into.
+    for (let i = 0; i < total; i++) {
+      if (mask[i] > 0) {
+        indices[j] = i;
+        brightness[j] = sourceV[i];
+        j++;
+      }
+    }
+  } else {
+    for (let i = 0; i < total; i++) {
+      if (mask[i] > 0) {
+        indices[j] = i;
+        const px = i * 4;
+        const r = rgba[px];
+        const g = rgba[px + 1];
+        const b = rgba[px + 2];
+        let v = r;
+        if (g > v) v = g;
+        if (b > v) v = b;
+        brightness[j] = v;
+        j++;
+      }
     }
   }
 
